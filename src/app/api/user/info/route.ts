@@ -13,13 +13,7 @@ export async function GET(request: NextRequest) {
     }
 
     const [user] = await db
-      .select({
-        userId: users.userId,
-        email: users.email,
-        name: users.name,
-        coinBalance: users.coinBalance,
-        createdAt: users.createdAt,
-      })
+      .select()
       .from(users)
       .where(eq(users.userId, session.user.id))
       .limit(1);
@@ -28,7 +22,15 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: '用户不存在' }, { status: 404 });
     }
 
-    return NextResponse.json({ user });
+    return NextResponse.json({
+      user: {
+        userId: user.userId,
+        email: user.email,
+        name: user.name,
+        coinBalance: user.coinBalance,
+        createdAt: user.createdAt,
+      },
+    });
   } catch (error) {
     console.error('Get user info error:', error);
     return NextResponse.json({ error: '获取用户信息失败' }, { status: 500 });
