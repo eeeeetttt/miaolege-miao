@@ -1,56 +1,37 @@
 import type { Metadata } from 'next';
 import { Inspector } from 'react-dev-inspector';
 import SessionProvider from '@/components/providers/session-provider';
+import { Header } from '@/components/header';
 import './globals.css';
 
 export const metadata: Metadata = {
   title: {
-    default: '新应用 | 扣子编程',
-    template: '%s | 扣子编程',
+    default: '喵了个喵 - 星球跟单平台',
+    template: '%s | 喵了个喵',
   },
   description:
-    '扣子编程是一款一站式云端 Vibe Coding 开发平台。通过对话轻松构建智能体、工作流和网站，实现从创意到上线的无缝衔接。',
+    '喵了个喵是一个基于交易信号跟单的社区化平台。创建星球、发布信号、智能跟单，实现交易信号共享与跟单。',
   keywords: [
-    '扣子编程',
-    'Coze Code',
-    'Vibe Coding',
-    'AI 编程',
-    '智能体搭建',
-    '工作流搭建',
-    '网站搭建',
-    '网站部署',
-    '全栈开发',
-    'AI 工程师',
+    '喵了个喵',
+    '跟单平台',
+    '交易信号',
+    'MT4',
+    'MT5',
+    '外汇跟单',
+    '交易社区',
+    '星球',
   ],
-  authors: [{ name: 'Coze Code Team', url: 'https://code.coze.cn' }],
-  generator: 'Coze Code',
-  // icons: {
-  //   icon: '',
-  // },
-  openGraph: {
-    title: '扣子编程 | 你的 AI 工程师已就位',
-    description:
-      '我正在使用扣子编程 Vibe Coding，让创意瞬间上线。告别拖拽，拥抱心流。',
-    url: 'https://code.coze.cn',
-    siteName: '扣子编程',
-    locale: 'zh_CN',
-    type: 'website',
-    // images: [
-    //   {
-    //     url: '',
-    //     width: 1200,
-    //     height: 630,
-    //     alt: '扣子编程 - 你的 AI 工程师',
-    //   },
-    // ],
+  authors: [{ name: 'MLGM Team' }],
+  generator: 'Next.js',
+  icons: {
+    icon: 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><text y=".9em" font-size="90">🐱</text></svg>',
   },
-  // twitter: {
-  //   card: 'summary_large_image',
-  //   title: 'Coze Code | Your AI Engineer is Here',
-  //   description:
-  //     'Build and deploy full-stack applications through AI conversation. No env setup, just flow.',
-  //   // images: [''],
-  // },
+  openGraph: {
+    title: '喵了个喵 - 星球跟单平台',
+    description: '创建星球、发布信号、智能跟单，实现交易信号共享与跟单',
+    type: 'website',
+    locale: 'zh_CN',
+  },
   robots: {
     index: true,
     follow: true,
@@ -65,11 +46,26 @@ export default function RootLayout({
   const isDev = process.env.NODE_ENV === 'development';
 
   return (
-    <html lang="zh-CN">
-      <body className={`antialiased`}>
+    <html lang="zh-CN" suppressHydrationWarning>
+      <body className={`antialiased bg-gray-50 dark:bg-gray-900`}>
         <SessionProvider>
           {isDev && <Inspector />}
-          {children}
+          <div className="min-h-screen flex flex-col">
+            <Header />
+            <main className="flex-1">
+              {children}
+            </main>
+            <footer className="border-t bg-white/80 dark:bg-gray-900/80 backdrop-blur-sm py-8">
+              <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center text-gray-600 dark:text-gray-400">
+                <p className="mb-2">
+                  © {new Date().getFullYear()} 喵了个喵星球跟单平台. All rights reserved.
+                </p>
+                <p className="text-sm">
+                  创建星球 · 发布信号 · 智能跟单
+                </p>
+              </div>
+            </footer>
+          </div>
         </SessionProvider>
       </body>
     </html>

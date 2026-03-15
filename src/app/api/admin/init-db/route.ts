@@ -172,6 +172,63 @@ export async function POST(request: NextRequest) {
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
       `);
 
+      // Create MT accounts table
+      await connection.execute(`
+        CREATE TABLE IF NOT EXISTS mt_accounts (
+          id INT AUTO_INCREMENT PRIMARY KEY,
+          user_id VARCHAR(255) NOT NULL,
+          account_number VARCHAR(50) NOT NULL,
+          broker VARCHAR(255),
+          platform ENUM('MT4', 'MT5') NOT NULL,
+          is_verified BOOLEAN DEFAULT FALSE,
+          verified_at TIMESTAMP NULL,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+          UNIQUE KEY uk_user_mt_account (user_id),
+          UNIQUE KEY uk_mt_account_number (account_number, platform),
+          FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+      `);
+
+      // Create follow records table
+      await connection.execute(`
+        CREATE TABLE IF NOT EXISTS follow_records (
+          id INT AUTO_INCREMENT PRIMARY KEY,
+          planet_id INT NOT NULL,
+          user_id VARCHAR(255) NOT NULL,
+          signal_id BIGINT NOT NULL,
+          status ENUM('active', 'paused', 'closed') DEFAULT 'active',
+          copy_volume DECIMAL(10,2),
+          copy_ratio DECIMAL(5,2) DEFAULT 1.00,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          paused_at TIMESTAMP NULL,
+          closed_at TIMESTAMP NULL,
+          INDEX idx_planet_user_follow (planet_id, user_id),
+          INDEX idx_signal_follow (signal_id),
+          FOREIGN KEY (planet_id) REFERENCES planets(id) ON DELETE CASCADE,
+          FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE,
+          FOREIGN KEY (signal_id) REFERENCES signals(id) ON DELETE CASCADE
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+      `);
+
+      // Create coin recharges table
+      await connection.execute(`
+        CREATE TABLE IF NOT EXISTS coin_recharges (
+          id INT AUTO_INCREMENT PRIMARY KEY,
+          user_id VARCHAR(255) NOT NULL,
+          amount INT NOT NULL,
+          payment_method VARCHAR(50),
+          transaction_id VARCHAR(255),
+          status ENUM('pending', 'completed', 'failed') DEFAULT 'pending',
+          admin_note TEXT,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          processed_at TIMESTAMP NULL,
+          INDEX idx_user_recharge (user_id),
+          INDEX idx_recharge_status (status),
+          FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+      `);
+
       return NextResponse.json({
         success: true,
         message: '数据库初始化成功',

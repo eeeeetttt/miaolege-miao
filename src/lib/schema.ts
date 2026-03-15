@@ -9,6 +9,7 @@ import {
   mysqlEnum,
   uniqueIndex,
   index,
+  boolean,
 } from 'drizzle-orm/mysql-core';
 
 // Users Table
@@ -126,6 +127,55 @@ export const verificationTokens = mysqlTable('verification_tokens', {
   token: varchar('token', { length: 255 }).notNull().unique(),
   expires: timestamp('expires').notNull(),
 });
+
+// MT Accounts Table (MT4/MT5账号绑定)
+export const mtAccounts = mysqlTable('mt_accounts', {
+  id: int('id').autoincrement().primaryKey(),
+  userId: varchar('user_id', { length: 255 }).notNull().references(() => users.userId, { onDelete: 'cascade' }),
+  accountNumber: varchar('account_number', { length: 50 }).notNull(),
+  broker: varchar('broker', { length: 255 }),
+  platform: mysqlEnum('platform', ['MT4', 'MT5']).notNull(),
+  isVerified: boolean('is_verified').default(false),
+  verifiedAt: timestamp('verified_at'),
+  createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow().onUpdateNow(),
+}, (table) => ({
+  userUnique: uniqueIndex('uk_user_mt_account').on(table.userId),
+  accountUnique: uniqueIndex('uk_mt_account_number').on(table.accountNumber, table.platform),
+}));
+
+// Follow Records Table (跟单记录)
+export const followRecords = mysqlTable('follow_records', {
+  id: int('id').autoincrement().primaryKey(),
+  planetId: int('planet_id').notNull().references(() => planets.id, { onDelete: 'cascade' }),
+  userId: varchar('user_id', { length: 255 }).notNull().references(() => users.userId, { onDelete: 'cascade' }),
+  signalId: bigint('signal_id', { mode: 'number' }).notNull().references(() => signals.id, { onDelete: 'cascade' }),
+  status: mysqlEnum('status', ['active', 'paused', 'closed']).default('active'),
+  copyVolume: decimal('copy_volume', { precision: 10, scale: 2 }),
+  copyRatio: decimal('copy_ratio', { precision: 5, scale: 2 }).default('1.00'),
+  createdAt: timestamp('created_at').defaultNow(),
+  pausedAt: timestamp('paused_at'),
+  closedAt: timestamp('closed_at'),
+}, (table) => ({
+  planetUserIdx: index('idx_planet_user_follow').on(table.planetId, table.userId),
+  signalIdx: index('idx_signal_follow').on(table.signalId),
+}));
+
+// Coin Recharges Table (充值记录)
+export const coinRecharges = mysqlTable('coin_recharges', {
+  id: int('id').autoincrement().primaryKey(),
+  userId: varchar('user_id', { length: 255 }).notNull().references(() => users.userId, { onDelete: 'cascade' }),
+  amount: int('amount').notNull(),
+  paymentMethod: varchar('payment_method', { length: 50 }),
+  transactionId: varchar('transaction_id', { length: 255 }),
+  status: mysqlEnum('status', ['pending', 'completed', 'failed']).default('pending'),
+  adminNote: text('admin_note'),
+  createdAt: timestamp('created_at').defaultNow(),
+  processedAt: timestamp('processed_at'),
+}, (table) => ({
+  userIdx: index('idx_user_recharge').on(table.userId),
+  statusIdx: index('idx_recharge_status').on(table.status),
+}));
 
 // Type exports
 export type User = typeof users.$inferSelect;

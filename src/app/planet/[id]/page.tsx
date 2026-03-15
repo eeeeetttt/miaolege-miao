@@ -9,6 +9,18 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { 
+  Users, 
+  Coins, 
+  Calendar,
+  TrendingUp,
+  TrendingDown,
+  Play,
+  Pause,
+  CheckCircle2,
+  AlertCircle,
+  Eye
+} from 'lucide-react';
 
 interface PlanetDetail {
   planet: {
@@ -26,9 +38,28 @@ interface PlanetDetail {
     role: string;
     joinedAt: string;
   }>;
-  recentSignals: Array<any>;
+  recentSignals: Array<{
+    id: number;
+    createdAt: string;
+    senderAccount: string;
+    signalType: string;
+    symbol: string;
+    orderType: string;
+    volume: string;
+    price: string;
+    sl: string;
+    tp: string;
+    dealProfit: string;
+  }>;
   userRole: string | null;
   memberCount: number;
+}
+
+interface FollowStatus {
+  [signalId: number]: {
+    status: 'active' | 'paused' | 'closed';
+    id: number;
+  };
 }
 
 export default function PlanetDetailPage() {
@@ -39,21 +70,47 @@ export default function PlanetDetailPage() {
   const [loading, setLoading] = useState(true);
   const [joining, setJoining] = useState(false);
   const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
   const [inviteCode, setInviteCode] = useState('');
+  const [followStatus, setFollowStatus] = useState<FollowStatus>({});
+  const [followLoading, setFollowLoading] = useState<number | null>(null);
 
   useEffect(() => {
     fetchPlanetDetail();
   }, [params.id]);
 
+  useEffect(() => {
+    // 如果用户是成员，获取跟单状态
+    if (data?.userRole && data.userRole !== 'owner') {
+      fetchFollowStatus();
+    }
+  }, [data?.userRole]);
+
   const fetchPlanetDetail = async () => {
     try {
       const res = await fetch(`/api/planet/${params.id}`);
-      const data = await res.json();
-      setData(data);
+      const planetData = await res.json();
+      setData(planetData);
     } catch (error) {
       console.error('Failed to fetch planet:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchFollowStatus = async () => {
+    try {
+      const res = await fetch(`/api/follow?planetId=${params.id}`);
+      const followData = await res.json();
+      
+      const statusMap: FollowStatus = {};
+      followData.follows?.forEach((f: any) => {
+        statusMap[f.signalId] = { status: f.status, id: f.id };
+      });
+      
+      setFollowStatus(statusMap);
+    } catch (error) {
+      console.error('Failed to fetch follow status:', error);
     }
   };
 
@@ -87,6 +144,7 @@ export default function PlanetDetailPage() {
       if (!res.ok) {
         setError(result.error || '加入失败');
       } else {
+        setSuccess('成功加入星球！');
         fetchPlanetDetail();
       }
     } catch (err) {
@@ -96,10 +154,63 @@ export default function PlanetDetailPage() {
     }
   };
 
+  const handleFollow = async (signalId: number) => {
+    if (!session) {
+      router.push('/login');
+      return;
+    }
+
+    setFollowLoading(signalId);
+
+    try {
+      // 如果已经在跟单，则暂停
+      if (followStatus[signalId]?.status === 'active') {
+        const res = await fetch('/api/follow/pause', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            planetId: data?.planet.id,
+            signalId,
+          }),
+        });
+
+        if (res.ok) {
+          setFollowStatus(prev => ({
+            ...prev,
+            [signalId]: { ...prev[signalId], status: 'paused' }
+          }));
+        }
+      } else {
+        // 开始或恢复跟单
+        const res = await fetch('/api/follow', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            planetId: data?.planet.id,
+            signalId,
+          }),
+        });
+
+        const result = await res.json();
+
+        if (res.ok) {
+          setFollowStatus(prev => ({
+            ...prev,
+            [signalId]: { status: 'active', id: result.followId }
+          }));
+        }
+      }
+    } catch (error) {
+      console.error('Follow error:', error);
+    } finally {
+      setFollowLoading(null);
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <p>加载中...</p>
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600"></div>
       </div>
     );
   }
@@ -115,56 +226,92 @@ export default function PlanetDetailPage() {
   const { planet, members, recentSignals, userRole, memberCount } = data;
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-8 px-4">
-      <div className="max-w-6xl mx-auto">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-purple-50 dark:from-gray-900 dark:to-slate-900 py-8 px-4">
+      <div className="max-w-7xl mx-auto">
+        {/* Header */}
         <div className="mb-8">
-          <div className="flex justify-between items-start">
+          <div className="flex flex-col md:flex-row md:justify-between md:items-start gap-4">
             <div>
               <div className="flex items-center gap-3 mb-2">
-                <h1 className="text-3xl font-bold">{planet.name}</h1>
-                <Badge variant={planet.status === 'active' ? 'default' : 'secondary'}>
+                <h1 className="text-3xl font-bold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">
+                  {planet.name}
+                </h1>
+                <Badge variant={planet.status === 'active' ? 'default' : 'secondary'} className="text-sm">
                   {planet.status === 'active' ? '活跃' : '已关闭'}
                 </Badge>
               </div>
-              <p className="text-gray-600 dark:text-gray-400">
+              <p className="text-gray-600 dark:text-gray-400 text-lg">
                 {planet.description || '暂无描述'}
               </p>
             </div>
             {userRole === 'owner' && (
               <Link href={`/planet/manage/${planet.id}`}>
-                <Button>管理星球</Button>
+                <Button className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700">
+                  管理星球
+                </Button>
               </Link>
             )}
           </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-          <Card>
-            <CardHeader className="pb-2">
-              <CardDescription>成员数</CardDescription>
-              <CardTitle className="text-3xl">{memberCount}</CardTitle>
-            </CardHeader>
+        {/* Stats */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+          <Card className="bg-gradient-to-br from-purple-500 to-purple-600 text-white">
+            <CardContent className="pt-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-purple-100 text-sm">成员数</p>
+                  <p className="text-3xl font-bold mt-1">{memberCount}</p>
+                </div>
+                <Users className="w-10 h-10 text-purple-200" />
+              </div>
+            </CardContent>
           </Card>
-          <Card>
-            <CardHeader className="pb-2">
-              <CardDescription>门票价格</CardDescription>
-              <CardTitle className="text-3xl">
-                {planet.ticketPrice > 0 ? `${planet.ticketPrice} 星球币` : '免费'}
-              </CardTitle>
-            </CardHeader>
+
+          <Card className="bg-gradient-to-br from-blue-500 to-blue-600 text-white">
+            <CardContent className="pt-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-blue-100 text-sm">门票价格</p>
+                  <p className="text-2xl font-bold mt-1">
+                    {planet.ticketPrice > 0 ? `${planet.ticketPrice}` : '免费'}
+                  </p>
+                </div>
+                <Coins className="w-10 h-10 text-blue-200" />
+              </div>
+            </CardContent>
           </Card>
-          <Card>
-            <CardHeader className="pb-2">
-              <CardDescription>创建时间</CardDescription>
-              <CardTitle className="text-lg">
-                {new Date(planet.createdAt).toLocaleDateString()}
-              </CardTitle>
-            </CardHeader>
+
+          <Card className="bg-gradient-to-br from-green-500 to-green-600 text-white">
+            <CardContent className="pt-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-green-100 text-sm">信号数</p>
+                  <p className="text-3xl font-bold mt-1">{recentSignals.length}</p>
+                </div>
+                <TrendingUp className="w-10 h-10 text-green-200" />
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-gradient-to-br from-orange-500 to-orange-600 text-white">
+            <CardContent className="pt-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-orange-100 text-sm">创建时间</p>
+                  <p className="text-lg font-bold mt-1">
+                    {new Date(planet.createdAt).toLocaleDateString()}
+                  </p>
+                </div>
+                <Calendar className="w-10 h-10 text-orange-200" />
+              </div>
+            </CardContent>
           </Card>
         </div>
 
+        {/* Join Section */}
         {!userRole && (
-          <Card className="mb-8">
+          <Card className="mb-8 border-2 border-purple-200 dark:border-purple-800">
             <CardHeader>
               <CardTitle>加入星球</CardTitle>
               <CardDescription>购买门票或使用邀请码加入星球</CardDescription>
@@ -172,40 +319,44 @@ export default function PlanetDetailPage() {
             <CardContent className="space-y-4">
               {error && (
                 <Alert variant="destructive">
+                  <AlertCircle className="h-4 w-4" />
                   <AlertDescription>{error}</AlertDescription>
                 </Alert>
               )}
-              
-              {planet.ticketPrice > 0 && (
-                <Button
-                  onClick={() => handleJoin('purchase')}
-                  disabled={joining || !session}
-                  className="w-full"
-                >
-                  购买门票加入（{planet.ticketPrice} 星球币）
-                </Button>
-              )}
 
-              <div className="flex gap-2">
-                <input
-                  type="text"
-                  placeholder="输入邀请码"
-                  value={inviteCode}
-                  onChange={(e) => setInviteCode(e.target.value)}
-                  className="flex-1 px-3 py-2 border rounded-md"
-                />
-                <Button
-                  variant="outline"
-                  onClick={() => handleJoin('invite')}
-                  disabled={joining || !session}
-                >
-                  使用邀请码
-                </Button>
+              <div className="flex flex-col md:flex-row gap-4">
+                {planet.ticketPrice > 0 && (
+                  <Button
+                    onClick={() => handleJoin('purchase')}
+                    disabled={joining || !session}
+                    className="flex-1 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700"
+                  >
+                    <Coins className="w-4 h-4 mr-2" />
+                    购买门票加入（{planet.ticketPrice} 星球币）
+                  </Button>
+                )}
+
+                <div className="flex-1 flex gap-2">
+                  <input
+                    type="text"
+                    placeholder="输入邀请码"
+                    value={inviteCode}
+                    onChange={(e) => setInviteCode(e.target.value)}
+                    className="flex-1 px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                  />
+                  <Button
+                    variant="outline"
+                    onClick={() => handleJoin('invite')}
+                    disabled={joining || !session}
+                  >
+                    使用邀请码
+                  </Button>
+                </div>
               </div>
 
               {!session && (
                 <p className="text-sm text-center text-gray-600 dark:text-gray-400">
-                  <Link href="/login" className="text-blue-600 hover:underline">
+                  <Link href="/login" className="text-purple-600 hover:underline">
                     登录
                   </Link>
                   后加入星球
@@ -215,88 +366,142 @@ export default function PlanetDetailPage() {
           </Card>
         )}
 
+        {/* Member Info */}
         {userRole && (
-          <Card className="mb-8">
-            <CardContent className="py-4">
-              <div className="flex items-center justify-between">
-                <span>您已是该星球成员（角色：{userRole === 'owner' ? '星主' : userRole === 'publisher' ? '发布者' : '跟单者'}）</span>
-                {userRole === 'follower' && (
-                  <Button
-                    variant="outline"
-                    onClick={async () => {
-                      try {
-                        const res = await fetch('/api/planet/apply-publisher', {
-                          method: 'POST',
-                          headers: { 'Content-Type': 'application/json' },
-                          body: JSON.stringify({ planetId: planet.id }),
-                        });
-                        const data = await res.json();
-                        if (res.ok) {
-                          alert('申请已提交，请等待星主审核');
-                        } else {
-                          alert(data.error || '申请失败');
-                        }
-                      } catch (err) {
-                        alert('申请失败');
-                      }
-                    }}
-                  >
-                    申请成为发布者
-                  </Button>
-                )}
-              </div>
-            </CardContent>
-          </Card>
+          <Alert className="mb-8 border-green-200 bg-green-50 dark:bg-green-900/20">
+            <CheckCircle2 className="h-4 w-4 text-green-600" />
+            <AlertDescription className="text-green-700 dark:text-green-400">
+              您已是该星球成员（角色：{userRole === 'owner' ? '星主' : userRole === 'publisher' ? '发布者' : '跟单者'}）
+            </AlertDescription>
+          </Alert>
         )}
 
+        {/* Tabs */}
         <Tabs defaultValue="signals">
-          <TabsList>
+          <TabsList className="grid w-full grid-cols-2 max-w-md">
             <TabsTrigger value="signals">最新信号</TabsTrigger>
             <TabsTrigger value="rules">星球规则</TabsTrigger>
           </TabsList>
-          <TabsContent value="signals">
+
+          <TabsContent value="signals" className="mt-6">
             {userRole ? (
-              <Card>
-                <CardContent className="py-6">
-                  {recentSignals.length > 0 ? (
-                    <div className="space-y-4">
-                      {recentSignals.map((signal) => (
-                        <div key={signal.id} className="border-b pb-4">
-                          <div className="flex justify-between items-start">
-                            <div>
-                              <p className="font-medium">{signal.symbol}</p>
-                              <p className="text-sm text-gray-600 dark:text-gray-400">
-                                {signal.orderType} · {signal.volume}手
-                              </p>
+              <div className="space-y-4">
+                {recentSignals.length > 0 ? (
+                  recentSignals.map((signal) => {
+                    const isFollowing = followStatus[signal.id]?.status === 'active';
+                    const isPaused = followStatus[signal.id]?.status === 'paused';
+                    
+                    return (
+                      <Card key={signal.id} className="overflow-hidden hover:shadow-lg transition-shadow">
+                        <div className="flex flex-col md:flex-row">
+                          {/* Signal Info */}
+                          <div className="flex-1 p-6">
+                            <div className="flex items-start justify-between mb-4">
+                              <div>
+                                <div className="flex items-center gap-3 mb-2">
+                                  <Badge 
+                                    variant={signal.orderType === 'BUY' ? 'default' : 'destructive'}
+                                    className={signal.orderType === 'BUY' ? 'bg-green-500 hover:bg-green-600' : ''}
+                                  >
+                                    {signal.orderType === 'BUY' ? (
+                                      <><TrendingUp className="w-3 h-3 mr-1" /> 买入</>
+                                    ) : (
+                                      <><TrendingDown className="w-3 h-3 mr-1" /> 卖出</>
+                                    )}
+                                  </Badge>
+                                  <h3 className="text-xl font-bold">{signal.symbol}</h3>
+                                </div>
+                                <p className="text-gray-600 dark:text-gray-400 text-sm">
+                                  账号: {signal.senderAccount} · {new Date(signal.createdAt).toLocaleString()}
+                                </p>
+                              </div>
+                              {signal.dealProfit && (
+                                <Badge 
+                                  variant={parseFloat(signal.dealProfit) >= 0 ? 'default' : 'destructive'}
+                                  className={parseFloat(signal.dealProfit) >= 0 ? 'bg-green-500' : ''}
+                                >
+                                  {parseFloat(signal.dealProfit) >= 0 ? '+' : ''}{signal.dealProfit}
+                                </Badge>
+                              )}
                             </div>
-                            <p className="text-sm text-gray-600 dark:text-gray-400">
-                              {new Date(signal.createdAt).toLocaleString()}
-                            </p>
+
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                              <div>
+                                <p className="text-gray-500">手数</p>
+                                <p className="font-semibold">{signal.volume}</p>
+                              </div>
+                              <div>
+                                <p className="text-gray-500">价格</p>
+                                <p className="font-semibold">{signal.price}</p>
+                              </div>
+                              <div>
+                                <p className="text-gray-500">止损</p>
+                                <p className="font-semibold text-red-500">{signal.sl || '-'}</p>
+                              </div>
+                              <div>
+                                <p className="text-gray-500">止盈</p>
+                                <p className="font-semibold text-green-500">{signal.tp || '-'}</p>
+                              </div>
+                            </div>
                           </div>
+
+                          {/* Follow Button */}
+                          {userRole !== 'owner' && (
+                            <div className="border-t md:border-t-0 md:border-l p-6 flex items-center justify-center bg-gray-50 dark:bg-gray-800/50 min-w-[180px]">
+                              <Button
+                                onClick={() => handleFollow(signal.id)}
+                                disabled={followLoading === signal.id}
+                                className={`w-full ${
+                                  isFollowing 
+                                    ? 'bg-yellow-500 hover:bg-yellow-600' 
+                                    : isPaused
+                                    ? 'bg-blue-500 hover:bg-blue-600'
+                                    : 'bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700'
+                                }`}
+                              >
+                                {followLoading === signal.id ? (
+                                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                                ) : isFollowing ? (
+                                  <><Pause className="w-4 h-4 mr-2" /> 暂停跟单</>
+                                ) : isPaused ? (
+                                  <><Play className="w-4 h-4 mr-2" /> 恢复跟单</>
+                                ) : (
+                                  <><Play className="w-4 h-4 mr-2" /> 开始跟单</>
+                                )}
+                              </Button>
+                            </div>
+                          )}
                         </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <p className="text-center text-gray-600 dark:text-gray-400">
-                      暂无信号
-                    </p>
-                  )}
-                </CardContent>
-              </Card>
+                      </Card>
+                    );
+                  })
+                ) : (
+                  <Card>
+                    <CardContent className="py-12 text-center">
+                      <TrendingUp className="w-16 h-16 mx-auto text-gray-300 dark:text-gray-600 mb-4" />
+                      <p className="text-gray-600 dark:text-gray-400">暂无信号</p>
+                    </CardContent>
+                  </Card>
+                )}
+              </div>
             ) : (
               <Card>
-                <CardContent className="py-6 text-center">
-                  <p className="text-gray-600 dark:text-gray-400">
-                    加入星球后可查看信号
+                <CardContent className="py-12 text-center">
+                  <Eye className="w-16 h-16 mx-auto text-gray-300 dark:text-gray-600 mb-4" />
+                  <p className="text-gray-600 dark:text-gray-400 mb-4">
+                    加入星球后可查看信号并跟单
                   </p>
                 </CardContent>
               </Card>
             )}
           </TabsContent>
-          <TabsContent value="rules">
+
+          <TabsContent value="rules" className="mt-6">
             <Card>
               <CardContent className="py-6">
-                <p className="whitespace-pre-wrap">{planet.rules || '暂无规则'}</p>
+                <p className="whitespace-pre-wrap text-gray-700 dark:text-gray-300">
+                  {planet.rules || '暂无规则'}
+                </p>
               </CardContent>
             </Card>
           </TabsContent>
