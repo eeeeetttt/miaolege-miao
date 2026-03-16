@@ -87,7 +87,7 @@ export default function DownloadPage() {
       const res = await fetch('/api/user/info');
       const data = await res.json();
       if (res.ok) {
-        setCoinBalance(data.coinBalance || 0);
+        setCoinBalance(data.user?.coinBalance || 0);
       }
     } catch (err) {
       console.error('获取余额失败');

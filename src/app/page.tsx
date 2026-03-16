@@ -64,16 +64,16 @@ export default function HomePage() {
   return (
     <div className="flex flex-col">
       {/* Hero Section */}
-      <section className="relative overflow-hidden bg-gradient-to-br from-purple-600 via-blue-600 to-purple-700 text-white py-20 px-4">
+      <section className="relative overflow-hidden bg-gradient-to-br from-slate-50 to-purple-50 dark:from-gray-900 dark:to-slate-900 text-gray-900 dark:text-white py-20 px-4">
         {/* Background Pattern */}
-        <div className="absolute inset-0 opacity-10">
+        <div className="absolute inset-0 opacity-5 dark:opacity-10">
           <div className="absolute inset-0" style={{
-            backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.4'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`,
+            backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%239C92AC' fill-opacity='0.4'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`,
           }} />
         </div>
 
         <div className="relative max-w-6xl mx-auto text-center">
-          <div className="inline-flex items-center gap-2 px-4 py-2 bg-white/20 backdrop-blur-sm rounded-full text-sm mb-6">
+          <div className="inline-flex items-center gap-2 px-4 py-2 bg-purple-100 dark:bg-purple-900/50 backdrop-blur-sm rounded-full text-sm mb-6 text-purple-600 dark:text-purple-300">
             <Zap className="w-4 h-4" />
             <span>全新升级 · 支持MT4/MT5跟单</span>
           </div>
@@ -81,10 +81,10 @@ export default function HomePage() {
           <h1 className="text-4xl md:text-6xl font-bold mb-6 leading-tight">
             喵了个喵
             <br />
-            <span className="text-purple-200">星球跟单平台</span>
+            <span className="bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">星球跟单平台</span>
           </h1>
 
-          <p className="text-xl md:text-2xl text-purple-100 mb-10 max-w-3xl mx-auto">
+          <p className="text-xl md:text-2xl text-gray-600 dark:text-gray-400 mb-10 max-w-3xl mx-auto">
             创建您的专属星球，邀请信号发布者加入，
             <br className="hidden md:block" />
             让跟单者共享交易信号，实现共赢
@@ -92,20 +92,20 @@ export default function HomePage() {
 
           <div className="flex flex-col sm:flex-row justify-center gap-4">
             <Link href="/planet">
-              <Button size="lg" className="w-full sm:w-auto bg-white text-purple-600 hover:bg-purple-50 text-lg px-8 py-6">
+              <Button size="lg" className="w-full sm:w-auto bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white text-lg px-8 py-6">
                 浏览星球
                 <ArrowRight className="ml-2 w-5 h-5" />
               </Button>
             </Link>
             {session ? (
               <Link href="/planet/create">
-                <Button size="lg" variant="outline" className="w-full sm:w-auto border-2 border-white text-white hover:bg-white/10 text-lg px-8 py-6">
+                <Button size="lg" variant="outline" className="w-full sm:w-auto border-2 border-purple-300 dark:border-purple-700 text-purple-600 dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-900/30 text-lg px-8 py-6">
                   创建星球
                 </Button>
               </Link>
             ) : (
               <Link href="/register">
-                <Button size="lg" variant="outline" className="w-full sm:w-auto border-2 border-white text-white hover:bg-white/10 text-lg px-8 py-6">
+                <Button size="lg" variant="outline" className="w-full sm:w-auto border-2 border-purple-300 dark:border-purple-700 text-purple-600 dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-900/30 text-lg px-8 py-6">
                   立即注册
                 </Button>
               </Link>

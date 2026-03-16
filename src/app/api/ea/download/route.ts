@@ -4,6 +4,16 @@ import { authOptions } from '@/lib/auth';
 import { db } from '@/lib/db';
 import { eaProducts, eaPurchases } from '@/lib/schema';
 import { eq, and } from 'drizzle-orm';
+import { S3Storage } from 'coze-coding-dev-sdk';
+
+// 初始化对象存储
+const storage = new S3Storage({
+  endpointUrl: process.env.COZE_BUCKET_ENDPOINT_URL,
+  accessKey: '',
+  secretKey: '',
+  bucketName: process.env.COZE_BUCKET_NAME,
+  region: 'cn-beijing',
+});
 
 // 获取EA下载链接
 export async function GET(request: NextRequest) {
@@ -44,15 +54,17 @@ export async function GET(request: NextRequest) {
       .limit(1);
 
     if (!product || !product.downloadUrl) {
-      return NextResponse.json({ error: '下载链接不可用' }, { status: 404 });
+      return NextResponse.json({ error: '下载文件不可用' }, { status: 404 });
     }
 
-    // 返回下载链接
-    // 如果downloadUrl是对象存储的链接，可以生成带签名的临时链接
-    // 这里直接返回原始链接，实际生产环境应该生成临时签名URL
-    
+    // 生成签名下载链接（有效期1小时）
+    const downloadUrl = await storage.generatePresignedUrl({
+      key: product.downloadUrl,
+      expireTime: 3600,
+    });
+
     return NextResponse.json({ 
-      downloadUrl: product.downloadUrl,
+      downloadUrl,
       fileName: product.fileName,
     });
   } catch (error) {

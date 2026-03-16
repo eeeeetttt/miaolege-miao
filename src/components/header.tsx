@@ -13,7 +13,7 @@ import {
   DropdownMenuTrigger 
 } from '@/components/ui/dropdown-menu';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { User, LogOut, Globe, Settings, Download } from 'lucide-react';
+import { User, LogOut, Globe, Settings, Download, Home } from 'lucide-react';
 
 export function Header() {
   const { data: session } = useSession();
@@ -37,6 +37,10 @@ export function Header() {
 
           {/* Navigation */}
           <nav className="hidden md:flex items-center gap-6">
+            <Link href="/" className="text-gray-600 hover:text-purple-600 dark:text-gray-300 dark:hover:text-purple-400 transition-colors flex items-center gap-1">
+              <Home className="w-4 h-4" />
+              首页
+            </Link>
             <Link href="/planet" className="text-gray-600 hover:text-purple-600 dark:text-gray-300 dark:hover:text-purple-400 transition-colors">
               星球列表
             </Link>
