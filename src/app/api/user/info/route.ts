@@ -28,8 +28,10 @@ export async function GET(request: NextRequest) {
         userId: user.userId,
         email: user.email,
         name: user.name,
+        avatar: user.avatar,
         coinBalance: user.coinBalance,
         createdAt: user.createdAt,
+        nameUpdatedAt: user.nameUpdatedAt,
       },
     });
   } catch (error) {

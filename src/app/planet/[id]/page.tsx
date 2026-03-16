@@ -7,24 +7,22 @@ import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { PlanetDetailSkeleton, StatsCardSkeleton, SignalCardSkeleton } from '@/components/loading-skeleton';
-import { SignalChart } from '@/components/signal-chart';
+import { PlanetDetailSkeleton, SignalCardSkeleton } from '@/components/loading-skeleton';
 import { Spinner } from '@/components/ui/spinner';
 import { 
-  Users, 
-  Coins, 
-  Calendar,
   TrendingUp,
   TrendingDown,
-  Play,
-  Pause,
-  CheckCircle2,
-  AlertCircle,
   Eye,
+  AlertCircle,
+  CheckCircle2,
+  Coins,
   BarChart3,
-  History
+  Activity,
+  Percent,
+  DollarSign,
+  ChevronRight,
+  Signal
 } from 'lucide-react';
 
 interface PlanetDetail {
@@ -43,28 +41,22 @@ interface PlanetDetail {
     role: string;
     joinedAt: string;
   }>;
-  recentSignals: Array<{
-    id: number;
-    createdAt: string;
-    senderAccount: string;
-    signalType: string;
-    symbol: string;
-    orderType: string;
-    volume: string;
-    price: string;
-    sl: string;
-    tp: string;
-    dealProfit: string;
-  }>;
   userRole: string | null;
   memberCount: number;
 }
 
-interface FollowStatus {
-  [signalId: number]: {
-    status: 'active' | 'paused' | 'closed';
-    id: number;
-  };
+interface SignalSource {
+  id: number;
+  accountNumber: string;
+  broker: string;
+  platform: string;
+  isVerified: boolean;
+  totalProfit: string;
+  winRate: string;
+  totalTrades: number;
+  returnRate: string;
+  maxDrawdown: string;
+  profitFactor: string;
 }
 
 export default function PlanetDetailPage() {
@@ -72,33 +64,23 @@ export default function PlanetDetailPage() {
   const router = useRouter();
   const { data: session } = useSession();
   const [data, setData] = useState<PlanetDetail | null>(null);
+  const [signalSources, setSignalSources] = useState<SignalSource[]>([]);
   const [loading, setLoading] = useState(true);
+  const [signalsLoading, setSignalsLoading] = useState(true);
   const [joining, setJoining] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [inviteCode, setInviteCode] = useState('');
-  const [followStatus, setFollowStatus] = useState<FollowStatus>({});
-  const [followLoading, setFollowLoading] = useState<number | null>(null);
-  const [signalsLoading, setSignalsLoading] = useState(true);
 
   useEffect(() => {
     fetchPlanetDetail();
   }, [params.id]);
 
   useEffect(() => {
-    // 如果用户是成员，获取跟单状态
-    if (data?.userRole && data.userRole !== 'owner') {
-      fetchFollowStatus();
+    if (data?.userRole) {
+      fetchSignalSources();
     }
   }, [data?.userRole]);
-
-  useEffect(() => {
-    // 模拟信号加载动画
-    if (data && loading === false) {
-      const timer = setTimeout(() => setSignalsLoading(false), 500);
-      return () => clearTimeout(timer);
-    }
-  }, [data, loading]);
 
   const fetchPlanetDetail = async () => {
     try {
@@ -112,19 +94,15 @@ export default function PlanetDetailPage() {
     }
   };
 
-  const fetchFollowStatus = async () => {
+  const fetchSignalSources = async () => {
     try {
-      const res = await fetch(`/api/follow?planetId=${params.id}`);
-      const followData = await res.json();
-      
-      const statusMap: FollowStatus = {};
-      followData.follows?.forEach((f: any) => {
-        statusMap[f.signalId] = { status: f.status, id: f.id };
-      });
-      
-      setFollowStatus(statusMap);
+      const res = await fetch(`/api/signals/stats?planetId=${params.id}`);
+      const result = await res.json();
+      setSignalSources(result.signalSources || []);
     } catch (error) {
-      console.error('Failed to fetch follow status:', error);
+      console.error('Failed to fetch signal sources:', error);
+    } finally {
+      setSignalsLoading(false);
     }
   };
 
@@ -168,59 +146,6 @@ export default function PlanetDetailPage() {
     }
   };
 
-  const handleFollow = async (signalId: number) => {
-    if (!session) {
-      router.push('/login');
-      return;
-    }
-
-    setFollowLoading(signalId);
-
-    try {
-      // 如果已经在跟单，则暂停
-      if (followStatus[signalId]?.status === 'active') {
-        const res = await fetch('/api/follow/pause', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            planetId: data?.planet.id,
-            signalId,
-          }),
-        });
-
-        if (res.ok) {
-          setFollowStatus(prev => ({
-            ...prev,
-            [signalId]: { ...prev[signalId], status: 'paused' }
-          }));
-        }
-      } else {
-        // 开始或恢复跟单
-        const res = await fetch('/api/follow', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            planetId: data?.planet.id,
-            signalId,
-          }),
-        });
-
-        const result = await res.json();
-
-        if (res.ok) {
-          setFollowStatus(prev => ({
-            ...prev,
-            [signalId]: { status: 'active', id: result.followId }
-          }));
-        }
-      }
-    } catch (error) {
-      console.error('Follow error:', error);
-    } finally {
-      setFollowLoading(null);
-    }
-  };
-
   if (loading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-50 to-purple-50 dark:from-gray-900 dark:to-slate-900 py-8 px-4">
@@ -248,7 +173,7 @@ export default function PlanetDetailPage() {
     );
   }
 
-  const { planet, members, recentSignals, userRole, memberCount } = data;
+  const { planet, userRole } = data;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-purple-50 dark:from-gray-900 dark:to-slate-900 py-8 px-4">
@@ -279,73 +204,6 @@ export default function PlanetDetailPage() {
           </div>
         </div>
 
-        {/* Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-          <Card className="bg-gradient-to-br from-purple-500 to-purple-600 text-white overflow-hidden relative">
-            <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -translate-y-1/2 translate-x-1/2"></div>
-            <CardContent className="pt-6 relative z-10">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-purple-100 text-sm">成员数</p>
-                  <p className="text-3xl font-bold mt-1">{memberCount}</p>
-                </div>
-                <div className="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center">
-                  <Users className="w-6 h-6" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="bg-gradient-to-br from-blue-500 to-blue-600 text-white overflow-hidden relative">
-            <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -translate-y-1/2 translate-x-1/2"></div>
-            <CardContent className="pt-6 relative z-10">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-blue-100 text-sm">门票价格</p>
-                  <p className="text-2xl font-bold mt-1">
-                    {planet.ticketPrice > 0 ? `${planet.ticketPrice}` : '免费'}
-                  </p>
-                </div>
-                <div className="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center">
-                  <Coins className="w-6 h-6" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="bg-gradient-to-br from-green-500 to-green-600 text-white overflow-hidden relative">
-            <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -translate-y-1/2 translate-x-1/2"></div>
-            <CardContent className="pt-6 relative z-10">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-green-100 text-sm">信号数</p>
-                  <p className="text-3xl font-bold mt-1">{recentSignals.length}</p>
-                </div>
-                <div className="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center">
-                  <TrendingUp className="w-6 h-6" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="bg-gradient-to-br from-orange-500 to-orange-600 text-white overflow-hidden relative">
-            <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -translate-y-1/2 translate-x-1/2"></div>
-            <CardContent className="pt-6 relative z-10">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-orange-100 text-sm">创建时间</p>
-                  <p className="text-lg font-bold mt-1">
-                    {new Date(planet.createdAt).toLocaleDateString()}
-                  </p>
-                </div>
-                <div className="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center">
-                  <Calendar className="w-6 h-6" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
         {/* Join Section */}
         {!userRole && (
           <Card className="mb-8 border-2 border-purple-200 dark:border-purple-800 bg-gradient-to-br from-purple-50 to-blue-50 dark:from-purple-900/20 dark:to-blue-900/20">
@@ -358,6 +216,13 @@ export default function PlanetDetailPage() {
                 <Alert variant="destructive">
                   <AlertCircle className="h-4 w-4" />
                   <AlertDescription>{error}</AlertDescription>
+                </Alert>
+              )}
+
+              {success && (
+                <Alert className="border-green-200 bg-green-50 dark:bg-green-900/20">
+                  <CheckCircle2 className="h-4 w-4 text-green-600" />
+                  <AlertDescription className="text-green-700 dark:text-green-400">{success}</AlertDescription>
                 </Alert>
               )}
 
@@ -423,181 +288,136 @@ export default function PlanetDetailPage() {
           </Alert>
         )}
 
-        {/* Tabs */}
-        <Tabs defaultValue="signals">
-          <TabsList className="grid w-full grid-cols-3 max-w-lg">
-            <TabsTrigger value="signals" className="flex items-center gap-2">
-              <History className="w-4 h-4" />
-              最新信号
-            </TabsTrigger>
-            <TabsTrigger value="analytics" className="flex items-center gap-2">
-              <BarChart3 className="w-4 h-4" />
-              数据分析
-            </TabsTrigger>
-            <TabsTrigger value="rules">星球规则</TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="signals" className="mt-6">
-            {userRole ? (
-              signalsLoading ? (
-                <div className="space-y-4">
-                  <SignalCardSkeleton />
-                  <SignalCardSkeleton />
-                  <SignalCardSkeleton />
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  {recentSignals.length > 0 ? (
-                    recentSignals.map((signal) => {
-                      const isFollowing = followStatus[signal.id]?.status === 'active';
-                      const isPaused = followStatus[signal.id]?.status === 'paused';
-                      
-                      return (
-                        <Card key={signal.id} className="overflow-hidden hover:shadow-lg transition-all duration-300 hover:-translate-y-1">
-                          <div className="flex flex-col md:flex-row">
-                            {/* Signal Info */}
-                            <div className="flex-1 p-6">
-                              <div className="flex items-start justify-between mb-4">
-                                <div>
-                                  <div className="flex items-center gap-3 mb-2">
-                                    <Badge 
-                                      variant={signal.orderType === 'BUY' ? 'default' : 'destructive'}
-                                      className={`text-sm ${signal.orderType === 'BUY' ? 'bg-green-500 hover:bg-green-600' : ''}`}
-                                    >
-                                      {signal.orderType === 'BUY' ? (
-                                        <><TrendingUp className="w-3.5 h-3.5 mr-1" /> 买入</>
-                                      ) : (
-                                        <><TrendingDown className="w-3.5 h-3.5 mr-1" /> 卖出</>
-                                      )}
-                                    </Badge>
-                                    <h3 className="text-xl font-bold">{signal.symbol}</h3>
-                                  </div>
-                                  <p className="text-gray-600 dark:text-gray-400 text-sm">
-                                    账号: {signal.senderAccount} · {new Date(signal.createdAt).toLocaleString()}
-                                  </p>
-                                </div>
-                                {signal.dealProfit && (
-                                  <Badge 
-                                    variant={parseFloat(signal.dealProfit) >= 0 ? 'default' : 'destructive'}
-                                    className={`text-base px-3 py-1 ${parseFloat(signal.dealProfit) >= 0 ? 'bg-green-500' : ''}`}
-                                  >
-                                    {parseFloat(signal.dealProfit) >= 0 ? '+' : ''}{signal.dealProfit}
-                                  </Badge>
-                                )}
-                              </div>
-
-                              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                                <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-3">
-                                  <p className="text-gray-500 text-xs mb-1">手数</p>
-                                  <p className="font-semibold text-lg">{signal.volume}</p>
-                                </div>
-                                <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-3">
-                                  <p className="text-gray-500 text-xs mb-1">价格</p>
-                                  <p className="font-semibold text-lg">{signal.price}</p>
-                                </div>
-                                <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-3">
-                                  <p className="text-gray-500 text-xs mb-1">止损</p>
-                                  <p className="font-semibold text-lg text-red-500">{signal.sl || '-'}</p>
-                                </div>
-                                <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-3">
-                                  <p className="text-gray-500 text-xs mb-1">止盈</p>
-                                  <p className="font-semibold text-lg text-green-500">{signal.tp || '-'}</p>
-                                </div>
-                              </div>
-                            </div>
-
-                            {/* Follow Button */}
-                            {userRole !== 'owner' && (
-                              <div className="border-t md:border-t-0 md:border-l p-6 flex items-center justify-center bg-gray-50 dark:bg-gray-800/50 min-w-[180px]">
-                                <Button
-                                  onClick={() => handleFollow(signal.id)}
-                                  disabled={followLoading === signal.id}
-                                  className={`w-full h-12 ${
-                                    isFollowing 
-                                      ? 'bg-yellow-500 hover:bg-yellow-600' 
-                                      : isPaused
-                                      ? 'bg-blue-500 hover:bg-blue-600'
-                                      : 'bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700'
-                                  }`}
-                                >
-                                  {followLoading === signal.id ? (
-                                    <Spinner className="w-4 h-4" />
-                                  ) : isFollowing ? (
-                                    <><Pause className="w-4 h-4 mr-2" /> 暂停跟单</>
-                                  ) : isPaused ? (
-                                    <><Play className="w-4 h-4 mr-2" /> 恢复跟单</>
-                                  ) : (
-                                    <><Play className="w-4 h-4 mr-2" /> 开始跟单</>
-                                  )}
-                                </Button>
-                              </div>
-                            )}
-                          </div>
-                        </Card>
-                      );
-                    })
-                  ) : (
-                    <Card>
-                      <CardContent className="py-16 text-center">
-                        <TrendingUp className="w-20 h-20 mx-auto text-gray-200 dark:text-gray-700 mb-4" />
-                        <p className="text-gray-500 text-lg">暂无信号</p>
-                        <p className="text-gray-400 text-sm mt-2">信号发布后将在此显示</p>
-                      </CardContent>
-                    </Card>
-                  )}
-                </div>
-              )
-            ) : (
-              <Card>
-                <CardContent className="py-16 text-center">
-                  <Eye className="w-20 h-20 mx-auto text-gray-200 dark:text-gray-700 mb-4" />
-                  <p className="text-gray-500 text-lg mb-2">
-                    加入星球后可查看信号并跟单
-                  </p>
-                  <p className="text-gray-400 text-sm">成为会员，获取实时交易信号</p>
-                </CardContent>
-              </Card>
-            )}
-          </TabsContent>
-
-          <TabsContent value="analytics" className="mt-6">
-            {userRole ? (
-              <SignalChart signals={recentSignals as any} />
-            ) : (
-              <Card>
-                <CardContent className="py-16 text-center">
-                  <BarChart3 className="w-20 h-20 mx-auto text-gray-200 dark:text-gray-700 mb-4" />
-                  <p className="text-gray-500 text-lg mb-2">
-                    加入星球后可查看数据分析
-                  </p>
-                  <p className="text-gray-400 text-sm">成为会员，获取详细的交易统计</p>
-                </CardContent>
-              </Card>
-            )}
-          </TabsContent>
-
-          <TabsContent value="rules" className="mt-6">
+        {/* Two Column Layout */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          {/* Left Column: Signal Sources */}
+          <div className="lg:col-span-2">
             <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Signal className="w-5 h-5 text-purple-500" />
+                  信号展示
+                </CardTitle>
+                <CardDescription>
+                  该星球的信号源列表，点击查看详情
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {userRole ? (
+                  signalsLoading ? (
+                    <div className="space-y-4">
+                      <SignalCardSkeleton />
+                      <SignalCardSkeleton />
+                    </div>
+                  ) : signalSources.length > 0 ? (
+                    <div className="space-y-4">
+                      {signalSources.map((source, index) => (
+                        <Link 
+                          key={source.id}
+                          href={`/signal/${source.accountNumber}?planetId=${planet.id}`}
+                          className="block"
+                        >
+                          <Card className="overflow-hidden hover:shadow-lg transition-all duration-300 hover:-translate-y-1 cursor-pointer group">
+                            <CardContent className="p-0">
+                              <div className="flex items-center p-6">
+                                {/* Account Icon */}
+                                <div className="w-14 h-14 rounded-full bg-gradient-to-br from-purple-500 to-blue-500 flex items-center justify-center text-white text-xl font-bold mr-4">
+                                  {index + 1}
+                                </div>
+                                
+                                {/* Account Info */}
+                                <div className="flex-1">
+                                  <div className="flex items-center gap-2 mb-2">
+                                    <h3 className="text-lg font-bold">
+                                      信号{index + 1}
+                                    </h3>
+                                    <Badge variant="outline" className="text-xs">
+                                      {source.platform}
+                                    </Badge>
+                                    {source.isVerified && (
+                                      <Badge className="bg-green-500 text-xs">已验证</Badge>
+                                    )}
+                                  </div>
+                                  <p className="text-gray-600 dark:text-gray-400 text-sm mb-3">
+                                    账号: {source.accountNumber} · {source.broker || '未知经纪商'}
+                                  </p>
+                                  
+                                  {/* Stats Grid */}
+                                  <div className="grid grid-cols-4 gap-3">
+                                    <div className="text-center">
+                                      <p className="text-xs text-gray-500">总盈利</p>
+                                      <p className={`font-bold ${parseFloat(source.totalProfit) >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                                        ${source.totalProfit}
+                                      </p>
+                                    </div>
+                                    <div className="text-center">
+                                      <p className="text-xs text-gray-500">胜率</p>
+                                      <p className="font-bold text-blue-500">{source.winRate}%</p>
+                                    </div>
+                                    <div className="text-center">
+                                      <p className="text-xs text-gray-500">交易笔数</p>
+                                      <p className="font-bold">{source.totalTrades}</p>
+                                    </div>
+                                    <div className="text-center">
+                                      <p className="text-xs text-gray-500">收益率</p>
+                                      <p className={`font-bold ${parseFloat(source.returnRate) >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                                        {source.returnRate}%
+                                      </p>
+                                    </div>
+                                  </div>
+                                </div>
+
+                                {/* Arrow */}
+                                <ChevronRight className="w-6 h-6 text-gray-400 group-hover:text-purple-500 transition-colors" />
+                              </div>
+                            </CardContent>
+                          </Card>
+                        </Link>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="py-16 text-center">
+                      <BarChart3 className="w-16 h-16 mx-auto text-gray-300 dark:text-gray-600 mb-4" />
+                      <p className="text-gray-500 text-lg">暂无信号源</p>
+                      <p className="text-gray-400 text-sm mt-2">信号发布者绑定MT账号后，将在此展示</p>
+                    </div>
+                  )
+                ) : (
+                  <div className="py-16 text-center">
+                    <Eye className="w-16 h-16 mx-auto text-gray-300 dark:text-gray-600 mb-4" />
+                    <p className="text-gray-500 text-lg mb-2">
+                      加入星球后可查看信号源
+                    </p>
+                    <p className="text-gray-400 text-sm">成为会员，获取实时交易信号</p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Right Column: Planet Rules */}
+          <div className="lg:col-span-1">
+            <Card className="sticky top-24">
               <CardHeader>
                 <CardTitle className="text-lg">星球规则</CardTitle>
               </CardHeader>
               <CardContent>
                 {planet.rules ? (
                   <div className="prose dark:prose-invert max-w-none">
-                    <p className="whitespace-pre-wrap text-gray-700 dark:text-gray-300 leading-relaxed">
+                    <p className="whitespace-pre-wrap text-gray-700 dark:text-gray-300 leading-relaxed text-sm">
                       {planet.rules}
                     </p>
                   </div>
                 ) : (
                   <div className="text-center py-8">
                     <AlertCircle className="w-12 h-12 mx-auto text-gray-300 dark:text-gray-600 mb-3" />
-                    <p className="text-gray-500">暂无规则</p>
+                    <p className="text-gray-500 text-sm">暂无规则</p>
                   </div>
                 )}
               </CardContent>
             </Card>
-          </TabsContent>
-        </Tabs>
+          </div>
+        </div>
       </div>
     </div>
   );

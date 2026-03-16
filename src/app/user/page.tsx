@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useSession, signOut } from 'next-auth/react';
 import { Button } from '@/components/ui/button';
@@ -10,8 +10,9 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { UserCardSkeleton, RechargeFormSkeleton } from '@/components/loading-skeleton';
+import { UserCardSkeleton } from '@/components/loading-skeleton';
 import { Spinner } from '@/components/ui/spinner';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { 
   Wallet, 
   User as UserIcon, 
@@ -21,10 +22,10 @@ import {
   XCircle,
   AlertCircle,
   Coins,
-  TrendingUp,
   Shield,
-  CreditCard,
-  History,
+  Camera,
+  Edit3,
+  Clock,
   Gift,
   Zap
 } from 'lucide-react';
@@ -33,8 +34,10 @@ interface UserInfo {
   userId: string;
   email: string;
   name: string;
+  avatar: string | null;
   coinBalance: number;
   createdAt: string;
+  nameUpdatedAt: string | null;
 }
 
 interface MTAccount {
@@ -43,15 +46,6 @@ interface MTAccount {
   broker: string;
   platform: string;
   isVerified: boolean;
-  createdAt: string;
-}
-
-interface RechargeRecord {
-  id: number;
-  amount: number;
-  paymentMethod: string;
-  transactionId: string;
-  status: string;
   createdAt: string;
 }
 
@@ -69,7 +63,6 @@ export default function UserCenterPage() {
   const { data: session, status } = useSession();
   const [user, setUser] = useState<UserInfo | null>(null);
   const [mtAccount, setMtAccount] = useState<MTAccount | null>(null);
-  const [rechargeRecords, setRechargeRecords] = useState<RechargeRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [mtForm, setMtForm] = useState({
     accountNumber: '',
@@ -82,6 +75,14 @@ export default function UserCenterPage() {
   const [customAmount, setCustomAmount] = useState('');
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  
+  // 头像和昵称相关状态
+  const [avatarLoading, setAvatarLoading] = useState(false);
+  const [nameLoading, setNameLoading] = useState(false);
+  const [newName, setNewName] = useState('');
+  const [canChangeName, setCanChangeName] = useState(true);
+  const [nextNameChangeDate, setNextNameChangeDate] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (status === 'unauthenticated') {
@@ -96,23 +97,42 @@ export default function UserCenterPage() {
 
   const fetchData = async () => {
     try {
-      const [userRes, mtRes, rechargeRes] = await Promise.all([
+      const [userRes, mtRes] = await Promise.all([
         fetch('/api/user/info'),
         fetch('/api/mt-account'),
-        fetch('/api/recharge'),
       ]);
       
       const userData = await userRes.json();
       const mtData = await mtRes.json();
-      const rechargeData = await rechargeRes.json();
       
       setUser(userData.user);
       setMtAccount(mtData.account);
-      setRechargeRecords(rechargeData.records || []);
+      setNewName(userData.user?.name || '');
+      
+      // 检查昵称修改限制
+      checkNameChangeLimit(userData.user);
     } catch (error) {
       console.error('Failed to fetch data:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const checkNameChangeLimit = (userData: UserInfo) => {
+    if (!userData?.nameUpdatedAt) {
+      setCanChangeName(true);
+      return;
+    }
+    
+    const lastUpdate = new Date(userData.nameUpdatedAt);
+    const oneYearLater = new Date(lastUpdate);
+    oneYearLater.setFullYear(oneYearLater.getFullYear() + 1);
+    
+    if (new Date() < oneYearLater) {
+      setCanChangeName(false);
+      setNextNameChangeDate(oneYearLater.toLocaleDateString());
+    } else {
+      setCanChangeName(true);
     }
   };
 
@@ -206,6 +226,106 @@ export default function UserCenterPage() {
     handleRecharge(amount);
   };
 
+  // 头像上传处理
+  const handleAvatarClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // 验证文件类型
+    if (!file.type.startsWith('image/')) {
+      setError('请选择图片文件');
+      return;
+    }
+
+    // 验证文件大小 (最大 2MB)
+    if (file.size > 2 * 1024 * 1024) {
+      setError('图片大小不能超过 2MB');
+      return;
+    }
+
+    setAvatarLoading(true);
+    setError('');
+
+    try {
+      // 转换为 base64
+      const reader = new FileReader();
+      reader.onload = async () => {
+        try {
+          const base64 = reader.result as string;
+          
+          const res = await fetch('/api/user/avatar', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ avatar: base64 }),
+          });
+
+          const data = await res.json();
+
+          if (!res.ok) {
+            setError(data.error || '上传头像失败');
+          } else {
+            setSuccess('头像更新成功！');
+            fetchData();
+          }
+        } catch (err) {
+          setError('上传头像失败');
+        } finally {
+          setAvatarLoading(false);
+        }
+      };
+      reader.readAsDataURL(file);
+    } catch (err) {
+      setError('上传头像失败');
+      setAvatarLoading(false);
+    }
+  };
+
+  // 昵称修改处理
+  const handleNameChange = async () => {
+    if (!newName.trim()) {
+      setError('昵称不能为空');
+      return;
+    }
+
+    if (newName === user?.name) {
+      setError('新昵称与当前昵称相同');
+      return;
+    }
+
+    if (!canChangeName) {
+      setError(`一年只能修改一次昵称，下次可修改时间：${nextNameChangeDate}`);
+      return;
+    }
+
+    setNameLoading(true);
+    setError('');
+
+    try {
+      const res = await fetch('/api/user/name', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: newName.trim() }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        setError(data.error || '修改昵称失败');
+      } else {
+        setSuccess('昵称修改成功！');
+        fetchData();
+      }
+    } catch (err) {
+      setError('修改昵称失败');
+    } finally {
+      setNameLoading(false);
+    }
+  };
+
   if (status === 'loading' || loading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-50 to-purple-50 dark:from-gray-900 dark:to-slate-900 py-8 px-4">
@@ -279,12 +399,27 @@ export default function UserCenterPage() {
           </Card>
         </div>
 
+        {/* Error/Success Messages */}
+        {error && (
+          <Alert variant="destructive" className="mb-6">
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
+        )}
+
+        {success && (
+          <Alert className="mb-6 border-green-200 bg-green-50 dark:bg-green-900/20">
+            <CheckCircle2 className="h-4 w-4 text-green-600" />
+            <AlertDescription className="text-green-700 dark:text-green-400">{success}</AlertDescription>
+          </Alert>
+        )}
+
         {/* Main Content */}
-        <Tabs defaultValue="account" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-3 lg:w-auto lg:inline-grid">
-            <TabsTrigger value="account" className="flex items-center gap-2">
+        <Tabs defaultValue="profile" className="space-y-6">
+          <TabsList className="grid w-full grid-cols-4 lg:w-auto lg:inline-grid">
+            <TabsTrigger value="profile" className="flex items-center gap-2">
               <UserIcon className="w-4 h-4" />
-              账户信息
+              个人资料
             </TabsTrigger>
             <TabsTrigger value="mt-account" className="flex items-center gap-2">
               <Link2 className="w-4 h-4" />
@@ -296,50 +431,170 @@ export default function UserCenterPage() {
             </TabsTrigger>
           </TabsList>
 
-          {/* Account Info Tab */}
-          <TabsContent value="account">
-            <Card>
-              <CardHeader>
-                <CardTitle>账户信息</CardTitle>
-                <CardDescription>您的基本账户信息</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="space-y-2">
-                    <Label className="text-gray-600 dark:text-gray-400">邮箱</Label>
-                    <Input value={user?.email || ''} disabled className="bg-gray-50 dark:bg-gray-800" />
+          {/* Profile Tab */}
+          <TabsContent value="profile">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* 头像设置 */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Camera className="w-5 h-5 text-purple-500" />
+                    头像设置
+                  </CardTitle>
+                  <CardDescription>
+                    点击头像更换，支持 JPG、PNG 格式，最大 2MB
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="flex items-center gap-6">
+                    <div className="relative group">
+                      <Avatar 
+                        className="w-24 h-24 cursor-pointer border-4 border-purple-200 dark:border-purple-800 group-hover:border-purple-400 transition-colors"
+                        onClick={handleAvatarClick}
+                      >
+                        <AvatarImage src={user?.avatar || undefined} />
+                        <AvatarFallback className="bg-gradient-to-br from-purple-500 to-blue-500 text-white text-2xl font-bold">
+                          {user?.name?.[0]?.toUpperCase() || 'U'}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div 
+                        className="absolute inset-0 bg-black/50 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
+                        onClick={handleAvatarClick}
+                      >
+                        <Camera className="w-8 h-8 text-white" />
+                      </div>
+                      <input
+                        ref={fileInputRef}
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={handleAvatarChange}
+                      />
+                    </div>
+                    <div>
+                      <p className="font-medium text-lg">{user?.name}</p>
+                      <p className="text-gray-500 text-sm">{user?.email}</p>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="mt-2"
+                        onClick={handleAvatarClick}
+                        disabled={avatarLoading}
+                      >
+                        {avatarLoading ? (
+                          <>
+                            <Spinner className="w-4 h-4 mr-2" />
+                            上传中...
+                          </>
+                        ) : (
+                          <>
+                            <Camera className="w-4 h-4 mr-2" />
+                            更换头像
+                          </>
+                        )}
+                      </Button>
+                    </div>
                   </div>
-                  <div className="space-y-2">
-                    <Label className="text-gray-600 dark:text-gray-400">昵称</Label>
-                    <Input value={user?.name || ''} disabled className="bg-gray-50 dark:bg-gray-800" />
-                  </div>
-                  <div className="space-y-2">
-                    <Label className="text-gray-600 dark:text-gray-400">注册时间</Label>
-                    <Input
-                      value={user?.createdAt ? new Date(user.createdAt).toLocaleString() : ''}
-                      disabled
-                      className="bg-gray-50 dark:bg-gray-800"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label className="text-gray-600 dark:text-gray-400">用户ID</Label>
-                    <Input value={user?.userId || ''} disabled className="bg-gray-50 dark:bg-gray-800 font-mono text-sm" />
-                  </div>
-                </div>
+                </CardContent>
+              </Card>
 
-                <div className="flex flex-wrap gap-3 pt-4 border-t">
-                  <Button variant="outline" onClick={() => router.push('/planet')}>
-                    浏览星球
+              {/* 昵称设置 */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Edit3 className="w-5 h-5 text-blue-500" />
+                    昵称设置
+                  </CardTitle>
+                  <CardDescription>
+                    修改您的昵称，一年仅能修改一次
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="nickname">昵称</Label>
+                    <Input
+                      id="nickname"
+                      value={newName}
+                      onChange={(e) => setNewName(e.target.value)}
+                      placeholder="输入新昵称"
+                      maxLength={20}
+                      disabled={!canChangeName}
+                    />
+                    <p className="text-xs text-gray-500">
+                      {newName.length}/20 字符
+                    </p>
+                  </div>
+
+                  {!canChangeName && (
+                    <Alert>
+                      <Clock className="h-4 w-4" />
+                      <AlertDescription>
+                        一年只能修改一次昵称，下次可修改时间：<strong>{nextNameChangeDate}</strong>
+                      </AlertDescription>
+                    </Alert>
+                  )}
+
+                  <Button
+                    onClick={handleNameChange}
+                    disabled={!canChangeName || nameLoading || newName === user?.name}
+                    className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700"
+                  >
+                    {nameLoading ? (
+                      <>
+                        <Spinner className="w-4 h-4 mr-2" />
+                        修改中...
+                      </>
+                    ) : (
+                      '保存昵称'
+                    )}
                   </Button>
-                  <Button variant="outline" onClick={() => router.push('/planet/my')}>
-                    我的星球
-                  </Button>
-                  <Button variant="destructive" onClick={() => signOut({ callbackUrl: '/' })}>
-                    退出登录
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
+                </CardContent>
+              </Card>
+
+              {/* 账户信息 */}
+              <Card className="lg:col-span-2">
+                <CardHeader>
+                  <CardTitle>账户信息</CardTitle>
+                  <CardDescription>您的基本账户信息</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="space-y-2">
+                      <Label className="text-gray-600 dark:text-gray-400">邮箱</Label>
+                      <Input value={user?.email || ''} disabled className="bg-gray-50 dark:bg-gray-800" />
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="text-gray-600 dark:text-gray-400">昵称</Label>
+                      <Input value={user?.name || ''} disabled className="bg-gray-50 dark:bg-gray-800" />
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="text-gray-600 dark:text-gray-400">注册时间</Label>
+                      <Input
+                        value={user?.createdAt ? new Date(user.createdAt).toLocaleString() : ''}
+                        disabled
+                        className="bg-gray-50 dark:bg-gray-800"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="text-gray-600 dark:text-gray-400">用户ID</Label>
+                      <Input value={user?.userId || ''} disabled className="bg-gray-50 dark:bg-gray-800 font-mono text-sm" />
+                    </div>
+                  </div>
+
+                  <div className="flex flex-wrap gap-3 pt-4 border-t">
+                    <Button variant="outline" onClick={() => router.push('/planet')}>
+                      浏览星球
+                    </Button>
+                    <Button variant="outline" onClick={() => router.push('/planet/my')}>
+                      我的星球
+                    </Button>
+                    <Button variant="destructive" onClick={() => signOut({ callbackUrl: '/' })}>
+                      退出登录
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
           </TabsContent>
 
           {/* MT Account Tab */}
@@ -355,20 +610,6 @@ export default function UserCenterPage() {
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                {error && (
-                  <Alert variant="destructive" className="mb-4">
-                    <AlertCircle className="h-4 w-4" />
-                    <AlertDescription>{error}</AlertDescription>
-                  </Alert>
-                )}
-
-                {success && (
-                  <Alert className="mb-4 border-green-200 bg-green-50 dark:bg-green-900/20">
-                    <CheckCircle2 className="h-4 w-4 text-green-600" />
-                    <AlertDescription className="text-green-700 dark:text-green-400">{success}</AlertDescription>
-                  </Alert>
-                )}
-
                 {mtAccount ? (
                   <div className="space-y-4">
                     <div className="p-6 bg-gradient-to-br from-purple-50 to-blue-50 dark:from-purple-900/20 dark:to-blue-900/20 rounded-lg border-2 border-purple-200 dark:border-purple-800">
@@ -472,174 +713,116 @@ export default function UserCenterPage() {
 
           {/* Recharge Tab */}
           <TabsContent value="recharge">
-            <div className="space-y-6">
-              {error && (
-                <Alert variant="destructive">
-                  <AlertCircle className="h-4 w-4" />
-                  <AlertDescription>{error}</AlertDescription>
-                </Alert>
-              )}
-
-              {success && (
-                <Alert className="border-green-200 bg-green-50 dark:bg-green-900/20">
-                  <CheckCircle2 className="h-4 w-4 text-green-600" />
-                  <AlertDescription className="text-green-700 dark:text-green-400">{success}</AlertDescription>
-                </Alert>
-              )}
-
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Coins className="w-5 h-5" />
-                    星球币充值
-                  </CardTitle>
-                  <CardDescription>
-                    充值星球币用于购买星球门票，大额充值更有额外赠送
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-6">
-                  {/* 快捷充值选项 */}
-                  <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                    {RECHARGE_OPTIONS.map((option) => (
-                      <button
-                        key={option.amount}
-                        onClick={() => {
-                          setSelectedAmount(option.amount);
-                          setCustomAmount('');
-                        }}
-                        disabled={rechargeLoading}
-                        className={`relative p-4 rounded-xl border-2 transition-all text-left ${
-                          selectedAmount === option.amount
-                            ? 'border-purple-500 bg-purple-50 dark:bg-purple-900/30'
-                            : 'border-gray-200 dark:border-gray-700 hover:border-purple-300'
-                        }`}
-                      >
-                        {option.popular && (
-                          <div className="absolute -top-2 -right-2 bg-gradient-to-r from-orange-500 to-red-500 text-white text-xs px-2 py-0.5 rounded-full">
-                            热门
-                          </div>
-                        )}
-                        {option.bonus > 0 && (
-                          <div className="absolute -top-2 -left-2 bg-gradient-to-r from-green-500 to-emerald-500 text-white text-xs px-2 py-0.5 rounded-full flex items-center gap-1">
-                            <Gift className="w-3 h-3" />
-                            +{option.bonus}
-                          </div>
-                        )}
-                        <div className="flex items-center gap-2 mb-1">
-                          <Zap className="w-5 h-5 text-yellow-500" />
-                          <span className="text-2xl font-bold">{option.amount}</span>
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Coins className="w-5 h-5" />
+                  星球币充值
+                </CardTitle>
+                <CardDescription>
+                  充值星球币用于购买星球门票，大额充值更有额外赠送
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                {/* 快捷充值选项 */}
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                  {RECHARGE_OPTIONS.map((option) => (
+                    <button
+                      key={option.amount}
+                      onClick={() => {
+                        setSelectedAmount(option.amount);
+                        setCustomAmount('');
+                      }}
+                      disabled={rechargeLoading}
+                      className={`relative p-4 rounded-xl border-2 transition-all text-left ${
+                        selectedAmount === option.amount
+                          ? 'border-purple-500 bg-purple-50 dark:bg-purple-900/30'
+                          : 'border-gray-200 dark:border-gray-700 hover:border-purple-300'
+                      }`}
+                    >
+                      {option.popular && (
+                        <div className="absolute -top-2 -right-2 bg-gradient-to-r from-orange-500 to-red-500 text-white text-xs px-2 py-0.5 rounded-full">
+                          热门
                         </div>
-                        <p className="text-sm text-gray-500 dark:text-gray-400">
-                          星球币
-                        </p>
-                        {option.bonus > 0 && (
-                          <p className="text-xs text-green-600 dark:text-green-400 mt-1">
-                            实际到账: {option.amount + option.bonus}
-                          </p>
-                        )}
-                      </button>
-                    ))}
-                  </div>
-
-                  {/* 自定义金额 */}
-                  <div className="pt-4 border-t">
-                    <Label className="text-gray-600 dark:text-gray-400 mb-2 block">自定义金额</Label>
-                    <div className="flex gap-3">
-                      <div className="relative flex-1">
-                        <Coins className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                        <Input
-                          type="number"
-                          placeholder="输入充值金额 (10-50000)"
-                          value={customAmount}
-                          onChange={(e) => {
-                            setCustomAmount(e.target.value);
-                            setSelectedAmount(null);
-                          }}
-                          className="pl-10"
-                          min={10}
-                          max={50000}
-                        />
+                      )}
+                      {option.bonus > 0 && (
+                        <div className="absolute -top-2 -left-2 bg-gradient-to-r from-green-500 to-emerald-500 text-white text-xs px-2 py-0.5 rounded-full flex items-center gap-1">
+                          <Gift className="w-3 h-3" />
+                          +{option.bonus}
+                        </div>
+                      )}
+                      <div className="flex items-center gap-2 mb-1">
+                        <Zap className="w-5 h-5 text-yellow-500" />
+                        <span className="text-2xl font-bold">{option.amount}</span>
                       </div>
-                      <Button
-                        onClick={handleCustomRecharge}
-                        disabled={rechargeLoading || !customAmount}
-                        className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700"
-                      >
-                        {rechargeLoading ? <Spinner className="w-4 h-4" /> : '充值'}
-                      </Button>
-                    </div>
-                  </div>
+                      <p className="text-sm text-gray-500 dark:text-gray-400">
+                        星球币
+                      </p>
+                      {option.bonus > 0 && (
+                        <p className="text-xs text-green-600 dark:text-green-400 mt-1">
+                          实际到账: {option.amount + option.bonus}
+                        </p>
+                      )}
+                    </button>
+                  ))}
+                </div>
 
-                  {/* 充值按钮 */}
-                  {selectedAmount && (
-                    <Button
+                {/* 自定义金额 */}
+                <div className="pt-4 border-t">
+                  <Label className="text-gray-600 dark:text-gray-400 mb-2 block">自定义金额</Label>
+                  <div className="flex gap-3">
+                    <div className="relative flex-1">
+                      <Coins className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                      <Input
+                        type="number"
+                        placeholder="输入充值金额 (10-50000)"
+                        value={customAmount}
+                        onChange={(e) => {
+                          setCustomAmount(e.target.value);
+                          setSelectedAmount(null);
+                        }}
+                        className="pl-10"
+                        min={10}
+                        max={50000}
+                      />
+                    </div>
+                    <Button 
+                      onClick={handleCustomRecharge}
+                      disabled={rechargeLoading || !customAmount}
+                      variant="outline"
+                    >
+                      充值
+                    </Button>
+                  </div>
+                </div>
+
+                {/* 充值按钮 */}
+                {selectedAmount && (
+                  <div className="flex items-center justify-between p-4 bg-purple-50 dark:bg-purple-900/20 rounded-lg">
+                    <div>
+                      <p className="font-medium">已选择: {selectedAmount} 星球币</p>
+                      <p className="text-sm text-gray-500">
+                        实际支付: ¥{selectedAmount}
+                      </p>
+                    </div>
+                    <Button 
                       onClick={() => handleRecharge(selectedAmount)}
                       disabled={rechargeLoading}
-                      className="w-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 h-12 text-lg"
+                      className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700"
                     >
                       {rechargeLoading ? (
                         <>
                           <Spinner className="mr-2" />
-                          充值中...
+                          处理中...
                         </>
                       ) : (
-                        <>
-                          <CreditCard className="w-5 h-5 mr-2" />
-                          立即充值 {selectedAmount} 星球币
-                        </>
+                        '立即充值'
                       )}
                     </Button>
-                  )}
-
-                  <Alert>
-                    <AlertCircle className="h-4 w-4" />
-                    <AlertDescription>
-                      充值即时到账，星球币仅用于平台内消费，不支持退款。
-                    </AlertDescription>
-                  </Alert>
-                </CardContent>
-              </Card>
-
-              {/* 充值记录 */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2 text-base">
-                    <History className="w-4 h-4" />
-                    充值记录
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  {rechargeRecords.length > 0 ? (
-                    <div className="space-y-3">
-                      {rechargeRecords.slice(0, 5).map((record) => (
-                        <div
-                          key={record.id}
-                          className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800 rounded-lg"
-                        >
-                          <div>
-                            <p className="font-medium">+{record.amount} 星球币</p>
-                            <p className="text-sm text-gray-500">
-                              {new Date(record.createdAt).toLocaleString()}
-                            </p>
-                          </div>
-                          <Badge
-                            variant={record.status === 'completed' ? 'default' : 'secondary'}
-                            className={record.status === 'completed' ? 'bg-green-500' : ''}
-                          >
-                            {record.status === 'completed' ? '已完成' : '处理中'}
-                          </Badge>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="text-center py-8 text-gray-500">
-                      <History className="w-12 h-12 mx-auto mb-2 opacity-50" />
-                      <p>暂无充值记录</p>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
           </TabsContent>
         </Tabs>
       </div>

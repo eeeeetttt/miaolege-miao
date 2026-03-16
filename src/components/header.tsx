@@ -41,9 +41,14 @@ export function Header() {
               星球列表
             </Link>
             {session && (
-              <Link href="/planet/my" className="text-gray-600 hover:text-purple-600 dark:text-gray-300 dark:hover:text-purple-400 transition-colors">
-                我的星球
-              </Link>
+              <>
+                <Link href="/planet/my" className="text-gray-600 hover:text-purple-600 dark:text-gray-300 dark:hover:text-purple-400 transition-colors">
+                  我的星球
+                </Link>
+                <Link href="/user" className="text-gray-600 hover:text-purple-600 dark:text-gray-300 dark:hover:text-purple-400 transition-colors">
+                  个人中心
+                </Link>
+              </>
             )}
           </nav>
 
@@ -70,12 +75,6 @@ export function Header() {
                     </div>
                   </DropdownMenuLabel>
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem asChild>
-                    <Link href="/user" className="cursor-pointer">
-                      <User className="mr-2 h-4 w-4" />
-                      个人中心
-                    </Link>
-                  </DropdownMenuItem>
                   <DropdownMenuItem asChild>
                     <Link href="/planet/my" className="cursor-pointer">
                       <Globe className="mr-2 h-4 w-4" />
