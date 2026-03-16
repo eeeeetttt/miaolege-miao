@@ -60,6 +60,7 @@ export async function POST(request: NextRequest) {
           max_publishers INT DEFAULT 3,
           status ENUM('active','closed') DEFAULT 'active',
           duration_days INT DEFAULT 365,
+          owner_as_publisher BOOLEAN DEFAULT FALSE,
           FOREIGN KEY (creator_id) REFERENCES users(user_id) ON DELETE CASCADE
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
       `);

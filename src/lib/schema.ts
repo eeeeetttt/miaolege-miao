@@ -37,6 +37,7 @@ export const planets = mysqlTable('planets', {
   maxPublishers: int('max_publishers').default(3),
   status: mysqlEnum('status', ['active', 'closed']).default('active'),
   durationDays: int('duration_days').default(365),
+  ownerAsPublisher: boolean('owner_as_publisher').default(false),
 });
 
 // Planet Members Table
