@@ -182,6 +182,40 @@ export const coinRecharges = mysqlTable('coin_recharges', {
   statusIdx: index('idx_recharge_status').on(table.status),
 }));
 
+// EA Products Table (EA产品)
+export const eaProducts = mysqlTable('ea_products', {
+  id: int('id').autoincrement().primaryKey(),
+  name: varchar('name', { length: 255 }).notNull(),
+  description: text('description'),
+  price: int('price').notNull(), // 价格（金币）
+  version: varchar('version', { length: 50 }).default('1.0.0'),
+  platform: mysqlEnum('platform', ['MT4', 'MT5', 'Both']).default('Both'),
+  category: varchar('category', { length: 100 }), // 分类：趋势、震荡、马丁等
+  features: text('features'), // 功能特点，JSON格式
+  downloadUrl: varchar('download_url', { length: 500 }), // 下载链接
+  fileName: varchar('file_name', { length: 255 }), // 文件名
+  fileSize: int('file_size'), // 文件大小(KB)
+  imageUrl: varchar('image_url', { length: 500 }), // 产品图片
+  status: mysqlEnum('status', ['active', 'inactive']).default('active'),
+  salesCount: int('sales_count').default(0), // 销售数量
+  createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow().onUpdateNow(),
+});
+
+// EA Purchases Table (EA购买记录)
+export const eaPurchases = mysqlTable('ea_purchases', {
+  id: int('id').autoincrement().primaryKey(),
+  userId: varchar('user_id', { length: 255 }).notNull().references(() => users.userId, { onDelete: 'cascade' }),
+  productId: int('product_id').notNull().references(() => eaProducts.id, { onDelete: 'cascade' }),
+  price: int('price').notNull(), // 购买时的价格
+  status: mysqlEnum('status', ['completed', 'refunded']).default('completed'),
+  purchasedAt: timestamp('purchased_at').defaultNow(),
+}, (table) => ({
+  userProductUnique: uniqueIndex('uk_user_ea_product').on(table.userId, table.productId),
+  userIdx: index('idx_user_ea_purchase').on(table.userId),
+  productIdx: index('idx_ea_product_purchase').on(table.productId),
+}));
+
 // Type exports
 export type User = typeof users.$inferSelect;
 export type NewUser = typeof users.$inferInsert;
@@ -191,3 +225,7 @@ export type PlanetMember = typeof planetMembers.$inferSelect;
 export type NewPlanetMember = typeof planetMembers.$inferInsert;
 export type Signal = typeof signals.$inferSelect;
 export type NewSignal = typeof signals.$inferInsert;
+export type EaProduct = typeof eaProducts.$inferSelect;
+export type NewEaProduct = typeof eaProducts.$inferInsert;
+export type EaPurchase = typeof eaPurchases.$inferSelect;
+export type NewEaPurchase = typeof eaPurchases.$inferInsert;
