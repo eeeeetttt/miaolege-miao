@@ -135,5 +135,5 @@ export async function GET(request: NextRequest) {
     });
   }
 
-  return NextResponse.json(results, { indent: 2 });
+  return NextResponse.json(results);
 }
