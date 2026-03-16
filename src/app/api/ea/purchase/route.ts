@@ -57,7 +57,7 @@ export async function POST(request: NextRequest) {
       .limit(1);
 
     if (!user || (user.coinBalance ?? 0) < product.price) {
-      return NextResponse.json({ error: '金币余额不足' }, { status: 400 });
+      return NextResponse.json({ error: '星球币余额不足' }, { status: 400 });
     }
 
     // 开始事务：扣除余额、创建购买记录、更新销量

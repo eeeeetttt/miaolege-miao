@@ -187,7 +187,7 @@ export const eaProducts = mysqlTable('ea_products', {
   id: int('id').autoincrement().primaryKey(),
   name: varchar('name', { length: 255 }).notNull(),
   description: text('description'),
-  price: int('price').notNull(), // 价格（金币）
+  price: int('price').notNull(), // 价格（星球币）
   version: varchar('version', { length: 50 }).default('1.0.0'),
   platform: mysqlEnum('platform', ['MT4', 'MT5', 'Both']).default('Both'),
   category: varchar('category', { length: 100 }), // 分类：趋势、震荡、马丁等

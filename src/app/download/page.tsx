@@ -96,7 +96,7 @@ export default function DownloadPage() {
 
   const handlePurchase = async (productId: number, price: number) => {
     if (coinBalance < price) {
-      setError('金币余额不足，请先充值');
+      setError('星球币余额不足，请先充值');
       return;
     }
 
@@ -114,7 +114,7 @@ export default function DownloadPage() {
       const data = await res.json();
 
       if (res.ok) {
-        setSuccess(`购买成功！已扣除 ${price} 金币`);
+        setSuccess(`购买成功！已扣除 ${price} 星球币`);
         setCoinBalance(prev => prev - price);
         // 更新产品列表
         setProducts(prev => 
@@ -226,7 +226,7 @@ export default function DownloadPage() {
               <div className="flex items-center gap-3">
                 <Coins className="w-8 h-8" />
                 <div>
-                  <p className="text-purple-100 text-sm">我的金币</p>
+                  <p className="text-purple-100 text-sm">我的星球币</p>
                   <p className="text-3xl font-bold">{coinBalance}</p>
                 </div>
               </div>
@@ -320,7 +320,7 @@ export default function DownloadPage() {
                     <div className="flex items-center gap-1">
                       <Coins className="w-4 h-4 text-yellow-500" />
                       <span className="text-xl font-bold">{product.price}</span>
-                      <span className="text-sm text-gray-500">金币</span>
+                      <span className="text-sm text-gray-500">星球币</span>
                     </div>
                     
                     {product.purchased ? (
