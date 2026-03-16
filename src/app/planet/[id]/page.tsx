@@ -298,9 +298,6 @@ export default function PlanetDetailPage() {
                   <Signal className="w-5 h-5 text-purple-500" />
                   信号展示
                 </CardTitle>
-                <CardDescription>
-                  该星球的信号源列表，点击查看详情
-                </CardDescription>
               </CardHeader>
               <CardContent>
                 {userRole ? (

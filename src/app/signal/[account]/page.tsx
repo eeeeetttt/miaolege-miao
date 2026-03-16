@@ -11,6 +11,14 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Spinner } from '@/components/ui/spinner';
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import {
   AreaChart,
   Area,
   XAxis,
@@ -33,7 +41,8 @@ import {
   PieChart,
   Play,
   Pause,
-  CheckCircle2
+  CheckCircle2,
+  Link2
 } from 'lucide-react';
 
 interface SignalDetail {
@@ -41,6 +50,10 @@ interface SignalDetail {
     accountNumber: string;
     broker?: string;
     platform?: string;
+  };
+  planet?: {
+    id: number;
+    name: string;
   };
   signals: any[];
   stats: {
@@ -76,6 +89,9 @@ export default function SignalDetailPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [followLoading, setFollowLoading] = useState(false);
+  const [showConfirmDialog, setShowConfirmDialog] = useState(false);
+  const [hasMtAccount, setHasMtAccount] = useState<boolean | null>(null);
+  const [mtAccountInfo, setMtAccountInfo] = useState<{ accountNumber: string; platform: string } | null>(null);
 
   const accountNumber = searchParams.get('account') || params.account;
   const planetId = searchParams.get('planetId');
@@ -88,6 +104,31 @@ export default function SignalDetailPage() {
     }
     fetchSignalDetail();
   }, [accountNumber]);
+
+  // 获取用户MT账号绑定状态
+  useEffect(() => {
+    if (session) {
+      fetchMtAccountStatus();
+    }
+  }, [session]);
+
+  const fetchMtAccountStatus = async () => {
+    try {
+      const res = await fetch('/api/mt-account');
+      const result = await res.json();
+      if (res.ok && result.account) {
+        setHasMtAccount(true);
+        setMtAccountInfo({
+          accountNumber: result.account.accountNumber,
+          platform: result.account.platform,
+        });
+      } else {
+        setHasMtAccount(false);
+      }
+    } catch (err) {
+      setHasMtAccount(false);
+    }
+  };
 
   const fetchSignalDetail = async () => {
     try {
@@ -117,6 +158,19 @@ export default function SignalDetailPage() {
       return;
     }
 
+    // 检测是否已绑定MT账户
+    if (hasMtAccount === false) {
+      // 未绑定，跳转到绑定页面
+      router.push('/user?action=bind');
+      return;
+    }
+
+    // 已绑定，显示确认弹窗
+    setShowConfirmDialog(true);
+  };
+
+  const confirmFollow = async () => {
+    setShowConfirmDialog(false);
     setFollowLoading(true);
 
     try {
@@ -596,6 +650,52 @@ export default function SignalDetailPage() {
           </TabsContent>
         </Tabs>
       </div>
+
+      {/* 跟单确认弹窗 */}
+      {showConfirmDialog && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white dark:bg-gray-800 rounded-lg p-6 max-w-md w-full mx-4">
+            <h3 className="text-lg font-bold mb-4">确认跟单</h3>
+            <div className="space-y-3 mb-6">
+              <p className="text-gray-600 dark:text-gray-300">
+                您即将跟随信号 <span className="font-semibold">{params.account}</span> 进行交易
+              </p>
+              <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-4 space-y-2">
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-600 dark:text-gray-400">订阅周期</span>
+                  <span className="font-medium">30天</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-600 dark:text-gray-400">跟单星球</span>
+                  <span className="font-medium">{data?.planet?.name || '未知星球'}</span>
+                </div>
+                <div className="border-t pt-2 mt-2 flex justify-between">
+                  <span className="font-medium">费用</span>
+                  <span className="font-bold text-orange-500">100 星球币</span>
+                </div>
+              </div>
+              <p className="text-sm text-gray-500 dark:text-gray-400">
+                确认后将从您的账户余额中扣除相应费用，并开始跟随该信号源的交易
+              </p>
+            </div>
+            <div className="flex gap-3">
+              <Button
+                variant="outline"
+                className="flex-1"
+                onClick={() => setShowConfirmDialog(false)}
+              >
+                取消
+              </Button>
+              <Button
+                className="flex-1 bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600"
+                onClick={confirmFollow}
+              >
+                确认跟单
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
