@@ -255,6 +255,77 @@ export default function DownloadPage() {
           </Alert>
         )}
 
+        {/* 跟单EA免费下载区 */}
+        <Card className="mb-8 bg-gradient-to-r from-blue-600 to-purple-600 text-white overflow-hidden">
+          <CardContent className="pt-6">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+              <div className="flex items-start gap-4">
+                <div className="p-3 bg-white/20 rounded-lg">
+                  <FileCode className="w-8 h-8" />
+                </div>
+                <div>
+                  <h3 className="text-xl font-bold mb-1">MLGM跟单接收端EA</h3>
+                  <p className="text-blue-100 text-sm mb-2">
+                    自动跟单交易助手，支持MT5平台，实时同步信号源交易
+                  </p>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Badge className="bg-white/20 text-white">MT5</Badge>
+                    <Badge className="bg-white/20 text-white">v1.0</Badge>
+                    <Badge className="bg-green-400 text-green-900">免费</Badge>
+                  </div>
+                </div>
+              </div>
+              <Button 
+                size="lg"
+                className="bg-white text-purple-600 hover:bg-gray-100"
+                onClick={() => {
+                  const link = document.createElement('a');
+                  link.href = '/跟单接收端EA.mq5';
+                  link.download = '跟单接收端EA.mq5';
+                  document.body.appendChild(link);
+                  link.click();
+                  document.body.removeChild(link);
+                }}
+              >
+                <Download className="w-4 h-4 mr-2" />
+                免费下载
+              </Button>
+            </div>
+            
+            <div className="mt-4 pt-4 border-t border-white/20">
+              <h4 className="font-medium mb-2">功能特性：</h4>
+              <ul className="grid grid-cols-2 md:grid-cols-4 gap-2 text-sm text-blue-100">
+                <li className="flex items-center gap-2">
+                  <Check className="w-3 h-3" /> 自动验证跟单权限
+                </li>
+                <li className="flex items-center gap-2">
+                  <Check className="w-3 h-3" /> 实时信号轮询
+                </li>
+                <li className="flex items-center gap-2">
+                  <Check className="w-3 h-3" /> 自动开仓/平仓
+                </li>
+                <li className="flex items-center gap-2">
+                  <Check className="w-3 h-3" /> 止损止盈同步
+                </li>
+              </ul>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* EA使用说明 */}
+        <Card className="mb-8">
+          <CardHeader>
+            <CardTitle className="text-lg">使用说明</CardTitle>
+          </CardHeader>
+          <CardContent className="text-sm text-gray-600 dark:text-gray-400 space-y-2">
+            <p><strong>1. 绑定MT账户：</strong>在「个人中心」绑定您的MT5账户号码</p>
+            <p><strong>2. 加入星球：</strong>加入一个信号星球并开始跟单</p>
+            <p><strong>3. 下载EA：</strong>将下载的 .mq5 文件放入 MT5 的 Experts 文件夹</p>
+            <p><strong>4. 配置参数：</strong>在MT5中加载EA，设置服务器地址和跟单手数</p>
+            <p><strong>5. 启动EA：</strong>开启自动交易，EA将自动同步信号源的交易</p>
+          </CardContent>
+        </Card>
+
         {/* 产品列表 */}
         {products.length === 0 ? (
           <Card>
