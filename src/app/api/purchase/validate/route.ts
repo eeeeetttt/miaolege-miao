@@ -90,11 +90,12 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    // 3. 返回验证成功信息
+    // 3. 返回验证成功信息（简化格式，避免中文编码问题）
     const activeFollow = activeFollows[0];
 
-    return NextResponse.json({
+    const response = NextResponse.json({
       valid: true,
+      isActive: true,
       userId,
       mtAccount: followAccount,
       platform: mtAccount.platform,
@@ -103,6 +104,10 @@ export async function GET(request: NextRequest) {
       status: 'active',
       followId: activeFollow.follow.id,
     });
+
+    // 确保UTF-8编码
+    response.headers.set('Content-Type', 'application/json; charset=utf-8');
+    return response;
 
   } catch (error) {
     console.error('Validate follow error:', error);
