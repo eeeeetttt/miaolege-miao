@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { auth } from '@/lib/auth';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/auth';
 import { db } from '@/lib/db';
 import { planets, planetMembers, signals } from '@/lib/schema';
 import { eq, and, desc } from 'drizzle-orm';
@@ -10,7 +11,7 @@ export async function GET(
 ) {
   try {
     const { id } = await params;
-    const session = await auth();
+    const session = await getServerSession(authOptions);
     const planetId = parseInt(id);
 
     // Get planet info

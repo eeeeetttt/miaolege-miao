@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { auth } from '@/lib/auth';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/auth';
 import { db } from '@/lib/db';
 import { mtAccounts } from '@/lib/schema';
 import { eq } from 'drizzle-orm';
@@ -7,7 +8,7 @@ import { eq } from 'drizzle-orm';
 // 获取用户的MT账号
 export async function GET(request: NextRequest) {
   try {
-    const session = await auth();
+    const session = await getServerSession(authOptions);
     
     if (!session?.user?.id) {
       return NextResponse.json({ error: '请先登录' }, { status: 401 });
@@ -29,7 +30,7 @@ export async function GET(request: NextRequest) {
 // 绑定MT账号
 export async function POST(request: NextRequest) {
   try {
-    const session = await auth();
+    const session = await getServerSession(authOptions);
     
     if (!session?.user?.id) {
       return NextResponse.json({ error: '请先登录' }, { status: 401 });
@@ -89,7 +90,7 @@ export async function POST(request: NextRequest) {
 // 解绑MT账号
 export async function DELETE(request: NextRequest) {
   try {
-    const session = await auth();
+    const session = await getServerSession(authOptions);
     
     if (!session?.user?.id) {
       return NextResponse.json({ error: '请先登录' }, { status: 401 });

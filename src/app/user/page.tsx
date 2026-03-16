@@ -10,6 +10,8 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { UserCardSkeleton, RechargeFormSkeleton } from '@/components/loading-skeleton';
+import { Spinner } from '@/components/ui/spinner';
 import { 
   Wallet, 
   User as UserIcon, 
@@ -20,7 +22,11 @@ import {
   AlertCircle,
   Coins,
   TrendingUp,
-  Shield
+  Shield,
+  CreditCard,
+  History,
+  Gift,
+  Zap
 } from 'lucide-react';
 
 interface UserInfo {
@@ -40,11 +46,30 @@ interface MTAccount {
   createdAt: string;
 }
 
+interface RechargeRecord {
+  id: number;
+  amount: number;
+  paymentMethod: string;
+  transactionId: string;
+  status: string;
+  createdAt: string;
+}
+
+const RECHARGE_OPTIONS = [
+  { amount: 100, bonus: 0, popular: false },
+  { amount: 200, bonus: 10, popular: false },
+  { amount: 500, bonus: 30, popular: true },
+  { amount: 1000, bonus: 80, popular: false },
+  { amount: 2000, bonus: 200, popular: false },
+  { amount: 5000, bonus: 600, popular: false },
+];
+
 export default function UserCenterPage() {
   const router = useRouter();
   const { data: session, status } = useSession();
   const [user, setUser] = useState<UserInfo | null>(null);
   const [mtAccount, setMtAccount] = useState<MTAccount | null>(null);
+  const [rechargeRecords, setRechargeRecords] = useState<RechargeRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [mtForm, setMtForm] = useState({
     accountNumber: '',
@@ -52,6 +77,9 @@ export default function UserCenterPage() {
     platform: 'MT5',
   });
   const [mtLoading, setMtLoading] = useState(false);
+  const [rechargeLoading, setRechargeLoading] = useState(false);
+  const [selectedAmount, setSelectedAmount] = useState<number | null>(null);
+  const [customAmount, setCustomAmount] = useState('');
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
 
@@ -68,16 +96,19 @@ export default function UserCenterPage() {
 
   const fetchData = async () => {
     try {
-      const [userRes, mtRes] = await Promise.all([
+      const [userRes, mtRes, rechargeRes] = await Promise.all([
         fetch('/api/user/info'),
         fetch('/api/mt-account'),
+        fetch('/api/recharge'),
       ]);
       
       const userData = await userRes.json();
       const mtData = await mtRes.json();
+      const rechargeData = await rechargeRes.json();
       
       setUser(userData.user);
       setMtAccount(mtData.account);
+      setRechargeRecords(rechargeData.records || []);
     } catch (error) {
       console.error('Failed to fetch data:', error);
     } finally {
@@ -137,10 +168,50 @@ export default function UserCenterPage() {
     }
   };
 
+  const handleRecharge = async (amount: number) => {
+    setError('');
+    setSuccess('');
+    setRechargeLoading(true);
+
+    try {
+      const res = await fetch('/api/recharge', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ amount, paymentMethod: 'system' }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        setError(data.error || '充值失败');
+      } else {
+        setSuccess(`充值成功！到账 ${amount} 星球币`);
+        fetchData();
+        setSelectedAmount(null);
+        setCustomAmount('');
+      }
+    } catch (err) {
+      setError('充值失败，请稍后重试');
+    } finally {
+      setRechargeLoading(false);
+    }
+  };
+
+  const handleCustomRecharge = () => {
+    const amount = parseInt(customAmount);
+    if (!amount || amount < 10 || amount > 50000) {
+      setError('充值金额需在10-50000之间');
+      return;
+    }
+    handleRecharge(amount);
+  };
+
   if (status === 'loading' || loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600"></div>
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-purple-50 dark:from-gray-900 dark:to-slate-900 py-8 px-4">
+        <div className="max-w-6xl mx-auto">
+          <UserCardSkeleton />
+        </div>
       </div>
     );
   }
@@ -160,20 +231,24 @@ export default function UserCenterPage() {
 
         {/* Stats Cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-          <Card className="bg-gradient-to-br from-purple-500 to-purple-600 text-white">
-            <CardContent className="pt-6">
+          <Card className="bg-gradient-to-br from-purple-500 to-purple-600 text-white overflow-hidden relative">
+            <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -translate-y-1/2 translate-x-1/2"></div>
+            <CardContent className="pt-6 relative z-10">
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-purple-100 text-sm">星球币余额</p>
                   <p className="text-3xl font-bold mt-1">{user?.coinBalance || 0}</p>
                 </div>
-                <Coins className="w-12 h-12 text-purple-200" />
+                <div className="w-14 h-14 bg-white/20 rounded-full flex items-center justify-center">
+                  <Coins className="w-8 h-8 text-white" />
+                </div>
               </div>
             </CardContent>
           </Card>
 
-          <Card className="bg-gradient-to-br from-blue-500 to-blue-600 text-white">
-            <CardContent className="pt-6">
+          <Card className="bg-gradient-to-br from-blue-500 to-blue-600 text-white overflow-hidden relative">
+            <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -translate-y-1/2 translate-x-1/2"></div>
+            <CardContent className="pt-6 relative z-10">
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-blue-100 text-sm">MT账号状态</p>
@@ -181,19 +256,24 @@ export default function UserCenterPage() {
                     {mtAccount ? '已绑定' : '未绑定'}
                   </p>
                 </div>
-                <Link2 className="w-12 h-12 text-blue-200" />
+                <div className="w-14 h-14 bg-white/20 rounded-full flex items-center justify-center">
+                  <Link2 className="w-8 h-8 text-white" />
+                </div>
               </div>
             </CardContent>
           </Card>
 
-          <Card className="bg-gradient-to-br from-green-500 to-green-600 text-white">
-            <CardContent className="pt-6">
+          <Card className="bg-gradient-to-br from-green-500 to-green-600 text-white overflow-hidden relative">
+            <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -translate-y-1/2 translate-x-1/2"></div>
+            <CardContent className="pt-6 relative z-10">
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-green-100 text-sm">账号状态</p>
                   <p className="text-xl font-bold mt-1">正常</p>
                 </div>
-                <Shield className="w-12 h-12 text-green-200" />
+                <div className="w-14 h-14 bg-white/20 rounded-full flex items-center justify-center">
+                  <Shield className="w-8 h-8 text-white" />
+                </div>
               </div>
             </CardContent>
           </Card>
@@ -227,23 +307,23 @@ export default function UserCenterPage() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="space-y-2">
                     <Label className="text-gray-600 dark:text-gray-400">邮箱</Label>
-                    <Input value={user?.email || ''} disabled className="bg-gray-50" />
+                    <Input value={user?.email || ''} disabled className="bg-gray-50 dark:bg-gray-800" />
                   </div>
                   <div className="space-y-2">
                     <Label className="text-gray-600 dark:text-gray-400">昵称</Label>
-                    <Input value={user?.name || ''} disabled className="bg-gray-50" />
+                    <Input value={user?.name || ''} disabled className="bg-gray-50 dark:bg-gray-800" />
                   </div>
                   <div className="space-y-2">
                     <Label className="text-gray-600 dark:text-gray-400">注册时间</Label>
                     <Input
                       value={user?.createdAt ? new Date(user.createdAt).toLocaleString() : ''}
                       disabled
-                      className="bg-gray-50"
+                      className="bg-gray-50 dark:bg-gray-800"
                     />
                   </div>
                   <div className="space-y-2">
                     <Label className="text-gray-600 dark:text-gray-400">用户ID</Label>
-                    <Input value={user?.userId || ''} disabled className="bg-gray-50 font-mono text-sm" />
+                    <Input value={user?.userId || ''} disabled className="bg-gray-50 dark:bg-gray-800 font-mono text-sm" />
                   </div>
                 </div>
 
@@ -338,7 +418,7 @@ export default function UserCenterPage() {
                           id="platform"
                           value={mtForm.platform}
                           onChange={(e) => setMtForm({ ...mtForm, platform: e.target.value })}
-                          className="w-full px-3 py-2 border rounded-md bg-white dark:bg-gray-800"
+                          className="w-full px-3 py-2 border rounded-md bg-white dark:bg-gray-800 dark:border-gray-700"
                         >
                           <option value="MT5">MetaTrader 5</option>
                           <option value="MT4">MetaTrader 4</option>
@@ -374,8 +454,15 @@ export default function UserCenterPage() {
                       </AlertDescription>
                     </Alert>
 
-                    <Button type="submit" disabled={mtLoading} className="w-full md:w-auto">
-                      {mtLoading ? '绑定中...' : '绑定账号'}
+                    <Button type="submit" disabled={mtLoading} className="w-full md:w-auto bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700">
+                      {mtLoading ? (
+                        <>
+                          <Spinner className="mr-2" />
+                          绑定中...
+                        </>
+                      ) : (
+                        '绑定账号'
+                      )}
                     </Button>
                   </form>
                 )}
@@ -385,27 +472,174 @@ export default function UserCenterPage() {
 
           {/* Recharge Tab */}
           <TabsContent value="recharge">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Coins className="w-5 h-5" />
-                  星球币充值
-                </CardTitle>
-                <CardDescription>
-                  充值星球币用于购买星球门票
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="text-center py-12">
-                  <Coins className="w-16 h-16 mx-auto text-gray-300 dark:text-gray-600 mb-4" />
-                  <h3 className="text-xl font-semibold mb-2">充值功能开发中</h3>
-                  <p className="text-gray-600 dark:text-gray-400 mb-6">
-                    即将支持微信、支付宝等多种充值方式
-                  </p>
-                  <Button disabled>敬请期待</Button>
-                </div>
-              </CardContent>
-            </Card>
+            <div className="space-y-6">
+              {error && (
+                <Alert variant="destructive">
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertDescription>{error}</AlertDescription>
+                </Alert>
+              )}
+
+              {success && (
+                <Alert className="border-green-200 bg-green-50 dark:bg-green-900/20">
+                  <CheckCircle2 className="h-4 w-4 text-green-600" />
+                  <AlertDescription className="text-green-700 dark:text-green-400">{success}</AlertDescription>
+                </Alert>
+              )}
+
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Coins className="w-5 h-5" />
+                    星球币充值
+                  </CardTitle>
+                  <CardDescription>
+                    充值星球币用于购买星球门票，大额充值更有额外赠送
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                  {/* 快捷充值选项 */}
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                    {RECHARGE_OPTIONS.map((option) => (
+                      <button
+                        key={option.amount}
+                        onClick={() => {
+                          setSelectedAmount(option.amount);
+                          setCustomAmount('');
+                        }}
+                        disabled={rechargeLoading}
+                        className={`relative p-4 rounded-xl border-2 transition-all text-left ${
+                          selectedAmount === option.amount
+                            ? 'border-purple-500 bg-purple-50 dark:bg-purple-900/30'
+                            : 'border-gray-200 dark:border-gray-700 hover:border-purple-300'
+                        }`}
+                      >
+                        {option.popular && (
+                          <div className="absolute -top-2 -right-2 bg-gradient-to-r from-orange-500 to-red-500 text-white text-xs px-2 py-0.5 rounded-full">
+                            热门
+                          </div>
+                        )}
+                        {option.bonus > 0 && (
+                          <div className="absolute -top-2 -left-2 bg-gradient-to-r from-green-500 to-emerald-500 text-white text-xs px-2 py-0.5 rounded-full flex items-center gap-1">
+                            <Gift className="w-3 h-3" />
+                            +{option.bonus}
+                          </div>
+                        )}
+                        <div className="flex items-center gap-2 mb-1">
+                          <Zap className="w-5 h-5 text-yellow-500" />
+                          <span className="text-2xl font-bold">{option.amount}</span>
+                        </div>
+                        <p className="text-sm text-gray-500 dark:text-gray-400">
+                          星球币
+                        </p>
+                        {option.bonus > 0 && (
+                          <p className="text-xs text-green-600 dark:text-green-400 mt-1">
+                            实际到账: {option.amount + option.bonus}
+                          </p>
+                        )}
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* 自定义金额 */}
+                  <div className="pt-4 border-t">
+                    <Label className="text-gray-600 dark:text-gray-400 mb-2 block">自定义金额</Label>
+                    <div className="flex gap-3">
+                      <div className="relative flex-1">
+                        <Coins className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                        <Input
+                          type="number"
+                          placeholder="输入充值金额 (10-50000)"
+                          value={customAmount}
+                          onChange={(e) => {
+                            setCustomAmount(e.target.value);
+                            setSelectedAmount(null);
+                          }}
+                          className="pl-10"
+                          min={10}
+                          max={50000}
+                        />
+                      </div>
+                      <Button
+                        onClick={handleCustomRecharge}
+                        disabled={rechargeLoading || !customAmount}
+                        className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700"
+                      >
+                        {rechargeLoading ? <Spinner className="w-4 h-4" /> : '充值'}
+                      </Button>
+                    </div>
+                  </div>
+
+                  {/* 充值按钮 */}
+                  {selectedAmount && (
+                    <Button
+                      onClick={() => handleRecharge(selectedAmount)}
+                      disabled={rechargeLoading}
+                      className="w-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 h-12 text-lg"
+                    >
+                      {rechargeLoading ? (
+                        <>
+                          <Spinner className="mr-2" />
+                          充值中...
+                        </>
+                      ) : (
+                        <>
+                          <CreditCard className="w-5 h-5 mr-2" />
+                          立即充值 {selectedAmount} 星球币
+                        </>
+                      )}
+                    </Button>
+                  )}
+
+                  <Alert>
+                    <AlertCircle className="h-4 w-4" />
+                    <AlertDescription>
+                      充值即时到账，星球币仅用于平台内消费，不支持退款。
+                    </AlertDescription>
+                  </Alert>
+                </CardContent>
+              </Card>
+
+              {/* 充值记录 */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2 text-base">
+                    <History className="w-4 h-4" />
+                    充值记录
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {rechargeRecords.length > 0 ? (
+                    <div className="space-y-3">
+                      {rechargeRecords.slice(0, 5).map((record) => (
+                        <div
+                          key={record.id}
+                          className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800 rounded-lg"
+                        >
+                          <div>
+                            <p className="font-medium">+{record.amount} 星球币</p>
+                            <p className="text-sm text-gray-500">
+                              {new Date(record.createdAt).toLocaleString()}
+                            </p>
+                          </div>
+                          <Badge
+                            variant={record.status === 'completed' ? 'default' : 'secondary'}
+                            className={record.status === 'completed' ? 'bg-green-500' : ''}
+                          >
+                            {record.status === 'completed' ? '已完成' : '处理中'}
+                          </Badge>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-center py-8 text-gray-500">
+                      <History className="w-12 h-12 mx-auto mb-2 opacity-50" />
+                      <p>暂无充值记录</p>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
           </TabsContent>
         </Tabs>
       </div>

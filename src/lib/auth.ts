@@ -5,8 +5,8 @@ import { users } from './schema';
 import { eq } from 'drizzle-orm';
 import bcrypt from 'bcryptjs';
 
-// @ts-ignore
-export const { handlers, signIn, signOut, auth } = NextAuth({
+// NextAuth v4 配置
+export const authOptions = {
   providers: [
     CredentialsProvider({
       name: 'credentials',
@@ -43,7 +43,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     }),
   ],
   session: {
-    strategy: 'jwt',
+    strategy: 'jwt' as const,
   },
   pages: {
     signIn: '/login',
@@ -62,4 +62,6 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       return session;
     },
   },
-});
+};
+
+export default NextAuth(authOptions);
