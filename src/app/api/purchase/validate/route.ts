@@ -23,7 +23,7 @@ export async function GET(request: NextRequest) {
 
     if (!followAccount) {
       return NextResponse.json(
-        { valid: false, error: '缺少跟单账户参数' },
+        { valid: false, hasPurchase: false, error: '缺少跟单账户参数' },
         { status: 400 }
       );
     }
@@ -37,7 +37,8 @@ export async function GET(request: NextRequest) {
 
     if (mtAccountData.length === 0) {
       return NextResponse.json({
-        valid: false,
+        valid: true,
+        hasPurchase: false,  // 未绑定MT账户
         error: '未找到绑定的MT账户',
       });
     }
@@ -78,24 +79,26 @@ export async function GET(request: NextRequest) {
 
       if (pausedFollows.length > 0) {
         return NextResponse.json({
-          valid: false,
+          valid: true,
+          hasPurchase: false,  // 已暂停
           error: '跟单服务已暂停，请在平台恢复跟单',
           status: 'paused',
         });
       }
 
       return NextResponse.json({
-        valid: false,
+        valid: true,
+        hasPurchase: false,  // 没有跟单服务
         error: '没有活跃的跟单服务，请先在平台订阅跟单',
       });
     }
 
-    // 3. 返回验证成功信息（简化格式，避免中文编码问题）
+    // 3. 返回验证成功信息
     const activeFollow = activeFollows[0];
 
     const response = NextResponse.json({
       valid: true,
-      isActive: true,
+      hasPurchase: true,  // 有活跃跟单服务
       userId,
       mtAccount: followAccount,
       platform: mtAccount.platform,
@@ -112,7 +115,7 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     console.error('Validate follow error:', error);
     return NextResponse.json(
-      { valid: false, error: '验证失败' },
+      { valid: false, hasPurchase: false, error: '验证失败' },
       { status: 500 }
     );
   }
