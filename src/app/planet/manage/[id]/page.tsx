@@ -11,6 +11,7 @@ import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Input } from '@/components/ui/input';
 import { Spinner } from '@/components/ui/spinner';
 import { 
   Settings, 
@@ -21,7 +22,9 @@ import {
   CheckCircle2,
   AlertCircle,
   Radio,
-  RadioIcon
+  RadioIcon,
+  Save,
+  Edit3
 } from 'lucide-react';
 
 interface Application {
@@ -48,10 +51,12 @@ interface PlanetInfo {
   id: number;
   name: string;
   description: string;
+  rules: string;
   ticketPrice: number;
   ownerAsPublisher: boolean;
   maxPublishers: number;
   status: string;
+  inviteCode: string;
 }
 
 export default function PlanetManagePage() {
@@ -66,6 +71,16 @@ export default function PlanetManagePage() {
   const [ownerAsPublisher, setOwnerAsPublisher] = useState(false);
   const [updatingPublisher, setUpdatingPublisher] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
+  
+  // 编辑模式状态
+  const [editMode, setEditMode] = useState(false);
+  const [editForm, setEditForm] = useState({
+    name: '',
+    description: '',
+    rules: '',
+    ticketPrice: 0,
+  });
+  const [savingInfo, setSavingInfo] = useState(false);
 
   useEffect(() => {
     if (status === 'unauthenticated') {
@@ -92,6 +107,14 @@ export default function PlanetManagePage() {
       setPlanet(planetData.planet);
       setOwnerAsPublisher(planetData.planet.ownerAsPublisher || false);
       setStats({ totalMembers: planetData.memberCount, totalEarnings: 0 });
+      
+      // 初始化编辑表单
+      setEditForm({
+        name: planetData.planet.name || '',
+        description: planetData.planet.description || '',
+        rules: planetData.planet.rules || '',
+        ticketPrice: planetData.planet.ticketPrice || 0,
+      });
 
       // Fetch applications
       const appRes = await fetch(`/api/planet/applications?planetId=${params.id}`);
@@ -170,6 +193,48 @@ export default function PlanetManagePage() {
     } finally {
       setUpdatingPublisher(false);
     }
+  };
+
+  const handleSaveInfo = async () => {
+    setSavingInfo(true);
+    setSuccessMessage('');
+    
+    try {
+      const res = await fetch('/api/planet/update', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          planetId: parseInt(params.id as string),
+          ...editForm,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (res.ok) {
+        setSuccessMessage('星球信息更新成功！');
+        setEditMode(false);
+        fetchData();
+      } else {
+        alert(data.error || '更新失败');
+      }
+    } catch (error) {
+      console.error('Failed to update planet:', error);
+      alert('更新失败，请稍后重试');
+    } finally {
+      setSavingInfo(false);
+    }
+  };
+
+  const handleCancelEdit = () => {
+    setEditMode(false);
+    // 重置表单
+    setEditForm({
+      name: planet?.name || '',
+      description: planet?.description || '',
+      rules: planet?.rules || '',
+      ticketPrice: planet?.ticketPrice || 0,
+    });
   };
 
   if (status === 'loading' || loading) {
@@ -292,6 +357,135 @@ export default function PlanetManagePage() {
           {/* Settings Tab */}
           <TabsContent value="settings">
             <div className="space-y-6">
+              {/* Planet Info Settings */}
+              <Card>
+                <CardHeader>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <CardTitle className="flex items-center gap-2">
+                        <Edit3 className="w-5 h-5" />
+                        星球信息
+                      </CardTitle>
+                      <CardDescription>
+                        编辑星球的基本信息
+                      </CardDescription>
+                    </div>
+                    {!editMode && (
+                      <Button variant="outline" onClick={() => setEditMode(true)}>
+                        <Edit3 className="w-4 h-4 mr-2" />
+                        编辑
+                      </Button>
+                    )}
+                  </div>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {editMode ? (
+                    <>
+                      <div className="space-y-2">
+                        <Label htmlFor="name">星球名称</Label>
+                        <Input
+                          id="name"
+                          value={editForm.name}
+                          onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
+                          placeholder="输入星球名称"
+                        />
+                      </div>
+                      
+                      <div className="space-y-2">
+                        <Label htmlFor="description">星球描述</Label>
+                        <Input
+                          id="description"
+                          value={editForm.description}
+                          onChange={(e) => setEditForm({ ...editForm, description: e.target.value })}
+                          placeholder="输入星球描述"
+                        />
+                      </div>
+                      
+                      <div className="space-y-2">
+                        <Label htmlFor="rules">星球规则</Label>
+                        <textarea
+                          id="rules"
+                          value={editForm.rules}
+                          onChange={(e) => setEditForm({ ...editForm, rules: e.target.value })}
+                          placeholder="输入星球规则"
+                          className="w-full px-3 py-2 border rounded-md bg-white dark:bg-gray-800 dark:border-gray-700 min-h-[100px]"
+                        />
+                      </div>
+                      
+                      <div className="space-y-2">
+                        <Label htmlFor="ticketPrice">门票价格（星球币）</Label>
+                        <Input
+                          id="ticketPrice"
+                          type="number"
+                          value={editForm.ticketPrice}
+                          onChange={(e) => setEditForm({ ...editForm, ticketPrice: parseInt(e.target.value) || 0 })}
+                          placeholder="0"
+                          min="0"
+                        />
+                      </div>
+                      
+                      <div className="flex gap-3 pt-4">
+                        <Button 
+                          onClick={handleSaveInfo} 
+                          disabled={savingInfo}
+                          className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700"
+                        >
+                          {savingInfo ? (
+                            <>
+                              <Spinner className="w-4 h-4 mr-2" />
+                              保存中...
+                            </>
+                          ) : (
+                            <>
+                              <Save className="w-4 h-4 mr-2" />
+                              保存修改
+                            </>
+                          )}
+                        </Button>
+                        <Button variant="outline" onClick={handleCancelEdit}>
+                          取消
+                        </Button>
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                          <p className="text-sm text-gray-500 mb-1">星球名称</p>
+                          <p className="font-semibold">{planet?.name}</p>
+                        </div>
+                        <div className="p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                          <p className="text-sm text-gray-500 mb-1">门票价格</p>
+                          <p className="font-semibold">{planet?.ticketPrice || 0} 星球币</p>
+                        </div>
+                        <div className="p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                          <p className="text-sm text-gray-500 mb-1">最大发布者数</p>
+                          <p className="font-semibold">{planet?.maxPublishers || 3} 人</p>
+                        </div>
+                        <div className="p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                          <p className="text-sm text-gray-500 mb-1">邀请码</p>
+                          <p className="font-semibold font-mono">{planet?.inviteCode || '-'}</p>
+                        </div>
+                      </div>
+                      
+                      {planet?.description && (
+                        <div className="p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                          <p className="text-sm text-gray-500 mb-1">星球描述</p>
+                          <p className="text-gray-700 dark:text-gray-300">{planet.description}</p>
+                        </div>
+                      )}
+                      
+                      {planet?.rules && (
+                        <div className="p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                          <p className="text-sm text-gray-500 mb-1">星球规则</p>
+                          <p className="text-gray-700 dark:text-gray-300 whitespace-pre-wrap">{planet.rules}</p>
+                        </div>
+                      )}
+                    </>
+                  )}
+                </CardContent>
+              </Card>
+
               {/* Publisher Settings */}
               <Card>
                 <CardHeader>
@@ -352,43 +546,6 @@ export default function PlanetManagePage() {
                   </Alert>
                 </CardContent>
               </Card>
-
-              {/* Other Settings */}
-              <Card>
-                <CardHeader>
-                  <CardTitle>星球信息</CardTitle>
-                  <CardDescription>星球的基本信息</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
-                      <p className="text-sm text-gray-500 mb-1">星球名称</p>
-                      <p className="font-semibold">{planet?.name}</p>
-                    </div>
-                    <div className="p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
-                      <p className="text-sm text-gray-500 mb-1">门票价格</p>
-                      <p className="font-semibold">{planet?.ticketPrice || 0} 星球币</p>
-                    </div>
-                    <div className="p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
-                      <p className="text-sm text-gray-500 mb-1">最大发布者数</p>
-                      <p className="font-semibold">{planet?.maxPublishers || 3} 人</p>
-                    </div>
-                    <div className="p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
-                      <p className="text-sm text-gray-500 mb-1">星球状态</p>
-                      <Badge variant={planet?.status === 'active' ? 'default' : 'secondary'}>
-                        {planet?.status === 'active' ? '活跃' : '已关闭'}
-                      </Badge>
-                    </div>
-                  </div>
-                  
-                  {planet?.description && (
-                    <div className="p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
-                      <p className="text-sm text-gray-500 mb-1">星球描述</p>
-                      <p className="text-gray-700 dark:text-gray-300">{planet.description}</p>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
             </div>
           </TabsContent>
 
@@ -401,22 +558,22 @@ export default function PlanetManagePage() {
               </CardHeader>
               <CardContent>
                 {pendingApplications.length === 0 ? (
-                  <div className="text-center py-12">
-                    <FileText className="w-16 h-16 mx-auto text-gray-300 dark:text-gray-600 mb-4" />
-                    <p className="text-gray-500">暂无待审核申请</p>
+                  <div className="text-center py-8 text-gray-500">
+                    暂无待审核的申请
                   </div>
                 ) : (
                   <div className="space-y-4">
                     {pendingApplications.map((app) => (
-                      <div key={app.id} className="flex justify-between items-center p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                      <div key={app.id} className="flex items-center justify-between p-4 border rounded-lg">
                         <div>
-                          <p className="font-medium">{app.userName || '未知用户'}</p>
-                          <p className="text-sm text-gray-600 dark:text-gray-400">
-                            {app.userEmail} · 申请于 {new Date(app.appliedAt).toLocaleString()}
+                          <p className="font-medium">{app.userName}</p>
+                          <p className="text-sm text-gray-500">{app.userEmail}</p>
+                          <p className="text-xs text-gray-400 mt-1">
+                            申请时间: {new Date(app.appliedAt).toLocaleString()}
                           </p>
                         </div>
                         <div className="flex gap-2">
-                          <Button size="sm" onClick={() => handleApprove(app.userId)} className="bg-green-500 hover:bg-green-600">
+                          <Button size="sm" onClick={() => handleApprove(app.userId)}>
                             批准
                           </Button>
                           <Button size="sm" variant="destructive" onClick={() => handleReject(app.userId)}>
@@ -436,46 +593,43 @@ export default function PlanetManagePage() {
             <Card>
               <CardHeader>
                 <CardTitle>成员列表</CardTitle>
-                <CardDescription>查看所有星球成员</CardDescription>
+                <CardDescription>星球所有成员</CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="space-y-3">
-                  {members.map((member) => (
-                    <div key={member.userId} className="flex justify-between items-center p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <p className="font-medium">{member.userName || '未知用户'}</p>
-                          <Badge variant={
-                            member.role === 'owner' ? 'default' : 
-                            member.role === 'publisher' ? 'secondary' : 'outline'
-                          }>
-                            {member.role === 'owner' ? '星主' : 
-                             member.role === 'publisher' ? '发布者' : '跟单者'}
-                          </Badge>
-                          {member.role === 'owner' && ownerAsPublisher && (
-                            <Badge className="bg-green-500 text-xs">发布者</Badge>
-                          )}
-                        </div>
-                        <p className="text-sm text-gray-600 dark:text-gray-400">
-                          {member.userEmail} · 加入于 {new Date(member.joinedAt).toLocaleDateString()}
-                        </p>
-                      </div>
-                      <div className="text-right">
-                        <p className="text-sm text-gray-600 dark:text-gray-400">
-                          {member.joinMethod === 'purchase' ? '购买门票' : '邀请码'}
-                        </p>
-                        <p className="text-sm font-medium">
-                          {member.ticketPaid} 星球币
-                        </p>
-                      </div>
-                    </div>
-                  ))}
-                  {members.length === 0 && (
-                    <div className="text-center py-12">
-                      <Users className="w-16 h-16 mx-auto text-gray-300 dark:text-gray-600 mb-4" />
-                      <p className="text-gray-500">暂无成员</p>
-                    </div>
-                  )}
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead>
+                      <tr className="border-b">
+                        <th className="text-left py-3 px-4">用户</th>
+                        <th className="text-left py-3 px-4">角色</th>
+                        <th className="text-left py-3 px-4">加入方式</th>
+                        <th className="text-left py-3 px-4">加入时间</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {members.map((member) => (
+                        <tr key={member.userId} className="border-b">
+                          <td className="py-3 px-4">
+                            <div>
+                              <p className="font-medium">{member.userName}</p>
+                              <p className="text-sm text-gray-500">{member.userEmail}</p>
+                            </div>
+                          </td>
+                          <td className="py-3 px-4">
+                            <Badge variant={member.role === 'owner' ? 'default' : member.role === 'publisher' ? 'secondary' : 'outline'}>
+                              {member.role === 'owner' ? '星主' : member.role === 'publisher' ? '发布者' : '成员'}
+                            </Badge>
+                          </td>
+                          <td className="py-3 px-4">
+                            {member.joinMethod === 'purchase' ? '购买门票' : '邀请码'}
+                          </td>
+                          <td className="py-3 px-4 text-sm text-gray-500">
+                            {new Date(member.joinedAt).toLocaleDateString()}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
                 </div>
               </CardContent>
             </Card>

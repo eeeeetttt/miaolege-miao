@@ -19,26 +19,12 @@ import {
   Target,
   Percent,
   DollarSign,
-  Calendar,
-  Clock,
-  Award,
   AlertTriangle,
-  PieChart
+  PieChart,
+  Play,
+  Pause,
+  CheckCircle2
 } from 'lucide-react';
-
-interface SignalSource {
-  id: number;
-  accountNumber: string;
-  broker: string;
-  platform: string;
-  isVerified: boolean;
-  totalProfit: string;
-  winRate: string;
-  totalTrades: number;
-  returnRate: string;
-  maxDrawdown: string;
-  profitFactor: string;
-}
 
 interface SignalDetail {
   account: {
@@ -55,15 +41,20 @@ interface SignalDetail {
     winRate: string;
     returnRate: string;
     maxDrawdown: string;
+    maxDrawdownPercent: string;
     profitFactor: string;
     maxProfit: string;
     maxLoss: string;
     avgWin: string;
     avgLoss: string;
-    profitHistory: { date: string; profit: number }[];
+    initialBalance: string;
+    broker: string;
+    profitHistory: { date: string; time: string; profit: number; returnRate: string }[];
+    tradeHistory: any[];
     symbolStats: Record<string, { count: number; profit: number; win: number; loss: number }>;
     directionStats: { buy: { count: number; profit: number }; sell: { count: number; profit: number } };
   };
+  followStatus: { status: string; id: number } | null;
 }
 
 export default function SignalDetailPage() {
@@ -74,6 +65,7 @@ export default function SignalDetailPage() {
   const [data, setData] = useState<SignalDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [followLoading, setFollowLoading] = useState(false);
 
   const accountNumber = searchParams.get('account') || params.account;
   const planetId = searchParams.get('planetId');
@@ -89,7 +81,7 @@ export default function SignalDetailPage() {
 
   const fetchSignalDetail = async () => {
     try {
-      const res = await fetch(`/api/signals/detail?account=${accountNumber}`);
+      const res = await fetch(`/api/signals/detail?account=${accountNumber}&planetId=${planetId || ''}`);
       const result = await res.json();
       
       if (!res.ok) {
@@ -101,6 +93,80 @@ export default function SignalDetailPage() {
       setError('获取数据失败');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleFollow = async () => {
+    if (!session) {
+      router.push('/login');
+      return;
+    }
+
+    if (!planetId) {
+      setError('无法跟单：缺少星球信息');
+      return;
+    }
+
+    setFollowLoading(true);
+
+    try {
+      // 找到最近的平仓信号
+      const closeSignals = data?.signals.filter(s => 
+        s.signalType?.toLowerCase().includes('close')
+      ) || [];
+      
+      if (closeSignals.length === 0) {
+        setError('暂无可跟单的信号');
+        setFollowLoading(false);
+        return;
+      }
+
+      const latestSignal = closeSignals[0];
+
+      if (data?.followStatus?.status === 'active') {
+        // 暂停跟单
+        const res = await fetch('/api/follow/pause', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            planetId,
+            signalId: latestSignal.id,
+          }),
+        });
+
+        if (res.ok) {
+          setData(prev => prev ? {
+            ...prev,
+            followStatus: { ...prev.followStatus!, status: 'paused' }
+          } : null);
+        }
+      } else {
+        // 开始跟单
+        const res = await fetch('/api/follow', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            planetId,
+            signalId: latestSignal.id,
+          }),
+        });
+
+        const result = await res.json();
+
+        if (res.ok) {
+          setData(prev => prev ? {
+            ...prev,
+            followStatus: { status: 'active', id: result.followId }
+          } : null);
+        } else {
+          setError(result.error || '跟单失败');
+        }
+      }
+    } catch (error) {
+      console.error('Follow error:', error);
+      setError('跟单操作失败');
+    } finally {
+      setFollowLoading(false);
     }
   };
 
@@ -138,6 +204,7 @@ export default function SignalDetailPage() {
   }
 
   const { stats, signals } = data;
+  const closeSignals = signals.filter(s => s.signalType?.toLowerCase().includes('close'));
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-purple-50 dark:from-gray-900 dark:to-slate-900 py-8 px-4">
@@ -151,18 +218,48 @@ export default function SignalDetailPage() {
             </Button>
           </Link>
           
-          <div className="flex items-center gap-4">
-            <div className="w-16 h-16 rounded-full bg-gradient-to-br from-purple-500 to-blue-500 flex items-center justify-center text-white text-2xl font-bold shadow-lg">
-              {data.account.accountNumber?.slice(-4) || '?'}
+          <div className="flex flex-col md:flex-row md:items-center gap-4">
+            <div className="flex items-center gap-4">
+              <div className="w-16 h-16 rounded-full bg-gradient-to-br from-purple-500 to-blue-500 flex items-center justify-center text-white text-2xl font-bold shadow-lg">
+                {data.account.accountNumber?.slice(-4) || '?'}
+              </div>
+              <div>
+                <h1 className="text-3xl font-bold">
+                  信号源 {data.account.accountNumber}
+                </h1>
+                <p className="text-gray-600 dark:text-gray-400">
+                  {stats.broker} · {data.account.platform || 'MT5'}
+                </p>
+              </div>
             </div>
-            <div>
-              <h1 className="text-3xl font-bold">
-                信号源 {data.account.accountNumber}
-              </h1>
-              <p className="text-gray-600 dark:text-gray-400">
-                {data.account.broker || '未知经纪商'} · {data.account.platform || 'MT5'}
-              </p>
-            </div>
+
+            {/* 跟单按钮 */}
+            {session && planetId && (
+              <div className="md:ml-auto">
+                <Button
+                  onClick={handleFollow}
+                  disabled={followLoading}
+                  size="lg"
+                  className={`h-12 px-8 ${
+                    data.followStatus?.status === 'active'
+                      ? 'bg-yellow-500 hover:bg-yellow-600'
+                      : data.followStatus?.status === 'paused'
+                      ? 'bg-blue-500 hover:bg-blue-600'
+                      : 'bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700'
+                  }`}
+                >
+                  {followLoading ? (
+                    <Spinner className="w-5 h-5" />
+                  ) : data.followStatus?.status === 'active' ? (
+                    <><Pause className="w-5 h-5 mr-2" /> 暂停跟单</>
+                  ) : data.followStatus?.status === 'paused' ? (
+                    <><Play className="w-5 h-5 mr-2" /> 恢复跟单</>
+                  ) : (
+                    <><Play className="w-5 h-5 mr-2" /> 开始跟单</>
+                  )}
+                </Button>
+              </div>
+            )}
           </div>
         </div>
 
@@ -238,7 +335,10 @@ export default function SignalDetailPage() {
                 <CardContent className="space-y-4">
                   <div className="flex justify-between items-center">
                     <span className="text-gray-600 dark:text-gray-400">最大回撤</span>
-                    <span className="font-bold text-red-500">-${stats.maxDrawdown}</span>
+                    <div className="text-right">
+                      <span className="font-bold text-red-500">-${stats.maxDrawdown}</span>
+                      <span className="text-sm text-gray-500 ml-2">({stats.maxDrawdownPercent}%)</span>
+                    </div>
                   </div>
                   <div className="flex justify-between items-center">
                     <span className="text-gray-600 dark:text-gray-400">盈亏比</span>
@@ -258,7 +358,11 @@ export default function SignalDetailPage() {
                   </div>
                   <div className="flex justify-between items-center">
                     <span className="text-gray-600 dark:text-gray-400">平均亏损</span>
-                    <span className="font-bold text-red-500">${stats.avgLoss}</span>
+                    <span className="font-bold text-red-500">-${stats.avgLoss}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-600 dark:text-gray-400">初始资金</span>
+                    <span className="font-bold">${stats.initialBalance}</span>
                   </div>
                 </CardContent>
               </Card>
@@ -268,15 +372,18 @@ export default function SignalDetailPage() {
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <BarChart3 className="w-5 h-5 text-blue-500" />
-                    收益曲线
+                    收益率曲线
                   </CardTitle>
+                  <CardDescription>横轴：时间 | 纵轴：收益率(%)</CardDescription>
                 </CardHeader>
                 <CardContent>
                   {stats.profitHistory.length > 0 ? (
-                    <div className="h-64 relative">
-                      <svg viewBox="0 0 400 200" className="w-full h-full">
+                    <div className="h-64 relative overflow-hidden">
+                      <svg viewBox="0 0 400 200" className="w-full h-full" preserveAspectRatio="none">
                         {/* 网格线 */}
                         <line x1="0" y1="100" x2="400" y2="100" stroke="#e5e7eb" strokeWidth="1" strokeDasharray="4" />
+                        <line x1="0" y1="50" x2="400" y2="50" stroke="#e5e7eb" strokeWidth="0.5" strokeDasharray="2" />
+                        <line x1="0" y1="150" x2="400" y2="150" stroke="#e5e7eb" strokeWidth="0.5" strokeDasharray="2" />
                         
                         {/* 收益曲线 */}
                         <polyline
@@ -285,9 +392,10 @@ export default function SignalDetailPage() {
                           strokeWidth="2"
                           points={stats.profitHistory.map((point, index) => {
                             const x = (index / (stats.profitHistory.length - 1 || 1)) * 400;
-                            const maxProfit = Math.max(...stats.profitHistory.map(p => Math.abs(p.profit)));
-                            const y = 100 - (point.profit / (maxProfit || 1)) * 80;
-                            return `${x},${y}`;
+                            // 收益率映射到Y坐标：0%在中间(100)，正收益往上，负收益往下
+                            const returnRateVal = parseFloat(point.returnRate);
+                            const y = 100 - (returnRateVal / 50) * 100; // 50%对应顶部/底部
+                            return `${x},${Math.max(10, Math.min(190, y))}`;
                           }).join(' ')}
                         />
                         
@@ -299,6 +407,19 @@ export default function SignalDetailPage() {
                           </linearGradient>
                         </defs>
                       </svg>
+                      
+                      {/* 图例 */}
+                      <div className="absolute bottom-2 left-0 right-0 flex justify-between text-xs text-gray-500 px-2">
+                        <span>{stats.profitHistory[0]?.date}</span>
+                        <span>{stats.profitHistory[stats.profitHistory.length - 1]?.date}</span>
+                      </div>
+                      
+                      {/* Y轴标签 */}
+                      <div className="absolute left-0 top-0 bottom-0 flex flex-col justify-between text-xs text-gray-500 py-2">
+                        <span>+50%</span>
+                        <span>0%</span>
+                        <span>-50%</span>
+                      </div>
                     </div>
                   ) : (
                     <div className="h-64 flex items-center justify-center text-gray-400">
@@ -313,9 +434,9 @@ export default function SignalDetailPage() {
           <TabsContent value="history" className="space-y-4">
             <Card>
               <CardHeader>
-                <CardTitle>交易历史记录</CardTitle>
+                <CardTitle>平仓历史记录</CardTitle>
                 <CardDescription>
-                  共 {signals.length} 笔交易
+                  共 {closeSignals.length} 笔平仓交易
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -327,15 +448,17 @@ export default function SignalDetailPage() {
                         <th className="text-left py-3 px-4">品种</th>
                         <th className="text-left py-3 px-4">方向</th>
                         <th className="text-left py-3 px-4">手数</th>
-                        <th className="text-left py-3 px-4">价格</th>
+                        <th className="text-left py-3 px-4">平仓价</th>
                         <th className="text-right py-3 px-4">盈亏</th>
+                        <th className="text-right py-3 px-4">余额</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {signals.slice(0, 50).map((signal, index) => (
-                        <tr key={index} className="border-b dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800/50">
+                      {closeSignals.slice(0, 50).map((signal, index) => (
+                        <tr key={signal.id || index} className="border-b dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800/50">
                           <td className="py-3 px-4 text-sm text-gray-600 dark:text-gray-400">
-                            {new Date(signal.createdAt).toLocaleString()}
+                            <div>{signal.createdAt ? new Date(signal.createdAt).toLocaleDateString() : '-'}</div>
+                            <div className="text-xs">{signal.createdAt ? new Date(signal.createdAt).toLocaleTimeString() : ''}</div>
                           </td>
                           <td className="py-3 px-4 font-medium">{signal.symbol || '-'}</td>
                           <td className="py-3 px-4">
@@ -350,6 +473,9 @@ export default function SignalDetailPage() {
                             parseFloat(signal.dealProfit || '0') >= 0 ? 'text-green-500' : 'text-red-500'
                           }`}>
                             {parseFloat(signal.dealProfit || '0') >= 0 ? '+' : ''}{signal.dealProfit || '0'}
+                          </td>
+                          <td className="py-3 px-4 text-right text-sm">
+                            {signal.balance || '-'}
                           </td>
                         </tr>
                       ))}

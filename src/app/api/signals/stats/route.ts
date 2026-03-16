@@ -63,10 +63,10 @@ export async function GET(request: NextRequest) {
       signalSources.push({
         id: mtAccount.id,
         accountNumber: mtAccount.accountNumber,
-        broker: mtAccount.broker,
         platform: mtAccount.platform,
         isVerified: mtAccount.isVerified,
         ...stats,
+        broker: stats.broker || mtAccount.broker || '未知经纪商',
       });
     }
 
@@ -86,50 +86,63 @@ async function calculateSignalStats(accountNumber: string) {
     .where(eq(signals.senderAccount, accountNumber))
     .orderBy(desc(signals.createdAt));
 
+  // 获取经纪商（优先从信号中获取）
+  const brokerSignal = accountSignals.find(s => s.broker);
+  const broker = brokerSignal?.broker || null;
+
+  // 只统计平仓信号
+  const closeSignals = accountSignals.filter(s => 
+    s.signalType?.toLowerCase().includes('close')
+  );
+
   // 总交易笔数
-  const totalTrades = accountSignals.length;
+  const totalTrades = closeSignals.length;
 
   // 计算盈亏
   let totalProfit = 0;
   let winCount = 0;
   let lossCount = 0;
+  let totalWinProfit = 0;
+  let totalLossProfit = 0;
 
-  const profitHistory: { date: string; profit: number }[] = [];
-  let cumulativeProfit = 0;
-
-  for (const signal of accountSignals) {
+  for (const signal of closeSignals) {
     const profit = parseFloat(signal.dealProfit || '0');
     totalProfit += profit;
 
-    if (profit > 0) winCount++;
-    else if (profit < 0) lossCount++;
-
-    // 累计收益曲线数据
-    cumulativeProfit += profit;
-    profitHistory.push({
-      date: signal.createdAt ? new Date(signal.createdAt).toLocaleDateString() : '-',
-      profit: cumulativeProfit,
-    });
+    if (profit > 0) {
+      winCount++;
+      totalWinProfit += profit;
+    } else if (profit < 0) {
+      lossCount++;
+      totalLossProfit += Math.abs(profit);
+    }
   }
 
   // 胜率
-  const winRate = totalTrades > 0 ? (winCount / (winCount + lossCount) * 100) : 0;
+  const winRate = totalTrades > 0 ? (winCount / totalTrades * 100) : 0;
 
   // 计算最大回撤
   let maxDrawdown = 0;
   let peak = 0;
-  for (const point of profitHistory) {
-    if (point.profit > peak) peak = point.profit;
-    const drawdown = peak - point.profit;
+  let cumulativeProfit = 0;
+  
+  for (const signal of closeSignals.reverse()) { // 按时间正序计算
+    const profit = parseFloat(signal.dealProfit || '0');
+    cumulativeProfit += profit;
+    
+    if (cumulativeProfit > peak) peak = cumulativeProfit;
+    const drawdown = peak - cumulativeProfit;
     if (drawdown > maxDrawdown) maxDrawdown = drawdown;
   }
 
-  // 计算盈亏比
-  const avgWin = winCount > 0 ? totalProfit / winCount : 0;
-  const avgLoss = lossCount > 0 ? Math.abs(totalProfit / lossCount) : 0;
-  const profitFactor = avgLoss > 0 ? avgWin / avgLoss : avgWin > 0 ? Infinity : 0;
+  // 计算平均盈利和亏损
+  const avgWin = winCount > 0 ? totalWinProfit / winCount : 0;
+  const avgLoss = lossCount > 0 ? totalLossProfit / lossCount : 0;
 
-  // 收益率（简化计算，假设初始资金10000）
+  // 盈亏比
+  const profitFactor = avgLoss > 0 ? avgWin / avgLoss : (avgWin > 0 ? 999 : 0);
+
+  // 收益率（基于初始资金10000）
   const initialCapital = 10000;
   const returnRate = ((totalProfit / initialCapital) * 100);
 
@@ -139,9 +152,11 @@ async function calculateSignalStats(accountNumber: string) {
     totalTrades,
     returnRate: returnRate.toFixed(2),
     maxDrawdown: maxDrawdown.toFixed(2),
-    profitFactor: profitFactor.toFixed(2),
+    profitFactor: profitFactor === 999 ? '∞' : profitFactor.toFixed(2),
+    broker,
     winCount,
     lossCount,
-    profitHistory: profitHistory.slice(-30), // 最近30条记录
+    avgWin: avgWin.toFixed(2),
+    avgLoss: avgLoss.toFixed(2),
   };
 }

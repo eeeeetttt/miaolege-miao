@@ -94,6 +94,8 @@ export const signals = mysqlTable('signals', {
   comment: text('comment'),
   userId: varchar('user_id', { length: 255 }),
   dealProfit: decimal('deal_profit', { precision: 10, scale: 2 }),
+  balance: decimal('balance', { precision: 10, scale: 2 }),
+  broker: varchar('broker', { length: 255 }),
   planetId: int('planet_id').references(() => planets.id, { onDelete: 'set null' }),
 }, (table) => ({
   senderAccountIdx: index('idx_sender_account').on(table.senderAccount),

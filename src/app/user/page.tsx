@@ -66,7 +66,6 @@ export default function UserCenterPage() {
   const [loading, setLoading] = useState(true);
   const [mtForm, setMtForm] = useState({
     accountNumber: '',
-    broker: '',
     platform: 'MT5',
   });
   const [mtLoading, setMtLoading] = useState(false);
@@ -156,7 +155,7 @@ export default function UserCenterPage() {
       } else {
         setSuccess('MT账号绑定成功！');
         fetchData();
-        setMtForm({ accountNumber: '', broker: '', platform: 'MT5' });
+        setMtForm({ accountNumber: '', platform: 'MT5' });
       }
     } catch (err) {
       setError('绑定失败，请稍后重试');
@@ -676,22 +675,12 @@ export default function UserCenterPage() {
                           required
                         />
                       </div>
-
-                      <div className="space-y-2 md:col-span-2">
-                        <Label htmlFor="broker">经纪商名称</Label>
-                        <Input
-                          id="broker"
-                          placeholder="例如：IC Markets, XM 等（选填）"
-                          value={mtForm.broker}
-                          onChange={(e) => setMtForm({ ...mtForm, broker: e.target.value })}
-                        />
-                      </div>
                     </div>
 
                     <Alert>
                       <AlertCircle className="h-4 w-4" />
                       <AlertDescription>
-                        <strong>注意：</strong>每人只能绑定一个MT账号。绑定后请确保EA配置正确，以便信号能正确上传。
+                        <strong>注意：</strong>每人只能绑定一个MT账号。绑定后请确保EA配置正确，以便信号能正确上传。经纪商信息将从信号中自动获取。
                       </AlertDescription>
                     </Alert>
 

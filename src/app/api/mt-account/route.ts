@@ -36,7 +36,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: '请先登录' }, { status: 401 });
     }
 
-    const { accountNumber, broker, platform } = await request.json();
+    const { accountNumber, platform } = await request.json();
 
     if (!accountNumber || !platform) {
       return NextResponse.json({ error: '账号和平台为必填项' }, { status: 400 });
@@ -68,11 +68,11 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: '该账号已被其他用户绑定' }, { status: 400 });
     }
 
-    // 创建绑定
+    // 创建绑定（不设置broker，从信号中自动获取）
     await db.insert(mtAccounts).values({
       userId: session.user.id,
       accountNumber,
-      broker: broker || null,
+      broker: null,
       platform,
       isVerified: false,
     });
