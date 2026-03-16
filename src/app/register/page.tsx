@@ -10,7 +10,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { PasswordStrength } from '@/components/password-strength';
 import { Spinner } from '@/components/ui/spinner';
-import { Eye, EyeOff, User, Mail, Lock, CheckCircle } from 'lucide-react';
+import { Eye, EyeOff, User, Mail, Lock, CheckCircle, AlertCircle } from 'lucide-react';
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -27,13 +27,25 @@ export default function RegisterPage() {
     e.preventDefault();
     setError('');
 
-    if (password !== confirmPassword) {
-      setError('两次输入的密码不一致');
+    if (!email) {
+      setError('请输入邮箱地址');
+      return;
+    }
+
+    // 验证邮箱格式
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      setError('请输入有效的邮箱地址');
       return;
     }
 
     if (password.length < 6) {
       setError('密码长度至少为6位');
+      return;
+    }
+
+    if (password !== confirmPassword) {
+      setError('两次输入的密码不一致');
       return;
     }
 
@@ -44,7 +56,7 @@ export default function RegisterPage() {
     const strength = [hasLower, hasUpper, hasNumber, password.length >= 8].filter(Boolean).length;
     
     if (strength < 2) {
-      setError('密码强度太弱，请设置更复杂的密码');
+      setError('密码强度太弱，请包含大小写字母或数字');
       return;
     }
 
@@ -54,18 +66,30 @@ export default function RegisterPage() {
       const res = await fetch('/api/auth/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password, name }),
+        body: JSON.stringify({ email, password, name: name || email.split('@')[0] }),
       });
 
-      const data = await res.json();
+      let data;
+      try {
+        data = await res.json();
+      } catch {
+        throw new Error('服务器响应异常');
+      }
 
       if (!res.ok) {
-        setError(data.error || '注册失败');
+        setError(data.error || `注册失败 (${res.status})`);
       } else {
         router.push('/login?registered=true');
       }
     } catch (err) {
-      setError('注册失败，请稍后重试');
+      console.error('Register error:', err);
+      if (err instanceof TypeError && err.message.includes('fetch')) {
+        setError('网络连接失败，请检查网络后重试');
+      } else if (err instanceof Error) {
+        setError(err.message || '注册失败，请稍后重试');
+      } else {
+        setError('注册失败，请稍后重试');
+      }
     } finally {
       setLoading(false);
     }
@@ -89,23 +113,10 @@ export default function RegisterPage() {
           <CardContent className="space-y-4">
             {error && (
               <Alert variant="destructive">
+                <AlertCircle className="h-4 w-4" />
                 <AlertDescription>{error}</AlertDescription>
               </Alert>
             )}
-            <div className="space-y-2">
-              <Label htmlFor="name">昵称</Label>
-              <div className="relative">
-                <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                <Input
-                  id="name"
-                  type="text"
-                  placeholder="您的昵称"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  className="pl-10"
-                />
-              </div>
-            </div>
             <div className="space-y-2">
               <Label htmlFor="email">邮箱 *</Label>
               <div className="relative">
@@ -117,6 +128,20 @@ export default function RegisterPage() {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   required
+                  className="pl-10"
+                />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="name">昵称</Label>
+              <div className="relative">
+                <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                <Input
+                  id="name"
+                  type="text"
+                  placeholder="您的昵称（可选）"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
                   className="pl-10"
                 />
               </div>
@@ -180,7 +205,7 @@ export default function RegisterPage() {
             </div>
           </CardContent>
           <CardFooter className="flex flex-col space-y-4">
-            <Button type="submit" className="w-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700" disabled={loading}>
+            <Button type="submit" className="w-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 h-11" disabled={loading}>
               {loading ? (
                 <>
                   <Spinner className="mr-2" />
