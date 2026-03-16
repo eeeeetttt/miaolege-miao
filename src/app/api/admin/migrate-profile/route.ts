@@ -32,11 +32,11 @@ export async function POST(request: NextRequest) {
     // 添加 nameUpdatedAt 字段到 users 表
     try {
       await db.execute(sql`
-        ALTER TABLE users ADD COLUMN name_updated_at TIMESTAMP
+        ALTER TABLE users ADD COLUMN name_updated_at TIMESTAMP NULL
       `);
       results.push('✅ 添加 name_updated_at 字段成功');
     } catch (e: any) {
-      if (e.message?.includes('Duplicate column')) {
+      if (e.message?.includes('Duplicate column') || e.message?.includes('duplicate')) {
         results.push('⚠️ name_updated_at 字段已存在，跳过');
       } else {
         results.push(`❌ 添加 name_updated_at 字段失败: ${e.message}`);
