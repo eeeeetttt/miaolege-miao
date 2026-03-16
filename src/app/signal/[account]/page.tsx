@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import Link from 'next/link';
@@ -10,6 +10,16 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Spinner } from '@/components/ui/spinner';
+import {
+  AreaChart,
+  Area,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  ReferenceLine,
+} from 'recharts';
 import { 
   ArrowLeft,
   TrendingUp,
@@ -372,54 +382,63 @@ export default function SignalDetailPage() {
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <BarChart3 className="w-5 h-5 text-blue-500" />
-                    收益率曲线
+                    累计收益曲线
                   </CardTitle>
-                  <CardDescription>横轴：时间 | 纵轴：收益率(%)</CardDescription>
+                  <CardDescription>横轴：时间 | 纵轴：累计收益($)</CardDescription>
                 </CardHeader>
                 <CardContent>
                   {stats.profitHistory.length > 0 ? (
-                    <div className="h-64 relative overflow-hidden">
-                      <svg viewBox="0 0 400 200" className="w-full h-full" preserveAspectRatio="none">
-                        {/* 网格线 */}
-                        <line x1="0" y1="100" x2="400" y2="100" stroke="#e5e7eb" strokeWidth="1" strokeDasharray="4" />
-                        <line x1="0" y1="50" x2="400" y2="50" stroke="#e5e7eb" strokeWidth="0.5" strokeDasharray="2" />
-                        <line x1="0" y1="150" x2="400" y2="150" stroke="#e5e7eb" strokeWidth="0.5" strokeDasharray="2" />
-                        
-                        {/* 收益曲线 */}
-                        <polyline
-                          fill="none"
-                          stroke="url(#gradient)"
-                          strokeWidth="2"
-                          points={stats.profitHistory.map((point, index) => {
-                            const x = (index / (stats.profitHistory.length - 1 || 1)) * 400;
-                            // 收益率映射到Y坐标：0%在中间(100)，正收益往上，负收益往下
-                            const returnRateVal = parseFloat(point.returnRate);
-                            const y = 100 - (returnRateVal / 50) * 100; // 50%对应顶部/底部
-                            return `${x},${Math.max(10, Math.min(190, y))}`;
-                          }).join(' ')}
-                        />
-                        
-                        {/* 渐变定义 */}
-                        <defs>
-                          <linearGradient id="gradient" x1="0%" y1="0%" x2="100%" y2="0%">
-                            <stop offset="0%" stopColor="#8b5cf6" />
-                            <stop offset="100%" stopColor="#3b82f6" />
-                          </linearGradient>
-                        </defs>
-                      </svg>
-                      
-                      {/* 图例 */}
-                      <div className="absolute bottom-2 left-0 right-0 flex justify-between text-xs text-gray-500 px-2">
-                        <span>{stats.profitHistory[0]?.date}</span>
-                        <span>{stats.profitHistory[stats.profitHistory.length - 1]?.date}</span>
-                      </div>
-                      
-                      {/* Y轴标签 */}
-                      <div className="absolute left-0 top-0 bottom-0 flex flex-col justify-between text-xs text-gray-500 py-2">
-                        <span>+50%</span>
-                        <span>0%</span>
-                        <span>-50%</span>
-                      </div>
+                    <div className="h-64 w-full">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <AreaChart
+                          data={stats.profitHistory.map((point, index) => ({
+                            name: point.date,
+                            profit: point.profit,
+                            returnRate: point.returnRate,
+                          }))}
+                          margin={{ top: 10, right: 30, left: 0, bottom: 0 }}
+                        >
+                          <defs>
+                            <linearGradient id="colorProfit" x1="0" y1="0" x2="0" y2="1">
+                              <stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.3} />
+                              <stop offset="95%" stopColor="#8b5cf6" stopOpacity={0} />
+                            </linearGradient>
+                          </defs>
+                          <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" vertical={false} />
+                          <XAxis 
+                            dataKey="name" 
+                            tick={{ fontSize: 12, fill: '#9ca3af' }}
+                            tickLine={false}
+                            axisLine={false}
+                            interval="preserveStartEnd"
+                          />
+                          <YAxis 
+                            tick={{ fontSize: 12, fill: '#9ca3af' }}
+                            tickLine={false}
+                            axisLine={false}
+                            tickFormatter={(value) => `$${value}`}
+                          />
+                          <Tooltip 
+                            contentStyle={{
+                              backgroundColor: 'rgba(255, 255, 255, 0.95)',
+                              border: 'none',
+                              borderRadius: '8px',
+                              boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
+                            }}
+                            formatter={(value: number) => [`$${value.toFixed(2)}`, '累计收益']}
+                            labelFormatter={(label) => `日期: ${label}`}
+                          />
+                          <ReferenceLine y={0} stroke="#9ca3af" strokeDasharray="3 3" />
+                          <Area
+                            type="monotone"
+                            dataKey="profit"
+                            stroke="#8b5cf6"
+                            strokeWidth={2}
+                            fillOpacity={1}
+                            fill="url(#colorProfit)"
+                          />
+                        </AreaChart>
+                      </ResponsiveContainer>
                     </div>
                   ) : (
                     <div className="h-64 flex items-center justify-center text-gray-400">
@@ -446,7 +465,7 @@ export default function SignalDetailPage() {
                       <tr className="border-b dark:border-gray-700">
                         <th className="text-left py-3 px-4">时间</th>
                         <th className="text-left py-3 px-4">品种</th>
-                        <th className="text-left py-3 px-4">方向</th>
+                        <th className="text-left py-3 px-4">类型</th>
                         <th className="text-left py-3 px-4">手数</th>
                         <th className="text-left py-3 px-4">平仓价</th>
                         <th className="text-right py-3 px-4">盈亏</th>
@@ -462,9 +481,8 @@ export default function SignalDetailPage() {
                           </td>
                           <td className="py-3 px-4 font-medium">{signal.symbol || '-'}</td>
                           <td className="py-3 px-4">
-                            <Badge variant={signal.orderType === 'BUY' ? 'default' : 'destructive'}
-                              className={signal.orderType === 'BUY' ? 'bg-green-500' : ''}>
-                              {signal.orderType === 'BUY' ? '买入' : '卖出'}
+                            <Badge variant="outline" className="text-xs">
+                              {signal.signalType || '-'}
                             </Badge>
                           </td>
                           <td className="py-3 px-4">{signal.volume || '-'}</td>
