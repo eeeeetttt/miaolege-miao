@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth';
+import { isAdmin } from '@/lib/admin';
 import { db } from '@/lib/db';
 import { documents } from '@/lib/schema';
 import { eq, desc, asc, like, or, and } from 'drizzle-orm';
@@ -8,9 +7,9 @@ import { eq, desc, asc, like, or, and } from 'drizzle-orm';
 // 获取文档列表（管理端）
 export async function GET(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
+    const { isAdmin: admin } = await isAdmin();
     
-    if (!session?.user?.id || session.user.role !== 'admin') {
+    if (!admin) {
       return NextResponse.json({ error: '无权限' }, { status: 403 });
     }
 
@@ -46,9 +45,9 @@ export async function GET(request: NextRequest) {
 // 创建文档
 export async function POST(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
+    const { isAdmin: admin } = await isAdmin();
     
-    if (!session?.user?.id || session.user.role !== 'admin') {
+    if (!admin) {
       return NextResponse.json({ error: '无权限' }, { status: 403 });
     }
 
@@ -96,9 +95,9 @@ export async function POST(request: NextRequest) {
 // 更新文档
 export async function PUT(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
+    const { isAdmin: admin } = await isAdmin();
     
-    if (!session?.user?.id || session.user.role !== 'admin') {
+    if (!admin) {
       return NextResponse.json({ error: '无权限' }, { status: 403 });
     }
 
@@ -163,9 +162,9 @@ export async function PUT(request: NextRequest) {
 // 删除文档
 export async function DELETE(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
+    const { isAdmin: admin } = await isAdmin();
     
-    if (!session?.user?.id || session.user.role !== 'admin') {
+    if (!admin) {
       return NextResponse.json({ error: '无权限' }, { status: 403 });
     }
 
