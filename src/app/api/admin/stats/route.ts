@@ -3,23 +3,30 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { db } from '@/lib/db';
 import { users, planets, signals, followRecords } from '@/lib/schema';
-import { sql } from 'drizzle-orm';
+import { sql, countDistinct } from 'drizzle-orm';
+import { isAdmin } from '@/lib/admin';
 
 /**
  * 获取后台统计数据
  */
 export async function GET() {
   try {
-    const session = await getServerSession(authOptions);
+    // 验证管理员权限
+    const { isAdmin: admin } = await isAdmin();
     
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: '未授权' }, { status: 401 });
+    if (!admin) {
+      return NextResponse.json({ error: '无权访问' }, { status: 403 });
     }
 
     // 获取统计数据
     const [userCount] = await db.select({ count: sql<number>`count(*)` }).from(users);
     const [planetCount] = await db.select({ count: sql<number>`count(*)` }).from(planets);
-    const [signalCount] = await db.select({ count: sql<number>`count(*)` }).from(signals);
+    
+    // 信号源总数：统计有多少不同的sender_account发布过信号
+    const [signalSourceCount] = await db
+      .select({ count: sql<number>`count(distinct sender_account)` })
+      .from(signals);
+    
     const [followCount] = await db
       .select({ count: sql<number>`count(*)` })
       .from(followRecords)
@@ -41,7 +48,7 @@ export async function GET() {
       stats: {
         totalUsers: userCount.count,
         totalPlanets: planetCount.count,
-        totalSignals: signalCount.count,
+        totalSignalSources: signalSourceCount.count, // 信号源总数
         activeFollows: followCount.count,
         totalCoins: coinSum.total,
       },

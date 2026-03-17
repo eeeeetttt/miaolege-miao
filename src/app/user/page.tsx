@@ -400,94 +400,89 @@ export default function UserCenterPage() {
         </div>
 
         {/* 顶部卡片区域 */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
           {/* 用户头像和会员等级 */}
-          <Card className="md:col-span-1 overflow-hidden">
-            <CardContent className="pt-6 text-center">
-              <div className="relative inline-block group">
-                <Avatar 
-                  className="w-20 h-20 cursor-pointer border-4 border-purple-200 dark:border-purple-800"
-                  onClick={handleAvatarClick}
-                >
-                  <AvatarImage src={user?.avatar || undefined} />
-                  <AvatarFallback className="bg-gradient-to-br from-purple-500 to-blue-500 text-white text-2xl font-bold">
-                    {user?.name?.[0]?.toUpperCase() || 'U'}
-                  </AvatarFallback>
-                </Avatar>
-                <div 
-                  className="absolute inset-0 bg-black/50 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer mx-auto"
-                  style={{ width: 80, height: 80 }}
-                  onClick={handleAvatarClick}
-                >
-                  <Camera className="w-6 h-6 text-white" />
+          <Card className="overflow-hidden">
+            <CardContent className="pt-6">
+              <div className="flex items-center gap-6">
+                <div className="relative group">
+                  <Avatar 
+                    className="w-20 h-20 cursor-pointer border-2 border-gray-200 dark:border-gray-700"
+                    onClick={handleAvatarClick}
+                  >
+                    <AvatarImage src={user?.avatar || undefined} />
+                    <AvatarFallback className="bg-gradient-to-br from-purple-500 to-blue-500 text-white text-2xl font-bold">
+                      {user?.name?.[0]?.toUpperCase() || 'U'}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div 
+                    className="absolute inset-0 bg-black/50 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
+                    onClick={handleAvatarClick}
+                  >
+                    <Camera className="w-6 h-6 text-white" />
+                  </div>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={handleAvatarChange}
+                  />
                 </div>
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept="image/*"
-                  className="hidden"
-                  onChange={handleAvatarChange}
-                />
-              </div>
-              <h3 className="font-bold text-lg mt-3">{user?.name}</h3>
-              <p className="text-sm text-gray-500">{user?.email}</p>
-              
-              {/* 会员等级 */}
-              <div className={`mt-3 inline-flex items-center gap-1.5 px-3 py-1 rounded-full ${memberLevel.bgColor}`}>
-                <LevelIcon className={`w-4 h-4 ${memberLevel.color}`} />
-                <span className={`text-sm font-medium ${memberLevel.color}`}>{memberLevel.name}</span>
+                <div className="flex-1">
+                  <h3 className="font-bold text-xl">{user?.name}</h3>
+                  <p className="text-sm text-gray-500">{user?.email}</p>
+                  <div className={`mt-2 inline-flex items-center gap-1.5 px-3 py-1 rounded-full ${memberLevel.bgColor}`}>
+                    <LevelIcon className={`w-4 h-4 ${memberLevel.color}`} />
+                    <span className={`text-sm font-medium ${memberLevel.color}`}>{memberLevel.name}</span>
+                  </div>
+                </div>
               </div>
             </CardContent>
           </Card>
 
-          {/* 星球币余额 */}
-          <Card className="bg-gradient-to-br from-purple-500 to-purple-600 text-white overflow-hidden relative">
-            <div className="absolute top-0 right-0 w-24 h-24 bg-white/10 rounded-full -translate-y-1/2 translate-x-1/2"></div>
-            <CardContent className="pt-6 relative z-10">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-purple-100 text-sm">星球币余额</p>
-                  <p className="text-2xl font-bold mt-1">{user?.coinBalance || 0}</p>
+          {/* 状态信息 */}
+          <Card>
+            <CardContent className="pt-6">
+              <div className="grid grid-cols-3 gap-4">
+                {/* 星球币余额 */}
+                <div className="text-center">
+                  <div className="flex items-center justify-center gap-1 mb-1">
+                    <Coins className="w-4 h-4 text-yellow-500" />
+                    <span className="text-xs text-gray-500">余额</span>
+                  </div>
+                  <p className="text-xl font-bold">{user?.coinBalance || 0}</p>
+                  <p className="text-xs text-gray-400">星球币</p>
                 </div>
-                <Coins className="w-10 h-10 text-white/80" />
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* MT账号状态 */}
-          <Card className="bg-gradient-to-br from-blue-500 to-blue-600 text-white overflow-hidden relative">
-            <div className="absolute top-0 right-0 w-24 h-24 bg-white/10 rounded-full -translate-y-1/2 translate-x-1/2"></div>
-            <CardContent className="pt-6 relative z-10">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-blue-100 text-sm">MT账号</p>
-                  <p className="text-lg font-bold mt-1">
+                
+                {/* MT账号 */}
+                <div className="text-center">
+                  <div className="flex items-center justify-center gap-1 mb-1">
+                    <Link2 className="w-4 h-4 text-blue-500" />
+                    <span className="text-xs text-gray-500">MT账号</span>
+                  </div>
+                  <p className="text-sm font-bold truncate">
                     {mtAccount ? mtAccount.accountNumber : '未绑定'}
                   </p>
                   {mtAccount && (
-                    <Badge className="mt-1 bg-white/20 text-white text-xs">{mtAccount.platform}</Badge>
+                    <Badge variant="outline" className="text-xs mt-1">{mtAccount.platform}</Badge>
                   )}
                 </div>
-                <Link2 className="w-10 h-10 text-white/80" />
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* 创建星球权限 */}
-          <Card className={`overflow-hidden relative ${canCreatePlanet ? 'bg-gradient-to-br from-green-500 to-green-600 text-white' : 'bg-gray-100 dark:bg-gray-800'}`}>
-            <CardContent className="pt-6 relative z-10">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className={`text-sm ${canCreatePlanet ? 'text-green-100' : 'text-gray-500'}`}>创建星球</p>
-                  <p className={`text-lg font-bold mt-1 ${canCreatePlanet ? '' : 'text-gray-400'}`}>
-                    {canCreatePlanet ? '已解锁' : '需充值2000+'}
+                
+                {/* 创建星球权限 */}
+                <div className="text-center">
+                  <div className="flex items-center justify-center gap-1 mb-1">
+                    {canCreatePlanet ? (
+                      <CheckCircle2 className="w-4 h-4 text-green-500" />
+                    ) : (
+                      <Ban className="w-4 h-4 text-gray-400" />
+                    )}
+                    <span className="text-xs text-gray-500">创建星球</span>
+                  </div>
+                  <p className={`text-sm font-bold ${canCreatePlanet ? 'text-green-600' : 'text-gray-400'}`}>
+                    {canCreatePlanet ? '已解锁' : '需2000+'}
                   </p>
                 </div>
-                {canCreatePlanet ? (
-                  <CheckCircle2 className="w-10 h-10 text-white/80" />
-                ) : (
-                  <Ban className="w-10 h-10 text-gray-400" />
-                )}
               </div>
             </CardContent>
           </Card>

@@ -20,6 +20,7 @@ export const users = mysqlTable('users', {
   name: varchar('name', { length: 255 }),
   avatar: varchar('avatar', { length: 500 }),
   coinBalance: int('coin_balance').default(0),
+  role: mysqlEnum('role', ['user', 'admin']).default('user'), // 用户角色
   nameUpdatedAt: timestamp('name_updated_at'),
   createdAt: timestamp('created_at').defaultNow(),
   updatedAt: timestamp('updated_at').defaultNow().onUpdateNow(),

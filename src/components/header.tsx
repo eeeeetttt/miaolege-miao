@@ -100,12 +100,14 @@ export function Header() {
                       创建星球
                     </Link>
                   </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link href="/admin" className="cursor-pointer">
-                      <Shield className="mr-2 h-4 w-4" />
-                      后台管理
-                    </Link>
-                  </DropdownMenuItem>
+                  {session.user?.role === 'admin' && (
+                    <DropdownMenuItem asChild>
+                      <Link href="/admin" className="cursor-pointer">
+                        <Shield className="mr-2 h-4 w-4" />
+                        后台管理
+                      </Link>
+                    </DropdownMenuItem>
+                  )}
                   <DropdownMenuSeparator />
                   <DropdownMenuItem 
                     className="cursor-pointer text-red-600 focus:text-red-600"
