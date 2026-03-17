@@ -98,6 +98,21 @@ async function calculateSignalStats(accountNumber: string) {
   // 总交易笔数
   const totalTrades = closeSignals.length;
 
+  // 获取初始余额（与详情页一致的计算逻辑）
+  const firstSignalWithBalance = accountSignals.find(s => s.balance);
+  let initialBalance = 10000; // 默认初始资金
+  if (firstSignalWithBalance && firstSignalWithBalance.balance) {
+    // 计算初始余额：当前余额减去累计盈亏
+    let cumulativeProfit = 0;
+    for (const signal of accountSignals) {
+      if (signal.signalType?.toLowerCase().includes('close') && signal.dealProfit) {
+        cumulativeProfit += parseFloat(signal.dealProfit);
+      }
+    }
+    initialBalance = parseFloat(firstSignalWithBalance.balance) - cumulativeProfit;
+    if (initialBalance <= 0) initialBalance = 10000;
+  }
+
   // 计算盈亏
   let totalProfit = 0;
   let winCount = 0;
@@ -142,9 +157,8 @@ async function calculateSignalStats(accountNumber: string) {
   // 盈亏比
   const profitFactor = avgLoss > 0 ? avgWin / avgLoss : (avgWin > 0 ? 999 : 0);
 
-  // 收益率（基于初始资金10000）
-  const initialCapital = 10000;
-  const returnRate = ((totalProfit / initialCapital) * 100);
+  // 收益率（使用动态初始资金，与详情页一致）
+  const returnRate = ((totalProfit / initialBalance) * 100);
 
   return {
     totalProfit: totalProfit.toFixed(2),

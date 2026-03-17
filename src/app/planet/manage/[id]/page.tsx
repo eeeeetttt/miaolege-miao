@@ -45,6 +45,7 @@ interface Member {
   ticketPaid: number;
   joinedAt: string;
   expiryDate: string;
+  followStatus: string | null;
 }
 
 interface PlanetInfo {
@@ -603,6 +604,7 @@ export default function PlanetManagePage() {
                         <th className="text-left py-3 px-4">用户</th>
                         <th className="text-left py-3 px-4">角色</th>
                         <th className="text-left py-3 px-4">加入方式</th>
+                        <th className="text-left py-3 px-4">跟单状态</th>
                         <th className="text-left py-3 px-4">加入时间</th>
                       </tr>
                     </thead>
@@ -622,6 +624,15 @@ export default function PlanetManagePage() {
                           </td>
                           <td className="py-3 px-4">
                             {member.joinMethod === 'purchase' ? '购买门票' : '邀请码'}
+                          </td>
+                          <td className="py-3 px-4">
+                            {member.followStatus === 'active' ? (
+                              <Badge className="bg-green-500">跟单中</Badge>
+                            ) : member.followStatus === 'paused' ? (
+                              <Badge variant="secondary">已暂停</Badge>
+                            ) : (
+                              <span className="text-gray-400 text-sm">未跟单</span>
+                            )}
                           </td>
                           <td className="py-3 px-4 text-sm text-gray-500">
                             {new Date(member.joinedAt).toLocaleDateString()}

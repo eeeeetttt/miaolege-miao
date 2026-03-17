@@ -2,8 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { db } from '@/lib/db';
-import { planets, planetMembers, users } from '@/lib/schema';
-import { eq, and } from 'drizzle-orm';
+import { planets, planetMembers, users, followRecords } from '@/lib/schema';
+import { eq, and, desc } from 'drizzle-orm';
 
 export async function GET(request: NextRequest) {
   try {
@@ -47,7 +47,30 @@ export async function GET(request: NextRequest) {
       .innerJoin(users, eq(planetMembers.userId, users.userId))
       .where(eq(planetMembers.planetId, parseInt(planetId)));
 
-    return NextResponse.json({ members });
+    // Get follow status for each member
+    const membersWithFollowStatus = await Promise.all(
+      members.map(async (member) => {
+        // 查询该成员在此星球的跟单记录，按时间倒序取最新的一条
+        const follows = await db
+          .select({
+            status: followRecords.status,
+          })
+          .from(followRecords)
+          .where(and(
+            eq(followRecords.userId, member.userId),
+            eq(followRecords.planetId, parseInt(planetId))
+          ))
+          .orderBy(desc(followRecords.createdAt))
+          .limit(1);
+
+        return {
+          ...member,
+          followStatus: follows[0]?.status || null,
+        };
+      })
+    );
+
+    return NextResponse.json({ members: membersWithFollowStatus });
   } catch (error) {
     console.error('Get members error:', error);
     return NextResponse.json({ error: '获取成员列表失败' }, { status: 500 });
