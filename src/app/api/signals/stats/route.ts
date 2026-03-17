@@ -79,12 +79,12 @@ export async function GET(request: NextRequest) {
 
 // 计算MT账号的信号统计数据
 async function calculateSignalStats(accountNumber: string) {
-  // 获取该账号的所有信号
+  // 获取该账号的所有信号（按时间升序，与详情页一致）
   const accountSignals = await db
     .select()
     .from(signals)
     .where(eq(signals.senderAccount, accountNumber))
-    .orderBy(desc(signals.createdAt));
+    .orderBy(signals.createdAt);
 
   // 获取经纪商（优先从信号中获取）
   const brokerSignal = accountSignals.find(s => s.broker);
@@ -98,7 +98,7 @@ async function calculateSignalStats(accountNumber: string) {
   // 总交易笔数
   const totalTrades = closeSignals.length;
 
-  // 获取初始余额（与详情页一致的计算逻辑）
+  // 获取初始余额（与详情页完全一致的计算逻辑：按时间升序，取第一条有余额的信号）
   const firstSignalWithBalance = accountSignals.find(s => s.balance);
   let initialBalance = 10000; // 默认初始资金
   if (firstSignalWithBalance && firstSignalWithBalance.balance) {
@@ -141,7 +141,7 @@ async function calculateSignalStats(accountNumber: string) {
   let peak = 0;
   let cumulativeProfit = 0;
   
-  for (const signal of closeSignals.reverse()) { // 按时间正序计算
+  for (const signal of closeSignals) { // 已经是时间正序
     const profit = parseFloat(signal.dealProfit || '0');
     cumulativeProfit += profit;
     

@@ -28,7 +28,11 @@ import {
   RefreshCw,
   Search,
   Edit,
-  Lock
+  Lock,
+  FileText,
+  Plus,
+  Trash2,
+  Save
 } from 'lucide-react';
 
 // 系统配置
@@ -90,6 +94,20 @@ export default function AdminDashboardPage() {
   const [userTotal, setUserTotal] = useState(0);
   const [editingUser, setEditingUser] = useState<UserInfo | null>(null);
   const [editForm, setEditForm] = useState({ coinBalance: 0, role: '' });
+  const [activeTab, setActiveTab] = useState('users');
+
+  // 文档管理状态
+  const [docs, setDocs] = useState<any[]>([]);
+  const [docsLoading, setDocsLoading] = useState(false);
+  const [editingDoc, setEditingDoc] = useState<any | null>(null);
+  const [docForm, setDocForm] = useState({
+    title: '',
+    slug: '',
+    content: '',
+    category: 'general',
+    sortOrder: 0,
+    status: 'published' as 'published' | 'draft',
+  });
 
   useEffect(() => {
     if (status === 'unauthenticated') {
@@ -101,6 +119,16 @@ export default function AdminDashboardPage() {
       checkAdmin();
     }
   }, [status]);
+
+  // 监听Tab切换，加载相应数据
+  useEffect(() => {
+    if (isAdmin && activeTab === 'docs' && docs.length === 0) {
+      fetchDocs();
+    }
+    if (isAdmin && activeTab === 'users' && users.length === 0) {
+      fetchUsers();
+    }
+  }, [activeTab, isAdmin]);
 
   const checkAdmin = async () => {
     try {
@@ -213,6 +241,99 @@ export default function AdminDashboardPage() {
       setError('保存失败，请稍后重试');
     } finally {
       setSaving(false);
+    }
+  };
+
+  // 文档管理函数
+  const fetchDocs = async () => {
+    setDocsLoading(true);
+    try {
+      const res = await fetch('/api/admin/docs');
+      const data = await res.json();
+      if (res.ok) {
+        setDocs(data.documents || []);
+      } else {
+        setError(data.error || '获取文档失败');
+      }
+    } catch (err) {
+      console.error('Fetch docs error:', err);
+      setError('获取文档失败');
+    } finally {
+      setDocsLoading(false);
+    }
+  };
+
+  const handleEditDoc = (doc: any) => {
+    setEditingDoc(doc);
+    setDocForm({
+      title: doc.title,
+      slug: doc.slug,
+      content: doc.content,
+      category: doc.category || 'general',
+      sortOrder: doc.sortOrder || 0,
+      status: doc.status || 'published',
+    });
+  };
+
+  const handleNewDoc = () => {
+    setEditingDoc({ id: 'new' });
+    setDocForm({
+      title: '',
+      slug: '',
+      content: '',
+      category: 'general',
+      sortOrder: 0,
+      status: 'published',
+    });
+  };
+
+  const handleSaveDoc = async () => {
+    if (!docForm.title || !docForm.slug || !docForm.content) {
+      setError('标题、别名和内容为必填项');
+      return;
+    }
+
+    setSaving(true);
+    setError('');
+
+    try {
+      const isEdit = editingDoc?.id !== 'new';
+      const res = await fetch('/api/admin/docs', {
+        method: isEdit ? 'PUT' : 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(isEdit ? { ...docForm, id: editingDoc.id } : docForm),
+      });
+
+      const data = await res.json();
+
+      if (res.ok) {
+        setSuccess(isEdit ? '文档更新成功！' : '文档创建成功！');
+        setEditingDoc(null);
+        fetchDocs();
+      } else {
+        setError(data.error || '操作失败');
+      }
+    } catch (err) {
+      setError('操作失败');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleDeleteDoc = async (id: number) => {
+    if (!confirm('确定要删除这篇文档吗？')) return;
+
+    try {
+      const res = await fetch(`/api/admin/docs?id=${id}`, { method: 'DELETE' });
+      if (res.ok) {
+        setSuccess('文档删除成功！');
+        fetchDocs();
+      } else {
+        const data = await res.json();
+        setError(data.error || '删除失败');
+      }
+    } catch (err) {
+      setError('删除失败');
     }
   };
 
@@ -467,11 +588,15 @@ export default function AdminDashboardPage() {
         )}
 
         {/* Main Content */}
-        <Tabs defaultValue="users" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-4 lg:w-auto lg:inline-grid">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+          <TabsList className="grid w-full grid-cols-5 lg:w-auto lg:inline-grid">
             <TabsTrigger value="users" className="flex items-center gap-2">
               <Users className="w-4 h-4" />
               用户管理
+            </TabsTrigger>
+            <TabsTrigger value="docs" className="flex items-center gap-2">
+              <FileText className="w-4 h-4" />
+              文档管理
             </TabsTrigger>
             <TabsTrigger value="config" className="flex items-center gap-2">
               <Settings className="w-4 h-4" />
@@ -619,6 +744,82 @@ export default function AdminDashboardPage() {
                         下一页
                       </Button>
                     </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Docs Tab */}
+          <TabsContent value="docs">
+            <Card>
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle className="flex items-center gap-2">
+                      <FileText className="w-5 h-5" />
+                      文档管理
+                    </CardTitle>
+                    <CardDescription>
+                      管理文档中心的内容
+                    </CardDescription>
+                  </div>
+                  <Button onClick={handleNewDoc} className="flex items-center gap-2">
+                    <Plus className="w-4 h-4" />
+                    新建文档
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent>
+                {docsLoading ? (
+                  <div className="flex items-center justify-center py-12">
+                    <Spinner className="w-6 h-6" />
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {docs.length === 0 ? (
+                      <div className="text-center py-12 text-gray-500">
+                        <FileText className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                        <p>暂无文档</p>
+                        <p className="text-sm mt-2">点击上方按钮创建第一篇文档</p>
+                      </div>
+                    ) : (
+                      docs.map((doc) => (
+                        <div
+                          key={doc.id}
+                          className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800"
+                        >
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2">
+                              <h3 className="font-medium">{doc.title}</h3>
+                              <Badge variant={doc.status === 'published' ? 'default' : 'secondary'}>
+                                {doc.status === 'published' ? '已发布' : '草稿'}
+                              </Badge>
+                              <Badge variant="outline">{doc.category}</Badge>
+                            </div>
+                            <p className="text-sm text-gray-500 mt-1">
+                              /{doc.slug} · {doc.viewCount || 0} 次浏览
+                            </p>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleEditDoc(doc)}
+                            >
+                              <Edit className="w-4 h-4" />
+                            </Button>
+                            <Button
+                              variant="destructive"
+                              size="sm"
+                              onClick={() => handleDeleteDoc(doc.id)}
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                          </div>
+                        </div>
+                      ))
+                    )}
                   </div>
                 )}
               </CardContent>
@@ -851,6 +1052,108 @@ export default function AdminDashboardPage() {
                     disabled={saving}
                   >
                     {saving ? <Spinner className="w-4 h-4" /> : '保存'}
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        )}
+
+        {/* 文档编辑弹窗 */}
+        {editingDoc && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 overflow-y-auto py-8">
+            <Card className="w-full max-w-3xl mx-4">
+              <CardHeader>
+                <CardTitle>{editingDoc.id === 'new' ? '新建文档' : '编辑文档'}</CardTitle>
+                <CardDescription>
+                  文档支持Markdown格式
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>标题</Label>
+                    <Input
+                      value={docForm.title}
+                      onChange={(e) => setDocForm({ ...docForm, title: e.target.value })}
+                      placeholder="输入文档标题"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>别名 (URL)</Label>
+                    <Input
+                      value={docForm.slug}
+                      onChange={(e) => setDocForm({ ...docForm, slug: e.target.value })}
+                      placeholder="例如: how-to-use"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-3 gap-4">
+                  <div className="space-y-2">
+                    <Label>分类</Label>
+                    <select
+                      value={docForm.category}
+                      onChange={(e) => setDocForm({ ...docForm, category: e.target.value })}
+                      className="w-full px-3 py-2 border rounded-md bg-white dark:bg-gray-800 dark:border-gray-700"
+                    >
+                      <option value="getting-started">新手入门</option>
+                      <option value="trading">交易指南</option>
+                      <option value="faq">常见问题</option>
+                      <option value="other">其他</option>
+                      <option value="general">通用</option>
+                    </select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>排序权重</Label>
+                    <Input
+                      type="number"
+                      value={docForm.sortOrder}
+                      onChange={(e) => setDocForm({ ...docForm, sortOrder: parseInt(e.target.value) || 0 })}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>状态</Label>
+                    <select
+                      value={docForm.status}
+                      onChange={(e) => setDocForm({ ...docForm, status: e.target.value as 'published' | 'draft' })}
+                      className="w-full px-3 py-2 border rounded-md bg-white dark:bg-gray-800 dark:border-gray-700"
+                    >
+                      <option value="published">已发布</option>
+                      <option value="draft">草稿</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label>内容 (Markdown)</Label>
+                  <textarea
+                    value={docForm.content}
+                    onChange={(e) => setDocForm({ ...docForm, content: e.target.value })}
+                    placeholder="## 标题&#10;&#10;文档内容...&#10;&#10;- 列表项1&#10;- 列表项2"
+                    className="w-full px-3 py-2 border rounded-md bg-white dark:bg-gray-800 dark:border-gray-700 min-h-[300px] font-mono text-sm"
+                  />
+                </div>
+
+                <div className="flex gap-3 pt-4">
+                  <Button
+                    variant="outline"
+                    className="flex-1"
+                    onClick={() => setEditingDoc(null)}
+                  >
+                    取消
+                  </Button>
+                  <Button
+                    className="flex-1"
+                    onClick={handleSaveDoc}
+                    disabled={saving}
+                  >
+                    {saving ? <Spinner className="w-4 h-4" /> : (
+                      <>
+                        <Save className="w-4 h-4 mr-2" />
+                        保存
+                      </>
+                    )}
                   </Button>
                 </div>
               </CardContent>

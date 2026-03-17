@@ -217,6 +217,23 @@ export const eaPurchases = mysqlTable('ea_purchases', {
   productIdx: index('idx_ea_product_purchase').on(table.productId),
 }));
 
+// Documents Table (文档中心)
+export const documents = mysqlTable('documents', {
+  id: int('id').autoincrement().primaryKey(),
+  title: varchar('title', { length: 255 }).notNull(),
+  slug: varchar('slug', { length: 255 }).notNull().unique(),
+  content: text('content').notNull(),
+  category: varchar('category', { length: 100 }).default('general'), // 分类：getting-started, trading, faq, etc.
+  sortOrder: int('sort_order').default(0), // 排序权重
+  status: mysqlEnum('status', ['published', 'draft']).default('published'),
+  viewCount: int('view_count').default(0),
+  createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow().onUpdateNow(),
+}, (table) => ({
+  slugUnique: uniqueIndex('uk_document_slug').on(table.slug),
+  categoryIdx: index('idx_document_category').on(table.category),
+}));
+
 // Type exports
 export type User = typeof users.$inferSelect;
 export type NewUser = typeof users.$inferInsert;
@@ -230,3 +247,5 @@ export type EaProduct = typeof eaProducts.$inferSelect;
 export type NewEaProduct = typeof eaProducts.$inferInsert;
 export type EaPurchase = typeof eaPurchases.$inferSelect;
 export type NewEaPurchase = typeof eaPurchases.$inferInsert;
+export type Document = typeof documents.$inferSelect;
+export type NewDocument = typeof documents.$inferInsert;
