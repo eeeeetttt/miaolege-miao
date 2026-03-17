@@ -388,50 +388,7 @@ export default function SignalDetailPage() {
 
           <TabsContent value="overview" className="space-y-6">
             <div className="grid md:grid-cols-2 gap-6">
-              {/* 风险指标 */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <AlertTriangle className="w-5 h-5 text-yellow-500" />
-                    风险指标
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="flex justify-between items-center">
-                    <span className="text-gray-600 dark:text-gray-400">最大回撤</span>
-                    <div className="text-right">
-                      <span className="font-bold text-red-500">-${stats.maxDrawdown}</span>
-                      <span className="text-sm text-gray-500 ml-2">({stats.maxDrawdownPercent}%)</span>
-                    </div>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-gray-600 dark:text-gray-400">盈亏比</span>
-                    <span className="font-bold">{stats.profitFactor}</span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-gray-600 dark:text-gray-400">最大单笔盈利</span>
-                    <span className="font-bold text-green-500">+${stats.maxProfit}</span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-gray-600 dark:text-gray-400">最大单笔亏损</span>
-                    <span className="font-bold text-red-500">${stats.maxLoss}</span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-gray-600 dark:text-gray-400">平均盈利</span>
-                    <span className="font-bold text-green-500">+${stats.avgWin}</span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-gray-600 dark:text-gray-400">平均亏损</span>
-                    <span className="font-bold text-red-500">-${stats.avgLoss}</span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-gray-600 dark:text-gray-400">初始资金</span>
-                    <span className="font-bold">${stats.initialBalance}</span>
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* 收益曲线 */}
+              {/* 收益曲线 - 左侧 */}
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
@@ -499,6 +456,45 @@ export default function SignalDetailPage() {
                       暂无数据
                     </div>
                   )}
+                </CardContent>
+              </Card>
+
+              {/* 风险指标 - 右侧 */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <AlertTriangle className="w-5 h-5 text-yellow-500" />
+                    风险指标
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-600 dark:text-gray-400">盈亏比</span>
+                    <span className="font-bold">{stats.profitFactor}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-600 dark:text-gray-400">最大单笔盈利</span>
+                    <span className="font-bold text-green-500">+${stats.maxProfit}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-600 dark:text-gray-400">最大单笔亏损</span>
+                    <span className="font-bold text-red-500">${stats.maxLoss}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-600 dark:text-gray-400">平均盈利</span>
+                    <span className="font-bold text-green-500">+${stats.avgWin}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-600 dark:text-gray-400">平均亏损</span>
+                    <span className="font-bold text-red-500">-${stats.avgLoss}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-600 dark:text-gray-400">最大回撤</span>
+                    <div className="text-right">
+                      <span className="font-bold text-red-500">-${stats.maxDrawdown}</span>
+                      <span className="text-sm text-gray-500 ml-2">({stats.maxDrawdownPercent}%)</span>
+                    </div>
+                  </div>
                 </CardContent>
               </Card>
             </div>

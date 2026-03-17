@@ -27,7 +27,12 @@ import {
   Edit3,
   Clock,
   Gift,
-  Zap
+  Zap,
+  Globe,
+  TrendingUp,
+  Crown,
+  Star,
+  Ban
 } from 'lucide-react';
 
 interface UserInfo {
@@ -49,6 +54,34 @@ interface MTAccount {
   createdAt: string;
 }
 
+interface FollowInfo {
+  id: number;
+  planetId: number;
+  planetName: string;
+  signalAccount: string;
+  status: string;
+  createdAt: string;
+}
+
+// 会员等级配置
+const MEMBER_LEVELS = [
+  { name: '普通会员', minCoins: 0, icon: Star, color: 'text-gray-500', bgColor: 'bg-gray-100 dark:bg-gray-800' },
+  { name: '银牌会员', minCoins: 500, icon: Star, color: 'text-gray-400', bgColor: 'bg-gray-200 dark:bg-gray-700' },
+  { name: '金牌会员', minCoins: 1000, icon: Star, color: 'text-yellow-500', bgColor: 'bg-yellow-100 dark:bg-yellow-900/30' },
+  { name: '白金会员', minCoins: 2000, icon: Crown, color: 'text-purple-500', bgColor: 'bg-purple-100 dark:bg-purple-900/30' },
+  { name: '钻石会员', minCoins: 5000, icon: Crown, color: 'text-blue-500', bgColor: 'bg-blue-100 dark:bg-blue-900/30' },
+];
+
+// 获取会员等级
+function getMemberLevel(totalRecharged: number) {
+  for (let i = MEMBER_LEVELS.length - 1; i >= 0; i--) {
+    if (totalRecharged >= MEMBER_LEVELS[i].minCoins) {
+      return MEMBER_LEVELS[i];
+    }
+  }
+  return MEMBER_LEVELS[0];
+}
+
 const RECHARGE_OPTIONS = [
   { amount: 100, bonus: 0, popular: false },
   { amount: 200, bonus: 10, popular: false },
@@ -58,11 +91,16 @@ const RECHARGE_OPTIONS = [
   { amount: 5000, bonus: 600, popular: false },
 ];
 
+// 充值功能是否禁用
+const RECHARGE_DISABLED = true;
+
 export default function UserCenterPage() {
   const router = useRouter();
   const { data: session, status } = useSession();
   const [user, setUser] = useState<UserInfo | null>(null);
   const [mtAccount, setMtAccount] = useState<MTAccount | null>(null);
+  const [followInfo, setFollowInfo] = useState<FollowInfo[]>([]);
+  const [totalRecharged, setTotalRecharged] = useState(0);
   const [loading, setLoading] = useState(true);
   const [mtForm, setMtForm] = useState({
     accountNumber: '',
@@ -96,16 +134,20 @@ export default function UserCenterPage() {
 
   const fetchData = async () => {
     try {
-      const [userRes, mtRes] = await Promise.all([
+      const [userRes, mtRes, followRes] = await Promise.all([
         fetch('/api/user/info'),
         fetch('/api/mt-account'),
+        fetch('/api/follow/my'),
       ]);
       
       const userData = await userRes.json();
       const mtData = await mtRes.json();
+      const followData = await followRes.json();
       
       setUser(userData.user);
       setMtAccount(mtData.account);
+      setFollowInfo(followData.follows || []);
+      setTotalRecharged(userData.totalRecharged || 0);
       setNewName(userData.user?.name || '');
       
       // 检查昵称修改限制
@@ -188,6 +230,11 @@ export default function UserCenterPage() {
   };
 
   const handleRecharge = async (amount: number) => {
+    if (RECHARGE_DISABLED) {
+      setError('充值功能暂未开放，敬请期待');
+      return;
+    }
+    
     setError('');
     setSuccess('');
     setRechargeLoading(true);
@@ -234,13 +281,11 @@ export default function UserCenterPage() {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    // 验证文件类型
     if (!file.type.startsWith('image/')) {
       setError('请选择图片文件');
       return;
     }
 
-    // 验证文件大小 (最大 2MB)
     if (file.size > 2 * 1024 * 1024) {
       setError('图片大小不能超过 2MB');
       return;
@@ -250,7 +295,6 @@ export default function UserCenterPage() {
     setError('');
 
     try {
-      // 转换为 base64
       const reader = new FileReader();
       reader.onload = async () => {
         try {
@@ -325,6 +369,13 @@ export default function UserCenterPage() {
     }
   };
 
+  // 获取会员等级
+  const memberLevel = getMemberLevel(totalRecharged);
+  const LevelIcon = memberLevel.icon;
+  
+  // 是否可以创建星球
+  const canCreatePlanet = totalRecharged >= 2000;
+
   if (status === 'loading' || loading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-50 to-purple-50 dark:from-gray-900 dark:to-slate-900 py-8 px-4">
@@ -344,55 +395,99 @@ export default function UserCenterPage() {
             个人中心
           </h1>
           <p className="text-gray-600 dark:text-gray-400 mt-2">
-            管理您的账户、MT账号和星球币
+            管理您的账户、MT账号和跟单服务
           </p>
         </div>
 
-        {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+        {/* 顶部卡片区域 */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+          {/* 用户头像和会员等级 */}
+          <Card className="md:col-span-1 overflow-hidden">
+            <CardContent className="pt-6 text-center">
+              <div className="relative inline-block group">
+                <Avatar 
+                  className="w-20 h-20 cursor-pointer border-4 border-purple-200 dark:border-purple-800"
+                  onClick={handleAvatarClick}
+                >
+                  <AvatarImage src={user?.avatar || undefined} />
+                  <AvatarFallback className="bg-gradient-to-br from-purple-500 to-blue-500 text-white text-2xl font-bold">
+                    {user?.name?.[0]?.toUpperCase() || 'U'}
+                  </AvatarFallback>
+                </Avatar>
+                <div 
+                  className="absolute inset-0 bg-black/50 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer mx-auto"
+                  style={{ width: 80, height: 80 }}
+                  onClick={handleAvatarClick}
+                >
+                  <Camera className="w-6 h-6 text-white" />
+                </div>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={handleAvatarChange}
+                />
+              </div>
+              <h3 className="font-bold text-lg mt-3">{user?.name}</h3>
+              <p className="text-sm text-gray-500">{user?.email}</p>
+              
+              {/* 会员等级 */}
+              <div className={`mt-3 inline-flex items-center gap-1.5 px-3 py-1 rounded-full ${memberLevel.bgColor}`}>
+                <LevelIcon className={`w-4 h-4 ${memberLevel.color}`} />
+                <span className={`text-sm font-medium ${memberLevel.color}`}>{memberLevel.name}</span>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* 星球币余额 */}
           <Card className="bg-gradient-to-br from-purple-500 to-purple-600 text-white overflow-hidden relative">
-            <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -translate-y-1/2 translate-x-1/2"></div>
+            <div className="absolute top-0 right-0 w-24 h-24 bg-white/10 rounded-full -translate-y-1/2 translate-x-1/2"></div>
             <CardContent className="pt-6 relative z-10">
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-purple-100 text-sm">星球币余额</p>
-                  <p className="text-3xl font-bold mt-1">{user?.coinBalance || 0}</p>
+                  <p className="text-2xl font-bold mt-1">{user?.coinBalance || 0}</p>
                 </div>
-                <div className="w-14 h-14 bg-white/20 rounded-full flex items-center justify-center">
-                  <Coins className="w-8 h-8 text-white" />
-                </div>
+                <Coins className="w-10 h-10 text-white/80" />
               </div>
             </CardContent>
           </Card>
 
+          {/* MT账号状态 */}
           <Card className="bg-gradient-to-br from-blue-500 to-blue-600 text-white overflow-hidden relative">
-            <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -translate-y-1/2 translate-x-1/2"></div>
+            <div className="absolute top-0 right-0 w-24 h-24 bg-white/10 rounded-full -translate-y-1/2 translate-x-1/2"></div>
             <CardContent className="pt-6 relative z-10">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-blue-100 text-sm">MT账号状态</p>
-                  <p className="text-xl font-bold mt-1">
-                    {mtAccount ? '已绑定' : '未绑定'}
+                  <p className="text-blue-100 text-sm">MT账号</p>
+                  <p className="text-lg font-bold mt-1">
+                    {mtAccount ? mtAccount.accountNumber : '未绑定'}
+                  </p>
+                  {mtAccount && (
+                    <Badge className="mt-1 bg-white/20 text-white text-xs">{mtAccount.platform}</Badge>
+                  )}
+                </div>
+                <Link2 className="w-10 h-10 text-white/80" />
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* 创建星球权限 */}
+          <Card className={`overflow-hidden relative ${canCreatePlanet ? 'bg-gradient-to-br from-green-500 to-green-600 text-white' : 'bg-gray-100 dark:bg-gray-800'}`}>
+            <CardContent className="pt-6 relative z-10">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className={`text-sm ${canCreatePlanet ? 'text-green-100' : 'text-gray-500'}`}>创建星球</p>
+                  <p className={`text-lg font-bold mt-1 ${canCreatePlanet ? '' : 'text-gray-400'}`}>
+                    {canCreatePlanet ? '已解锁' : '需充值2000+'}
                   </p>
                 </div>
-                <div className="w-14 h-14 bg-white/20 rounded-full flex items-center justify-center">
-                  <Link2 className="w-8 h-8 text-white" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="bg-gradient-to-br from-green-500 to-green-600 text-white overflow-hidden relative">
-            <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -translate-y-1/2 translate-x-1/2"></div>
-            <CardContent className="pt-6 relative z-10">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-green-100 text-sm">账号状态</p>
-                  <p className="text-xl font-bold mt-1">正常</p>
-                </div>
-                <div className="w-14 h-14 bg-white/20 rounded-full flex items-center justify-center">
-                  <Shield className="w-8 h-8 text-white" />
-                </div>
+                {canCreatePlanet ? (
+                  <CheckCircle2 className="w-10 h-10 text-white/80" />
+                ) : (
+                  <Ban className="w-10 h-10 text-gray-400" />
+                )}
               </div>
             </CardContent>
           </Card>
@@ -420,83 +515,23 @@ export default function UserCenterPage() {
               <UserIcon className="w-4 h-4" />
               个人资料
             </TabsTrigger>
+            <TabsTrigger value="follow" className="flex items-center gap-2">
+              <TrendingUp className="w-4 h-4" />
+              跟单信息
+            </TabsTrigger>
             <TabsTrigger value="mt-account" className="flex items-center gap-2">
               <Link2 className="w-4 h-4" />
-              MT账号绑定
+              MT账号
             </TabsTrigger>
             <TabsTrigger value="recharge" className="flex items-center gap-2">
               <Wallet className="w-4 h-4" />
-              充值中心
+              充值
             </TabsTrigger>
           </TabsList>
 
           {/* Profile Tab */}
           <TabsContent value="profile">
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {/* 头像设置 */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Camera className="w-5 h-5 text-purple-500" />
-                    头像设置
-                  </CardTitle>
-                  <CardDescription>
-                    点击头像更换，支持 JPG、PNG 格式，最大 2MB
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="flex items-center gap-6">
-                    <div className="relative group">
-                      <Avatar 
-                        className="w-24 h-24 cursor-pointer border-4 border-purple-200 dark:border-purple-800 group-hover:border-purple-400 transition-colors"
-                        onClick={handleAvatarClick}
-                      >
-                        <AvatarImage src={user?.avatar || undefined} />
-                        <AvatarFallback className="bg-gradient-to-br from-purple-500 to-blue-500 text-white text-2xl font-bold">
-                          {user?.name?.[0]?.toUpperCase() || 'U'}
-                        </AvatarFallback>
-                      </Avatar>
-                      <div 
-                        className="absolute inset-0 bg-black/50 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
-                        onClick={handleAvatarClick}
-                      >
-                        <Camera className="w-8 h-8 text-white" />
-                      </div>
-                      <input
-                        ref={fileInputRef}
-                        type="file"
-                        accept="image/*"
-                        className="hidden"
-                        onChange={handleAvatarChange}
-                      />
-                    </div>
-                    <div>
-                      <p className="font-medium text-lg">{user?.name}</p>
-                      <p className="text-gray-500 text-sm">{user?.email}</p>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="mt-2"
-                        onClick={handleAvatarClick}
-                        disabled={avatarLoading}
-                      >
-                        {avatarLoading ? (
-                          <>
-                            <Spinner className="w-4 h-4 mr-2" />
-                            上传中...
-                          </>
-                        ) : (
-                          <>
-                            <Camera className="w-4 h-4 mr-2" />
-                            更换头像
-                          </>
-                        )}
-                      </Button>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
               {/* 昵称设置 */}
               <Card>
                 <CardHeader>
@@ -551,13 +586,13 @@ export default function UserCenterPage() {
               </Card>
 
               {/* 账户信息 */}
-              <Card className="lg:col-span-2">
+              <Card>
                 <CardHeader>
                   <CardTitle>账户信息</CardTitle>
                   <CardDescription>您的基本账户信息</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <Label className="text-gray-600 dark:text-gray-400">邮箱</Label>
                       <Input value={user?.email || ''} disabled className="bg-gray-50 dark:bg-gray-800" />
@@ -575,17 +610,39 @@ export default function UserCenterPage() {
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label className="text-gray-600 dark:text-gray-400">用户ID</Label>
-                      <Input value={user?.userId || ''} disabled className="bg-gray-50 dark:bg-gray-800 font-mono text-sm" />
+                      <Label className="text-gray-600 dark:text-gray-400">累计充值</Label>
+                      <Input
+                        value={`${totalRecharged} 星球币`}
+                        disabled
+                        className="bg-gray-50 dark:bg-gray-800"
+                      />
                     </div>
                   </div>
+                </CardContent>
+              </Card>
 
-                  <div className="flex flex-wrap gap-3 pt-4 border-t">
+              {/* 快捷操作 */}
+              <Card className="lg:col-span-2">
+                <CardHeader>
+                  <CardTitle>快捷操作</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="flex flex-wrap gap-3">
                     <Button variant="outline" onClick={() => router.push('/planet')}>
+                      <Globe className="w-4 h-4 mr-2" />
                       浏览星球
                     </Button>
                     <Button variant="outline" onClick={() => router.push('/planet/my')}>
                       我的星球
+                    </Button>
+                    <Button 
+                      variant="outline" 
+                      onClick={() => router.push('/planet/create')}
+                      disabled={!canCreatePlanet}
+                      title={canCreatePlanet ? '创建星球' : '充值2000+星球币后可创建星球'}
+                    >
+                      <Crown className="w-4 h-4 mr-2" />
+                      创建星球
                     </Button>
                     <Button variant="destructive" onClick={() => signOut({ callbackUrl: '/' })}>
                       退出登录
@@ -594,6 +651,74 @@ export default function UserCenterPage() {
                 </CardContent>
               </Card>
             </div>
+          </TabsContent>
+
+          {/* Follow Info Tab */}
+          <TabsContent value="follow">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <TrendingUp className="w-5 h-5" />
+                  跟单信息
+                </CardTitle>
+                <CardDescription>
+                  查看您当前跟单的信号源和所属星球
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {followInfo.length === 0 ? (
+                  <div className="text-center py-12 text-gray-500">
+                    <TrendingUp className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                    <p>暂无跟单记录</p>
+                    <p className="text-sm mt-2">加入星球后可以跟随信号源进行跟单</p>
+                    <Button 
+                      variant="outline" 
+                      className="mt-4"
+                      onClick={() => router.push('/planet')}
+                    >
+                      浏览星球
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {followInfo.map((follow) => (
+                      <div 
+                        key={follow.id}
+                        className="flex items-center justify-between p-4 bg-gradient-to-r from-purple-50 to-blue-50 dark:from-purple-900/20 dark:to-blue-900/20 rounded-lg border"
+                      >
+                        <div className="flex items-center gap-4">
+                          <div className="w-12 h-12 rounded-full bg-gradient-to-br from-purple-500 to-blue-500 flex items-center justify-center text-white font-bold">
+                            {follow.signalAccount.slice(-3)}
+                          </div>
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <span className="font-bold">信号源: {follow.signalAccount}</span>
+                              <Badge variant={follow.status === 'active' ? 'default' : 'secondary'} className={follow.status === 'active' ? 'bg-green-500' : ''}>
+                                {follow.status === 'active' ? '跟单中' : '已暂停'}
+                              </Badge>
+                            </div>
+                            <div className="flex items-center gap-2 mt-1 text-sm text-gray-500">
+                              <Globe className="w-3 h-3" />
+                              <span>星球: {follow.planetName}</span>
+                            </div>
+                            <p className="text-xs text-gray-400 mt-1">
+                              开始时间: {new Date(follow.createdAt).toLocaleDateString()}
+                            </p>
+                          </div>
+                        </div>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => router.push(`/planet/${follow.planetId}`)}
+                        >
+                          查看星球
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
           </TabsContent>
 
           {/* MT Account Tab */}
@@ -680,7 +805,7 @@ export default function UserCenterPage() {
                     <Alert>
                       <AlertCircle className="h-4 w-4" />
                       <AlertDescription>
-                        <strong>注意：</strong>每人只能绑定一个MT账号。绑定后请确保EA配置正确，以便信号能正确上传。经纪商信息将从信号中自动获取。
+                        <strong>注意：</strong>每人只能绑定一个MT账号。绑定后请确保EA配置正确，以便信号能正确上传。
                       </AlertDescription>
                     </Alert>
 
@@ -713,17 +838,28 @@ export default function UserCenterPage() {
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
+                {RECHARGE_DISABLED && (
+                  <Alert className="border-orange-200 bg-orange-50 dark:bg-orange-900/20">
+                    <Ban className="h-4 w-4 text-orange-500" />
+                    <AlertDescription className="text-orange-700 dark:text-orange-400">
+                      充值功能暂未开放，敬请期待
+                    </AlertDescription>
+                  </Alert>
+                )}
+
                 {/* 快捷充值选项 */}
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                   {RECHARGE_OPTIONS.map((option) => (
                     <button
                       key={option.amount}
                       onClick={() => {
-                        setSelectedAmount(option.amount);
-                        setCustomAmount('');
+                        if (!RECHARGE_DISABLED) {
+                          setSelectedAmount(option.amount);
+                          setCustomAmount('');
+                        }
                       }}
-                      disabled={rechargeLoading}
-                      className={`relative p-4 rounded-xl border-2 transition-all text-left ${
+                      disabled={rechargeLoading || RECHARGE_DISABLED}
+                      className={`relative p-4 rounded-xl border-2 transition-all text-left disabled:opacity-50 disabled:cursor-not-allowed ${
                         selectedAmount === option.amount
                           ? 'border-purple-500 bg-purple-50 dark:bg-purple-900/30'
                           : 'border-gray-200 dark:border-gray-700 hover:border-purple-300'
@@ -773,11 +909,12 @@ export default function UserCenterPage() {
                         className="pl-10"
                         min={10}
                         max={50000}
+                        disabled={RECHARGE_DISABLED}
                       />
                     </div>
                     <Button 
                       onClick={handleCustomRecharge}
-                      disabled={rechargeLoading || !customAmount}
+                      disabled={rechargeLoading || !customAmount || RECHARGE_DISABLED}
                       variant="outline"
                     >
                       充值
@@ -786,7 +923,7 @@ export default function UserCenterPage() {
                 </div>
 
                 {/* 充值按钮 */}
-                {selectedAmount && (
+                {selectedAmount && !RECHARGE_DISABLED && (
                   <div className="flex items-center justify-between p-4 bg-purple-50 dark:bg-purple-900/20 rounded-lg">
                     <div>
                       <p className="font-medium">已选择: {selectedAmount} 星球币</p>
@@ -794,22 +931,46 @@ export default function UserCenterPage() {
                         实际支付: ¥{selectedAmount}
                       </p>
                     </div>
-                    <Button 
+                    <Button
                       onClick={() => handleRecharge(selectedAmount)}
                       disabled={rechargeLoading}
                       className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700"
                     >
                       {rechargeLoading ? (
                         <>
-                          <Spinner className="mr-2" />
+                          <Spinner className="w-4 h-4 mr-2" />
                           处理中...
                         </>
                       ) : (
-                        '立即充值'
+                        '确认充值'
                       )}
                     </Button>
                   </div>
                 )}
+
+                {/* 会员等级说明 */}
+                <div className="pt-4 border-t">
+                  <h4 className="font-medium mb-3">会员等级说明</h4>
+                  <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+                    {MEMBER_LEVELS.map((level, index) => {
+                      const Icon = level.icon;
+                      const isCurrentLevel = memberLevel.name === level.name;
+                      return (
+                        <div 
+                          key={index}
+                          className={`p-3 rounded-lg text-center ${level.bgColor} ${isCurrentLevel ? 'ring-2 ring-purple-500' : ''}`}
+                        >
+                          <Icon className={`w-5 h-5 mx-auto ${level.color}`} />
+                          <p className={`text-sm font-medium mt-1 ${level.color}`}>{level.name}</p>
+                          <p className="text-xs text-gray-500 mt-0.5">充值{level.minCoins}+</p>
+                        </div>
+                      );
+                    })}
+                  </div>
+                  <p className="text-xs text-gray-500 mt-3">
+                    * 白金会员及以上（充值2000+星球币）可申请创建星球
+                  </p>
+                </div>
               </CardContent>
             </Card>
           </TabsContent>

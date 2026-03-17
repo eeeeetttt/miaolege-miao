@@ -396,7 +396,7 @@ export default function PlanetDetailPage() {
           <div className="lg:col-span-1">
             <Card className="sticky top-24">
               <CardHeader>
-                <CardTitle className="text-lg">星球规则</CardTitle>
+                <CardTitle className="text-lg">星球公告</CardTitle>
               </CardHeader>
               <CardContent>
                 {planet.rules ? (

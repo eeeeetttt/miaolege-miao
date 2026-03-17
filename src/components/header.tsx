@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import Image from 'next/image';
 import { useSession, signOut } from 'next-auth/react';
 import { Button } from '@/components/ui/button';
 import { ThemeToggle } from '@/components/theme-toggle';
@@ -13,7 +14,7 @@ import {
   DropdownMenuTrigger 
 } from '@/components/ui/dropdown-menu';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { User, LogOut, Globe, Settings, Download, Home } from 'lucide-react';
+import { User, LogOut, Globe, Settings, Download, Home, Shield } from 'lucide-react';
 
 export function Header() {
   const { data: session } = useSession();
@@ -24,9 +25,13 @@ export function Header() {
         <div className="flex h-16 items-center justify-between">
           {/* Logo */}
           <Link href="/" className="flex items-center gap-3 hover:opacity-80 transition-opacity">
-            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-purple-500 to-blue-500 flex items-center justify-center text-white font-bold text-lg shadow-lg">
-              喵
-            </div>
+            <Image 
+              src="/logo.png" 
+              alt="喵了个喵" 
+              width={40} 
+              height={40}
+              className="rounded-full shadow-lg"
+            />
             <div className="hidden sm:block">
               <h1 className="text-xl font-bold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">
                 喵了个喵
@@ -93,6 +98,12 @@ export function Header() {
                     <Link href="/planet/create" className="cursor-pointer">
                       <Settings className="mr-2 h-4 w-4" />
                       创建星球
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <Link href="/admin" className="cursor-pointer">
+                      <Shield className="mr-2 h-4 w-4" />
+                      后台管理
                     </Link>
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />

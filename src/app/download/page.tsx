@@ -52,7 +52,6 @@ export default function DownloadPage() {
   const [downloading, setDownloading] = useState<number | null>(null);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
-  const [coinBalance, setCoinBalance] = useState(0);
 
   useEffect(() => {
     if (status === 'unauthenticated') {
@@ -62,7 +61,6 @@ export default function DownloadPage() {
 
     if (status === 'authenticated') {
       fetchProducts();
-      fetchUserBalance();
     }
   }, [status]);
 
@@ -82,24 +80,7 @@ export default function DownloadPage() {
     }
   };
 
-  const fetchUserBalance = async () => {
-    try {
-      const res = await fetch('/api/user/info');
-      const data = await res.json();
-      if (res.ok) {
-        setCoinBalance(data.user?.coinBalance || 0);
-      }
-    } catch (err) {
-      console.error('获取余额失败');
-    }
-  };
-
   const handlePurchase = async (productId: number, price: number) => {
-    if (coinBalance < price) {
-      setError('星球币余额不足，请先充值');
-      return;
-    }
-
     setPurchasing(productId);
     setError('');
     setSuccess('');
@@ -115,7 +96,6 @@ export default function DownloadPage() {
 
       if (res.ok) {
         setSuccess(`购买成功！已扣除 ${price} 星球币`);
-        setCoinBalance(prev => prev - price);
         // 更新产品列表
         setProducts(prev => 
           prev.map(p => p.id === productId ? { ...p, purchased: true } : p)
@@ -218,28 +198,6 @@ export default function DownloadPage() {
             精选EA交易程序，助力您的自动化交易
           </p>
         </div>
-
-        {/* 用户余额 */}
-        <Card className="mb-6 bg-gradient-to-r from-purple-500 to-blue-500 text-white">
-          <CardContent className="pt-6">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <Coins className="w-8 h-8" />
-                <div>
-                  <p className="text-purple-100 text-sm">我的星球币</p>
-                  <p className="text-3xl font-bold">{coinBalance}</p>
-                </div>
-              </div>
-              <Button 
-                variant="secondary" 
-                onClick={() => router.push('/user')}
-                className="bg-white/20 hover:bg-white/30 text-white border-white/30"
-              >
-                充值
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
 
         {/* 提示信息 */}
         {error && (
@@ -413,8 +371,7 @@ export default function DownloadPage() {
                       <Button
                         onClick={() => handlePurchase(product.id, product.price)}
                         disabled={purchasing === product.id}
-                        variant={coinBalance >= product.price ? 'default' : 'secondary'}
-                        className={coinBalance >= product.price ? 'bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700' : ''}
+                        className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700"
                       >
                         {purchasing === product.id ? (
                           <Spinner className="w-4 h-4" />

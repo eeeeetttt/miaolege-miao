@@ -102,10 +102,10 @@ export default function CreatePlanetPage() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="rules">星球规则</Label>
+                <Label htmlFor="rules">星球公告</Label>
                 <Textarea
                   id="rules"
-                  placeholder="设定一些星球规则..."
+                  placeholder="设定一些星球公告..."
                   value={formData.rules}
                   onChange={(e) => setFormData({ ...formData, rules: e.target.value })}
                   rows={3}

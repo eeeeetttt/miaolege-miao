@@ -402,12 +402,12 @@ export default function PlanetManagePage() {
                       </div>
                       
                       <div className="space-y-2">
-                        <Label htmlFor="rules">星球规则</Label>
+                        <Label htmlFor="rules">星球公告</Label>
                         <textarea
                           id="rules"
                           value={editForm.rules}
                           onChange={(e) => setEditForm({ ...editForm, rules: e.target.value })}
-                          placeholder="输入星球规则"
+                          placeholder="输入星球公告"
                           className="w-full px-3 py-2 border rounded-md bg-white dark:bg-gray-800 dark:border-gray-700 min-h-[100px]"
                         />
                       </div>
@@ -477,7 +477,7 @@ export default function PlanetManagePage() {
                       
                       {planet?.rules && (
                         <div className="p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
-                          <p className="text-sm text-gray-500 mb-1">星球规则</p>
+                          <p className="text-sm text-gray-500 mb-1">星球公告</p>
                           <p className="text-gray-700 dark:text-gray-300 whitespace-pre-wrap">{planet.rules}</p>
                         </div>
                       )}
