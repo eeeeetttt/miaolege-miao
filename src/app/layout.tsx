@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { Inspector } from 'react-dev-inspector';
 import SessionProvider from '@/components/providers/session-provider';
 import { Header } from '@/components/header';
+import CustomerService from '@/components/customer-service';
 import './globals.css';
 
 export const metadata: Metadata = {
@@ -66,6 +67,8 @@ export default function RootLayout({
               </div>
             </footer>
           </div>
+          {/* 在线客服 */}
+          <CustomerService qq="497209390" />
         </SessionProvider>
       </body>
     </html>
