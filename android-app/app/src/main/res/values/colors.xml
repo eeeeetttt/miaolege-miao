@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- 品牌色 -->
+    <color name="purple_primary">#7C3AED</color>
+    <color name="purple_dark">#6D28D9</color>
+    <color name="purple_light">#A78BFA</color>
+    
+    <!-- 辅助色 -->
+    <color name="blue_accent">#3B82F6</color>
+    <color name="blue_light">#60A5FA</color>
+    
+    <!-- 中性色 -->
+    <color name="white">#FFFFFF</color>
+    <color name="black">#000000</color>
+    <color name="gray_100">#F3F4F6</color>
+    <color name="gray_200">#E5E7EB</color>
+    <color name="gray_300">#D1D5DB</color>
+    <color name="gray_400">#9CA3AF</color>
+    <color name="gray_500">#6B7280</color>
+    <color name="gray_600">#4B5563</color>
+    <color name="gray_700">#374151</color>
+    <color name="gray_800">#1F2937</color>
+    <color name="gray_900">#111827</color>
+    
+    <!-- 功能色 -->
+    <color name="success">#10B981</color>
+    <color name="warning">#F59E0B</color>
+    <color name="error">#EF4444</color>
+    <color name="info">#3B82F6</color>
+    
+    <!-- 渐变色 -->
+    <color name="gradient_start">#7C3AED</color>
+    <color name="gradient_end">#3B82F6</color>
+</resources>

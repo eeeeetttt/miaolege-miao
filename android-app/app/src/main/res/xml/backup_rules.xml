@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  备份规则配置
+  用于控制哪些数据可以被备份
+-->
+<full-backup-content>
+    <!-- 排除敏感文件 -->
+    <exclude domain="sharedpref" path="secure_prefs.xml" />
+    <exclude domain="database" path="user_data.db" />
+</full-backup-content>

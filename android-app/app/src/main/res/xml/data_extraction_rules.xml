@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  数据提取规则配置 (Android 12+)
+  用于控制云端备份和设备间传输时哪些数据可以被提取
+-->
+<data-extraction-rules>
+    <cloud-backup>
+        <exclude domain="sharedpref" path="secure_prefs.xml" />
+        <exclude domain="database" path="user_data.db" />
+    </cloud-backup>
+    
+    <device-transfer>
+        <exclude domain="sharedpref" path="secure_prefs.xml" />
+        <exclude domain="database" path="user_data.db" />
+    </device-transfer>
+</data-extraction-rules>
