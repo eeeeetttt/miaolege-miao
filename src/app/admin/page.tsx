@@ -37,6 +37,10 @@ import {
 
 // 系统配置
 interface SystemConfig {
+  planet_price_7days: number;
+  planet_price_1year: number;
+  planet_price_3years: number;
+  planet_price_permanent: number;
   planetCreationThreshold: number;
   rechargeEnabled: boolean;
   defaultTicketPrice: number;
@@ -77,7 +81,11 @@ export default function AdminDashboardPage() {
   
   const [stats, setStats] = useState<Stats | null>(null);
   const [config, setConfig] = useState<SystemConfig>({
-    planetCreationThreshold: 2000,
+    planet_price_7days: 0,
+    planet_price_1year: 1999,
+    planet_price_3years: 2999,
+    planet_price_permanent: 4999,
+    planetCreationThreshold: 0,
     rechargeEnabled: true,
     defaultTicketPrice: 100,
     maxPublishers: 3,
@@ -839,18 +847,51 @@ export default function AdminDashboardPage() {
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="space-y-2">
-                    <Label htmlFor="planetCreationThreshold">创建星球所需充值金额（星球币）</Label>
-                    <Input
-                      id="planetCreationThreshold"
-                      type="number"
-                      value={config.planetCreationThreshold}
-                      onChange={(e) => setConfig({ ...config, planetCreationThreshold: parseInt(e.target.value) || 0 })}
-                    />
-                    <p className="text-xs text-gray-500">用户累计充值达到此金额后可创建星球</p>
+                {/* 星球创建价格配置 */}
+                <div className="border-b pb-6">
+                  <h3 className="font-semibold mb-4 text-purple-600">星球创建价格（星球币）</h3>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="planet_price_7days">7天</Label>
+                      <Input
+                        id="planet_price_7days"
+                        type="number"
+                        value={config.planet_price_7days}
+                        onChange={(e) => setConfig({ ...config, planet_price_7days: parseInt(e.target.value) || 0 })}
+                      />
+                      <p className="text-xs text-gray-500">免费体验</p>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="planet_price_1year">一年</Label>
+                      <Input
+                        id="planet_price_1year"
+                        type="number"
+                        value={config.planet_price_1year}
+                        onChange={(e) => setConfig({ ...config, planet_price_1year: parseInt(e.target.value) || 0 })}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="planet_price_3years">三年</Label>
+                      <Input
+                        id="planet_price_3years"
+                        type="number"
+                        value={config.planet_price_3years}
+                        onChange={(e) => setConfig({ ...config, planet_price_3years: parseInt(e.target.value) || 0 })}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="planet_price_permanent">永久</Label>
+                      <Input
+                        id="planet_price_permanent"
+                        type="number"
+                        value={config.planet_price_permanent}
+                        onChange={(e) => setConfig({ ...config, planet_price_permanent: parseInt(e.target.value) || 0 })}
+                      />
+                    </div>
                   </div>
+                </div>
 
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="space-y-2">
                     <Label htmlFor="defaultTicketPrice">默认门票价格（星球币）</Label>
                     <Input

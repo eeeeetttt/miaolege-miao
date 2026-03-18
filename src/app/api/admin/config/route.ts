@@ -1,43 +1,85 @@
-import { NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth';
+import { NextRequest, NextResponse } from 'next/server';
+import { isAdmin } from '@/lib/admin';
+import { db } from '@/lib/db';
+import { systemConfig } from '@/lib/schema';
+import { eq } from 'drizzle-orm';
+
+/**
+ * 获取系统配置
+ */
+export async function GET() {
+  try {
+    const configs = await db.select().from(systemConfig);
+    const config: Record<string, string> = {};
+    for (const c of configs) {
+      config[c.configKey] = c.configValue;
+    }
+    return NextResponse.json({ config });
+  } catch (error) {
+    console.error('Get config error:', error);
+    return NextResponse.json({ error: '获取配置失败' }, { status: 500 });
+  }
+}
 
 /**
  * 保存系统配置
- * 注意：这里只是示例，实际应该保存到数据库
- * 当前配置通过环境变量控制，需要重启服务才能生效
  */
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
+    const { isAdmin: admin } = await isAdmin();
     
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: '未授权' }, { status: 401 });
+    if (!admin) {
+      return NextResponse.json({ error: '无权限' }, { status: 403 });
     }
 
     const body = await request.json();
-    const { planetCreationThreshold, rechargeEnabled, defaultTicketPrice, maxPublishers } = body;
+    const {
+      planet_price_7days,
+      planet_price_1year,
+      planet_price_3years,
+      planet_price_permanent,
+      planet_creation_threshold,
+      recharge_enabled,
+      default_ticket_price,
+      max_publishers,
+    } = body;
 
-    // TODO: 将配置保存到数据库的 system_config 表
-    // 当前版本配置存储在环境变量中，需要重启服务才能生效
-    // 这里只是返回成功，实际配置需要手动更新 .env 文件
+    // 更新或插入配置
+    const configs = [
+      { key: 'planet_price_7days', value: String(planet_price_7days ?? 0) },
+      { key: 'planet_price_1year', value: String(planet_price_1year ?? 1999) },
+      { key: 'planet_price_3years', value: String(planet_price_3years ?? 2999) },
+      { key: 'planet_price_permanent', value: String(planet_price_permanent ?? 4999) },
+      { key: 'planet_creation_threshold', value: String(planet_creation_threshold ?? 0) },
+      { key: 'recharge_enabled', value: String(recharge_enabled ?? true) },
+      { key: 'default_ticket_price', value: String(default_ticket_price ?? 100) },
+      { key: 'max_publishers', value: String(max_publishers ?? 3) },
+    ];
 
-    console.log('Config saved:', {
-      planetCreationThreshold,
-      rechargeEnabled,
-      defaultTicketPrice,
-      maxPublishers,
-    });
+    for (const { key, value } of configs) {
+      // 检查是否存在
+      const [existing] = await db
+        .select()
+        .from(systemConfig)
+        .where(eq(systemConfig.configKey, key))
+        .limit(1);
+
+      if (existing) {
+        await db
+          .update(systemConfig)
+          .set({ configValue: value, updatedAt: new Date() })
+          .where(eq(systemConfig.configKey, key));
+      } else {
+        await db.insert(systemConfig).values({
+          configKey: key,
+          configValue: value,
+        });
+      }
+    }
 
     return NextResponse.json({ 
       success: true,
-      message: '配置已保存（注意：部分配置需要重启服务才能生效）',
-      config: {
-        planetCreationThreshold,
-        rechargeEnabled,
-        defaultTicketPrice,
-        maxPublishers,
-      }
+      message: '配置已保存',
     });
   } catch (error) {
     console.error('Save config error:', error);

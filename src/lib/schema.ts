@@ -39,7 +39,8 @@ export const planets = mysqlTable('planets', {
   inviteCode: varchar('invite_code', { length: 50 }),
   maxPublishers: int('max_publishers').default(3),
   status: mysqlEnum('status', ['active', 'closed']).default('active'),
-  durationDays: int('duration_days').default(365),
+  durationDays: int('duration_days').default(365), // 星球时长天数（0表示永久）
+  expireAt: timestamp('expire_at'), // 星球过期时间（null表示永久）
   ownerAsPublisher: boolean('owner_as_publisher').default(false),
 });
 
@@ -234,6 +235,17 @@ export const documents = mysqlTable('documents', {
   categoryIdx: index('idx_document_category').on(table.category),
 }));
 
+// System Config Table (系统配置)
+export const systemConfig = mysqlTable('system_config', {
+  id: int('id').autoincrement().primaryKey(),
+  configKey: varchar('config_key', { length: 100 }).notNull().unique(),
+  configValue: text('config_value').notNull(),
+  description: varchar('description', { length: 255 }),
+  updatedAt: timestamp('updated_at').defaultNow().onUpdateNow(),
+}, (table) => ({
+  keyUnique: uniqueIndex('uk_config_key').on(table.configKey),
+}));
+
 // Type exports
 export type User = typeof users.$inferSelect;
 export type NewUser = typeof users.$inferInsert;
@@ -249,3 +261,5 @@ export type EaPurchase = typeof eaPurchases.$inferSelect;
 export type NewEaPurchase = typeof eaPurchases.$inferInsert;
 export type Document = typeof documents.$inferSelect;
 export type NewDocument = typeof documents.$inferInsert;
+export type SystemConfig = typeof systemConfig.$inferSelect;
+export type NewSystemConfig = typeof systemConfig.$inferInsert;

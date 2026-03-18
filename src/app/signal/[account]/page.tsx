@@ -658,20 +658,16 @@ export default function SignalDetailPage() {
               </p>
               <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-4 space-y-2">
                 <div className="flex justify-between text-sm">
-                  <span className="text-gray-600 dark:text-gray-400">订阅周期</span>
-                  <span className="font-medium">30天</span>
-                </div>
-                <div className="flex justify-between text-sm">
                   <span className="text-gray-600 dark:text-gray-400">跟单星球</span>
                   <span className="font-medium">{data?.planet?.name || '未知星球'}</span>
                 </div>
                 <div className="border-t pt-2 mt-2 flex justify-between">
                   <span className="font-medium">费用</span>
-                  <span className="font-bold text-orange-500">100 星球币</span>
+                  <span className="font-bold text-green-500">星球成员免费</span>
                 </div>
               </div>
               <p className="text-sm text-gray-500 dark:text-gray-400">
-                确认后将从您的账户余额中扣除相应费用，并开始跟随该信号源的交易
+                星球成员跟单无需额外费用，确认后将开始跟随该信号源的交易
               </p>
             </div>
             <div className="flex gap-3">
