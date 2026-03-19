@@ -3,7 +3,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { db } from '@/lib/db';
 import { signals, mtAccounts, planetMembers, planets } from '@/lib/schema';
-import { eq, and, sql, desc } from 'drizzle-orm';
+import { eq, and, sql } from 'drizzle-orm';
 
 // 获取星球信号源统计数据
 export async function GET(request: NextRequest) {
@@ -79,7 +79,7 @@ export async function GET(request: NextRequest) {
 
 // 计算MT账号的信号统计数据
 async function calculateSignalStats(accountNumber: string) {
-  // 获取该账号的所有信号（按时间升序，与详情页一致）
+  // 获取该账号的所有信号（按时间升序）
   const accountSignals = await db
     .select()
     .from(signals)
@@ -90,27 +90,53 @@ async function calculateSignalStats(accountNumber: string) {
   const brokerSignal = accountSignals.find(s => s.broker);
   const broker = brokerSignal?.broker || null;
 
-  // 只统计平仓信号
-  const closeSignals = accountSignals.filter(s => 
-    s.signalType?.toLowerCase().includes('close')
-  );
+  // 只统计平仓信号（按时间升序）
+  const closeSignals = accountSignals
+    .filter(s => s.signalType?.toLowerCase().includes('close'))
+    .sort((a, b) => {
+      const timeA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+      const timeB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+      return timeA - timeB;
+    });
 
   // 总交易笔数
   const totalTrades = closeSignals.length;
 
-  // 获取初始余额（与详情页完全一致的计算逻辑：按时间升序，取第一条有余额的信号）
-  const firstSignalWithBalance = accountSignals.find(s => s.balance);
+  // 计算初始余额 - 使用与详情页一致的逻辑
+  // 方法：从最新的余额反推初始余额
   let initialBalance = 10000; // 默认初始资金
-  if (firstSignalWithBalance && firstSignalWithBalance.balance) {
-    // 计算初始余额：当前余额减去累计盈亏
+  
+  // 找到最新的有余额记录的信号
+  const latestSignalWithBalance = [...accountSignals]
+    .reverse()
+    .find(s => s.balance && parseFloat(s.balance) > 0);
+  
+  if (latestSignalWithBalance && latestSignalWithBalance.balance) {
+    const latestBalance = parseFloat(latestSignalWithBalance.balance);
+    // 计算所有平仓信号的累计盈亏
     let cumulativeProfit = 0;
-    for (const signal of accountSignals) {
-      if (signal.signalType?.toLowerCase().includes('close') && signal.dealProfit) {
+    for (const signal of closeSignals) {
+      if (signal.dealProfit) {
         cumulativeProfit += parseFloat(signal.dealProfit);
       }
     }
-    initialBalance = parseFloat(firstSignalWithBalance.balance) - cumulativeProfit;
-    if (initialBalance <= 0) initialBalance = 10000;
+    // 初始余额 = 最新余额 - 累计盈亏
+    initialBalance = latestBalance - cumulativeProfit;
+    // 确保初始余额为正数
+    if (initialBalance <= 0) {
+      const firstSignalWithBalance = closeSignals.find(s => s.balance && parseFloat(s.balance) > 0);
+      if (firstSignalWithBalance && firstSignalWithBalance.balance) {
+        initialBalance = parseFloat(firstSignalWithBalance.balance);
+      } else {
+        initialBalance = 10000;
+      }
+    }
+  } else {
+    // 如果没有余额记录，尝试从第一条平仓信号获取
+    const firstCloseWithBalance = closeSignals.find(s => s.balance && parseFloat(s.balance) > 0);
+    if (firstCloseWithBalance && firstCloseWithBalance.balance) {
+      initialBalance = parseFloat(firstCloseWithBalance.balance);
+    }
   }
 
   // 计算盈亏
@@ -141,7 +167,7 @@ async function calculateSignalStats(accountNumber: string) {
   let peak = 0;
   let cumulativeProfit = 0;
   
-  for (const signal of closeSignals) { // 已经是时间正序
+  for (const signal of closeSignals) {
     const profit = parseFloat(signal.dealProfit || '0');
     cumulativeProfit += profit;
     
@@ -157,8 +183,8 @@ async function calculateSignalStats(accountNumber: string) {
   // 盈亏比
   const profitFactor = avgLoss > 0 ? avgWin / avgLoss : (avgWin > 0 ? 999 : 0);
 
-  // 收益率（使用动态初始资金，与详情页一致）
-  const returnRate = ((totalProfit / initialBalance) * 100);
+  // 收益率
+  const returnRate = initialBalance > 0 ? ((totalProfit / initialBalance) * 100) : 0;
 
   return {
     totalProfit: totalProfit.toFixed(2),

@@ -129,10 +129,10 @@ export async function GET(request: NextRequest) {
 }
 
 function calculateDetailedStats(accountSignals: any[], mtAccount: any) {
-  // 筛选平仓信号（close类型）
-  const closeSignals = accountSignals.filter(s => 
-    s.signalType?.toLowerCase().includes('close')
-  );
+  // 筛选平仓信号（close类型）- 按时间升序
+  const closeSignals = accountSignals
+    .filter(s => s.signalType?.toLowerCase().includes('close'))
+    .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
   
   const totalTrades = closeSignals.length;
   
@@ -147,19 +147,43 @@ function calculateDetailedStats(accountSignals: any[], mtAccount: any) {
   // 获取经纪商（优先从信号中获取，否则从MT账号获取）
   const broker = accountSignals.find(s => s.broker)?.broker || mtAccount?.broker || '未知经纪商';
   
-  // 获取初始余额（第一条有余额记录的信号）
-  const firstSignalWithBalance = accountSignals.find(s => s.balance);
+  // 计算初始余额 - 使用正确的方法
+  // 方法：从最新的余额反推初始余额
+  // 初始余额 = 最新余额 - 累计盈亏
   let initialBalance = 10000; // 默认初始资金
-  if (firstSignalWithBalance && firstSignalWithBalance.balance) {
-    // 计算初始余额：当前余额减去累计盈亏
+  
+  // 找到最新的有余额记录的信号（包括开仓和平仓）
+  const latestSignalWithBalance = [...accountSignals]
+    .reverse()
+    .find(s => s.balance && parseFloat(s.balance) > 0);
+  
+  if (latestSignalWithBalance && latestSignalWithBalance.balance) {
+    const latestBalance = parseFloat(latestSignalWithBalance.balance);
+    // 计算所有平仓信号的累计盈亏
     let cumulativeProfit = 0;
-    for (const signal of accountSignals) {
-      if (signal.signalType?.toLowerCase().includes('close') && signal.dealProfit) {
+    for (const signal of closeSignals) {
+      if (signal.dealProfit) {
         cumulativeProfit += parseFloat(signal.dealProfit);
       }
     }
-    initialBalance = parseFloat(firstSignalWithBalance.balance) - cumulativeProfit;
-    if (initialBalance <= 0) initialBalance = 10000;
+    // 初始余额 = 最新余额 - 累计盈亏
+    initialBalance = latestBalance - cumulativeProfit;
+    // 确保初始余额为正数
+    if (initialBalance <= 0) {
+      // 如果计算出的初始余额为负或零，使用第一条有余额记录时的余额作为参考
+      const firstSignalWithBalance = closeSignals.find(s => s.balance && parseFloat(s.balance) > 0);
+      if (firstSignalWithBalance && firstSignalWithBalance.balance) {
+        initialBalance = parseFloat(firstSignalWithBalance.balance);
+      } else {
+        initialBalance = 10000;
+      }
+    }
+  } else {
+    // 如果没有余额记录，尝试从第一条平仓信号获取
+    const firstCloseWithBalance = closeSignals.find(s => s.balance && parseFloat(s.balance) > 0);
+    if (firstCloseWithBalance && firstCloseWithBalance.balance) {
+      initialBalance = parseFloat(firstCloseWithBalance.balance);
+    }
   }
 
   const profitHistory: { date: string; time: string; profit: number; returnRate: string }[] = [];
@@ -186,8 +210,8 @@ function calculateDetailedStats(accountSignals: any[], mtAccount: any) {
     // 累计收益
     cumulativeProfit += profit;
     
-    // 计算当前余额和收益率
-    const returnRate = ((cumulativeProfit / initialBalance) * 100).toFixed(2);
+    // 计算当前收益率
+    const returnRate = initialBalance > 0 ? ((cumulativeProfit / initialBalance) * 100).toFixed(2) : '0.00';
     
     // 收益曲线数据
     const dateObj = signal.createdAt ? new Date(signal.createdAt) : new Date();
@@ -220,7 +244,7 @@ function calculateDetailedStats(accountSignals: any[], mtAccount: any) {
   const profitFactor = avgLoss > 0 ? avgWin / avgLoss : (avgWin > 0 ? 999 : 0);
   
   // 总收益率
-  const returnRate = ((totalProfit / initialBalance) * 100);
+  const returnRate = initialBalance > 0 ? ((totalProfit / initialBalance) * 100) : 0;
 
   return {
     totalTrades,
