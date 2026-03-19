@@ -48,9 +48,8 @@ import androidx.webkit.WebViewFeature;
  */
 public class MainActivity extends AppCompatActivity {
 
-    // 网站地址 - 请替换为你的实际域名
-    // 生产环境会自动使用COZE_PROJECT_DOMAIN_DEFAULT环境变量
-    private static final String BASE_URL = "https://your-domain.dev.coze.site";
+    // 网站地址 - 喵了个喵星球跟单平台
+    private static final String BASE_URL = "https://d4dfd447-9039-4828-bacb-ea5b9cb03904.dev.coze.site";
     
     private WebView webView;
     private ProgressBar progressBar;
