@@ -164,18 +164,15 @@ export default function CreatePlanetPage() {
               {/* 时长选择 */}
               <div className="space-y-3">
                 <Label className="text-base font-semibold">选择星球时长</Label>
-                <RadioGroup
-                  value={formData.durationDays.toString()}
-                  onValueChange={(value) => setFormData({ ...formData, durationDays: parseInt(value) })}
-                  className="grid grid-cols-2 gap-3"
-                >
+                <div className="grid grid-cols-2 gap-3">
                   {durationOptions.map((option) => {
                     const Icon = option.icon;
+                    const isSelected = formData.durationDays === option.value;
                     return (
                       <div
                         key={option.value}
                         className={`relative cursor-pointer rounded-lg border-2 transition-all ${
-                          formData.durationDays === option.value
+                          isSelected
                             ? 'border-purple-500 bg-purple-50 dark:bg-purple-900/20'
                             : 'border-gray-200 hover:border-purple-300 dark:border-gray-700'
                         }`}
@@ -186,11 +183,17 @@ export default function CreatePlanetPage() {
                             推荐
                           </Badge>
                         )}
-                        <RadioGroupItem value={option.value.toString()} className="sr-only" />
                         <div className="p-4">
                           <div className="flex items-center gap-2 mb-2">
-                            <Icon className={`w-5 h-5 ${formData.durationDays === option.value ? 'text-purple-500' : 'text-gray-400'}`} />
+                            <Icon className={`w-5 h-5 ${isSelected ? 'text-purple-500' : 'text-gray-400'}`} />
                             <span className="font-semibold">{option.label}</span>
+                            {isSelected && (
+                              <div className="ml-auto w-5 h-5 rounded-full bg-purple-500 flex items-center justify-center">
+                                <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                                </svg>
+                              </div>
+                            )}
                           </div>
                           <div className="text-sm text-gray-500 mb-2">{option.description}</div>
                           <div className="font-bold text-lg">
@@ -204,7 +207,7 @@ export default function CreatePlanetPage() {
                       </div>
                     );
                   })}
-                </RadioGroup>
+                </div>
               </div>
 
               {/* 费用汇总 */}
