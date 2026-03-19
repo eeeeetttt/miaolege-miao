@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import Link from 'next/link';
@@ -10,14 +10,6 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Spinner } from '@/components/ui/spinner';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
 import {
   AreaChart,
   Area,
@@ -42,8 +34,18 @@ import {
   Play,
   Pause,
   CheckCircle2,
-  Link2
+  ChevronLeft,
+  ChevronRight,
 } from 'lucide-react';
+
+interface Pagination {
+  page: number;
+  pageSize: number;
+  totalCloseSignals: number;
+  totalPages: number;
+  hasNextPage: boolean;
+  hasPrevPage: boolean;
+}
 
 interface SignalDetail {
   account: {
@@ -56,6 +58,8 @@ interface SignalDetail {
     name: string;
   };
   signals: any[];
+  paginatedCloseSignals: any[];
+  pagination: Pagination;
   stats: {
     totalTrades: number;
     winCount: number;
@@ -73,7 +77,6 @@ interface SignalDetail {
     initialBalance: string;
     broker: string;
     profitHistory: { date: string; time: string; profit: number; returnRate: string }[];
-    tradeHistory: any[];
     symbolStats: Record<string, { count: number; profit: number; win: number; loss: number }>;
     directionStats: { buy: { count: number; profit: number }; sell: { count: number; profit: number } };
   };
@@ -91,7 +94,8 @@ export default function SignalDetailPage() {
   const [followLoading, setFollowLoading] = useState(false);
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
   const [hasMtAccount, setHasMtAccount] = useState<boolean | null>(null);
-  const [mtAccountInfo, setMtAccountInfo] = useState<{ accountNumber: string; platform: string } | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [historyLoading, setHistoryLoading] = useState(false);
 
   const accountNumber = searchParams.get('account') || params.account;
   const planetId = searchParams.get('planetId');
@@ -102,7 +106,7 @@ export default function SignalDetailPage() {
       setLoading(false);
       return;
     }
-    fetchSignalDetail();
+    fetchSignalDetail(1);
   }, [accountNumber]);
 
   // 获取用户MT账号绑定状态
@@ -118,10 +122,6 @@ export default function SignalDetailPage() {
       const result = await res.json();
       if (res.ok && result.account) {
         setHasMtAccount(true);
-        setMtAccountInfo({
-          accountNumber: result.account.accountNumber,
-          platform: result.account.platform,
-        });
       } else {
         setHasMtAccount(false);
       }
@@ -130,22 +130,30 @@ export default function SignalDetailPage() {
     }
   };
 
-  const fetchSignalDetail = async () => {
+  const fetchSignalDetail = async (page: number) => {
     try {
-      const res = await fetch(`/api/signals/detail?account=${accountNumber}&planetId=${planetId || ''}`);
+      const res = await fetch(`/api/signals/detail?account=${accountNumber}&planetId=${planetId || ''}&page=${page}&pageSize=50`);
       const result = await res.json();
       
       if (!res.ok) {
         setError(result.error || '获取数据失败');
       } else {
         setData(result);
+        setCurrentPage(page);
       }
     } catch (err) {
       setError('获取数据失败');
     } finally {
       setLoading(false);
+      setHistoryLoading(false);
     }
   };
+
+  const handlePageChange = useCallback((newPage: number) => {
+    if (newPage < 1 || (data && newPage > data.pagination.totalPages)) return;
+    setHistoryLoading(true);
+    fetchSignalDetail(newPage);
+  }, [data]);
 
   const handleFollow = async () => {
     if (!session) {
@@ -160,12 +168,10 @@ export default function SignalDetailPage() {
 
     // 检测是否已绑定MT账户
     if (hasMtAccount === false) {
-      // 未绑定，跳转到绑定页面
       router.push('/user?action=bind');
       return;
     }
 
-    // 已绑定，显示确认弹窗
     setShowConfirmDialog(true);
   };
 
@@ -174,7 +180,6 @@ export default function SignalDetailPage() {
     setFollowLoading(true);
 
     try {
-      // 找到最近的平仓信号
       const closeSignals = data?.signals.filter(s => 
         s.signalType?.toLowerCase().includes('close')
       ) || [];
@@ -185,10 +190,9 @@ export default function SignalDetailPage() {
         return;
       }
 
-      const latestSignal = closeSignals[0];
+      const latestSignal = closeSignals[closeSignals.length - 1];
 
       if (data?.followStatus?.status === 'active') {
-        // 暂停跟单
         const res = await fetch('/api/follow/pause', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -205,7 +209,6 @@ export default function SignalDetailPage() {
           } : null);
         }
       } else {
-        // 开始跟单
         const res = await fetch('/api/follow', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -267,8 +270,7 @@ export default function SignalDetailPage() {
     );
   }
 
-  const { stats, signals } = data;
-  const closeSignals = signals.filter(s => s.signalType?.toLowerCase().includes('close'));
+  const { stats, paginatedCloseSignals, pagination } = data;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-purple-50 dark:from-gray-900 dark:to-slate-900 py-8 px-4">
@@ -402,7 +404,7 @@ export default function SignalDetailPage() {
                     <div className="h-64 w-full">
                       <ResponsiveContainer width="100%" height="100%">
                         <AreaChart
-                          data={stats.profitHistory.map((point, index) => ({
+                          data={stats.profitHistory.map((point) => ({
                             name: point.date,
                             profit: point.profit,
                             returnRate: point.returnRate,
@@ -503,16 +505,22 @@ export default function SignalDetailPage() {
           <TabsContent value="history" className="space-y-4">
             <Card>
               <CardHeader>
-                <CardTitle>平仓历史记录</CardTitle>
-                <CardDescription>
-                  共 {closeSignals.length} 笔平仓交易
-                </CardDescription>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle>平仓历史记录</CardTitle>
+                    <CardDescription>
+                      共 {pagination.totalCloseSignals} 笔平仓交易
+                    </CardDescription>
+                  </div>
+                  {historyLoading && <Spinner className="w-5 h-5" />}
+                </div>
               </CardHeader>
               <CardContent>
                 <div className="overflow-x-auto">
                   <table className="w-full">
                     <thead>
                       <tr className="border-b dark:border-gray-700">
+                        <th className="text-left py-3 px-4">#</th>
                         <th className="text-left py-3 px-4">时间</th>
                         <th className="text-left py-3 px-4">品种</th>
                         <th className="text-left py-3 px-4">类型</th>
@@ -523,8 +531,11 @@ export default function SignalDetailPage() {
                       </tr>
                     </thead>
                     <tbody>
-                      {closeSignals.slice(0, 50).map((signal, index) => (
+                      {paginatedCloseSignals.map((signal, index) => (
                         <tr key={signal.id || index} className="border-b dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800/50">
+                          <td className="py-3 px-4 text-sm text-gray-500">
+                            {(currentPage - 1) * 50 + index + 1}
+                          </td>
                           <td className="py-3 px-4 text-sm text-gray-600 dark:text-gray-400">
                             <div>{signal.createdAt ? new Date(signal.createdAt).toLocaleDateString() : '-'}</div>
                             <div className="text-xs">{signal.createdAt ? new Date(signal.createdAt).toLocaleTimeString() : ''}</div>
@@ -550,6 +561,81 @@ export default function SignalDetailPage() {
                     </tbody>
                   </table>
                 </div>
+
+                {/* 分页控件 */}
+                {pagination.totalPages > 1 && (
+                  <div className="flex items-center justify-between mt-6 pt-4 border-t">
+                    <div className="text-sm text-gray-500">
+                      第 {currentPage} 页 / 共 {pagination.totalPages} 页
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handlePageChange(1)}
+                        disabled={currentPage === 1 || historyLoading}
+                      >
+                        首页
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handlePageChange(currentPage - 1)}
+                        disabled={!pagination.hasPrevPage || historyLoading}
+                      >
+                        <ChevronLeft className="w-4 h-4" />
+                        上一页
+                      </Button>
+                      
+                      {/* 页码显示 */}
+                      <div className="flex items-center gap-1 mx-2">
+                        {Array.from({ length: Math.min(5, pagination.totalPages) }, (_, i) => {
+                          let pageNum: number;
+                          if (pagination.totalPages <= 5) {
+                            pageNum = i + 1;
+                          } else if (currentPage <= 3) {
+                            pageNum = i + 1;
+                          } else if (currentPage >= pagination.totalPages - 2) {
+                            pageNum = pagination.totalPages - 4 + i;
+                          } else {
+                            pageNum = currentPage - 2 + i;
+                          }
+                          
+                          return (
+                            <Button
+                              key={pageNum}
+                              variant={currentPage === pageNum ? 'default' : 'outline'}
+                              size="sm"
+                              className={`w-8 h-8 p-0 ${currentPage === pageNum ? 'bg-purple-600 hover:bg-purple-700' : ''}`}
+                              onClick={() => handlePageChange(pageNum)}
+                              disabled={historyLoading}
+                            >
+                              {pageNum}
+                            </Button>
+                          );
+                        })}
+                      </div>
+
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handlePageChange(currentPage + 1)}
+                        disabled={!pagination.hasNextPage || historyLoading}
+                      >
+                        下一页
+                        <ChevronRight className="w-4 h-4" />
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handlePageChange(pagination.totalPages)}
+                        disabled={currentPage === pagination.totalPages || historyLoading}
+                      >
+                        末页
+                      </Button>
+                    </div>
+                  </div>
+                )}
               </CardContent>
             </Card>
           </TabsContent>
@@ -569,19 +655,19 @@ export default function SignalDetailPage() {
                     {Object.entries(stats.symbolStats)
                       .sort((a, b) => b[1].count - a[1].count)
                       .slice(0, 10)
-                      .map(([symbol, data]) => (
+                      .map(([symbol, symbolData]) => (
                         <div key={symbol} className="flex items-center justify-between">
                           <div className="flex items-center gap-2">
                             <div className="w-24 truncate font-medium">{symbol}</div>
                             <div className="text-sm text-gray-500">
-                              ({data.count}笔)
+                              ({symbolData.count}笔)
                             </div>
                           </div>
                           <div className="flex items-center gap-3">
-                            <span className="text-sm text-green-500">{data.win}胜</span>
-                            <span className="text-sm text-red-500">{data.loss}负</span>
-                            <span className={`font-bold ${data.profit >= 0 ? 'text-green-500' : 'text-red-500'}`}>
-                              {data.profit >= 0 ? '+' : ''}{data.profit.toFixed(2)}
+                            <span className="text-sm text-green-500">{symbolData.win}胜</span>
+                            <span className="text-sm text-red-500">{symbolData.loss}负</span>
+                            <span className={`font-bold ${symbolData.profit >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                              {symbolData.profit >= 0 ? '+' : ''}{symbolData.profit.toFixed(2)}
                             </span>
                           </div>
                         </div>

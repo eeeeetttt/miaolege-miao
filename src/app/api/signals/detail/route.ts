@@ -2,8 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { db } from '@/lib/db';
-import { signals, mtAccounts, followRecords, planetMembers } from '@/lib/schema';
-import { eq, desc, and } from 'drizzle-orm';
+import { signals, mtAccounts, followRecords } from '@/lib/schema';
+import { eq, and, sql } from 'drizzle-orm';
 
 // 获取单个信号源的详细数据
 export async function GET(request: NextRequest) {
@@ -12,6 +12,11 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const accountNumber = searchParams.get('account');
     const planetId = searchParams.get('planetId');
+    
+    // 分页参数
+    const page = parseInt(searchParams.get('page') || '1');
+    const pageSize = parseInt(searchParams.get('pageSize') || '50');
+    const offset = (page - 1) * pageSize;
 
     if (!accountNumber) {
       return NextResponse.json({ error: '缺少账号参数' }, { status: 400 });
@@ -24,17 +29,47 @@ export async function GET(request: NextRequest) {
       .where(eq(mtAccounts.accountNumber, accountNumber))
       .limit(1);
 
-    // 获取该账号的所有信号，按时间升序排列（用于计算收益曲线）
+    // 获取该账号的总信号数（用于分页计算）
+    const [countResult] = await db
+      .select({ count: sql<number>`count(*)` })
+      .from(signals)
+      .where(eq(signals.senderAccount, accountNumber));
+    
+    const totalSignals = countResult?.count || 0;
+
+    // 获取平仓信号总数
+    const [closeCountResult] = await db
+      .select({ count: sql<number>`count(*)` })
+      .from(signals)
+      .where(and(
+        eq(signals.senderAccount, accountNumber),
+        sql`LOWER(signal_type) LIKE '%close%'`
+      ));
+    
+    const totalCloseSignals = closeCountResult?.count || 0;
+
+    // 获取所有信号用于计算统计数据（按时间升序）
     const allSignals = await db
       .select()
       .from(signals)
       .where(eq(signals.senderAccount, accountNumber))
       .orderBy(signals.createdAt);
 
+    // 获取分页的平仓信号（按时间倒序）
+    const paginatedCloseSignals = await db
+      .select()
+      .from(signals)
+      .where(and(
+        eq(signals.senderAccount, accountNumber),
+        sql`LOWER(signal_type) LIKE '%close%'`
+      ))
+      .orderBy(sql`created_at DESC`)
+      .limit(pageSize)
+      .offset(offset);
+
     // 获取用户的跟单状态（如果登录且有planetId）
     let followStatus: { status: 'active' | 'paused' | 'closed'; id: number } | null = null;
     if (session?.user?.id && planetId) {
-      // 获取该信号源最近的平仓信号ID
       const closeSignals = allSignals.filter(s => s.signalType?.toLowerCase().includes('close'));
       if (closeSignals.length > 0) {
         const latestCloseSignal = closeSignals[closeSignals.length - 1];
@@ -54,14 +89,38 @@ export async function GET(request: NextRequest) {
       }
     }
 
+    // 获取星球信息（如果有planetId）
+    let planet = null;
+    if (planetId) {
+      const [planetData] = await db
+        .select({ id: sql<number>`id`, name: sql<string>`name` })
+        .from(sql`planets`)
+        .where(sql`id = ${parseInt(planetId)}`)
+        .limit(1);
+      planet = planetData;
+    }
+
     // 计算详细统计
     const stats = calculateDetailedStats(allSignals, mtAccount);
 
+    // 计算总页数
+    const totalPages = Math.ceil(totalCloseSignals / pageSize);
+
     return NextResponse.json({
       account: mtAccount || { accountNumber, broker: stats.broker || '未知经纪商' },
-      signals: allSignals.reverse(), // 返回时按时间倒序
+      signals: allSignals, // 保留所有信号用于统计
+      paginatedCloseSignals, // 分页的平仓信号
+      pagination: {
+        page,
+        pageSize,
+        totalCloseSignals,
+        totalPages,
+        hasNextPage: page < totalPages,
+        hasPrevPage: page > 1,
+      },
       stats,
       followStatus,
+      planet,
     });
   } catch (error) {
     console.error('Get signal detail error:', error);
@@ -104,7 +163,6 @@ function calculateDetailedStats(accountSignals: any[], mtAccount: any) {
   }
 
   const profitHistory: { date: string; time: string; profit: number; returnRate: string }[] = [];
-  const tradeHistory: any[] = [];
   
   let cumulativeProfit = 0;
   let peak = 0;
@@ -129,7 +187,6 @@ function calculateDetailedStats(accountSignals: any[], mtAccount: any) {
     cumulativeProfit += profit;
     
     // 计算当前余额和收益率
-    const currentBalance = initialBalance + cumulativeProfit;
     const returnRate = ((cumulativeProfit / initialBalance) * 100).toFixed(2);
     
     // 收益曲线数据
@@ -150,19 +207,6 @@ function calculateDetailedStats(accountSignals: any[], mtAccount: any) {
       const peakBalance = initialBalance + peak;
       maxDrawdownPercent = peakBalance > 0 ? (drawdown / peakBalance) * 100 : 0;
     }
-
-    // 交易历史
-    tradeHistory.push({
-      ticket: signal.ticket,
-      symbol: signal.symbol,
-      orderType: signal.orderType,
-      volume: signal.volume,
-      price: signal.price,
-      profit: signal.dealProfit,
-      balance: signal.balance,
-      createdAt: signal.createdAt,
-      broker: signal.broker,
-    });
   }
 
   // 计算胜率
@@ -194,8 +238,7 @@ function calculateDetailedStats(accountSignals: any[], mtAccount: any) {
     avgLoss: avgLoss.toFixed(2),
     initialBalance: initialBalance.toFixed(2),
     broker: broker || '未知经纪商',
-    profitHistory: profitHistory.slice(-60), // 最近60条
-    tradeHistory,
+    profitHistory: profitHistory.slice(-100), // 最近100条用于图表
     // 品种统计
     symbolStats: calculateSymbolStats(closeSignals),
     // 方向统计
