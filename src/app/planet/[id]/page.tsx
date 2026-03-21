@@ -22,7 +22,9 @@ import {
   Percent,
   DollarSign,
   ChevronRight,
-  Signal
+  Signal,
+  UserPlus,
+  Clock
 } from 'lucide-react';
 
 interface PlanetDetail {
@@ -68,6 +70,8 @@ export default function PlanetDetailPage() {
   const [loading, setLoading] = useState(true);
   const [signalsLoading, setSignalsLoading] = useState(true);
   const [joining, setJoining] = useState(false);
+  const [applyingPublisher, setApplyingPublisher] = useState(false);
+  const [publisherApplicationStatus, setPublisherApplicationStatus] = useState<string | null>(null);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [inviteCode, setInviteCode] = useState('');
@@ -79,8 +83,21 @@ export default function PlanetDetailPage() {
   useEffect(() => {
     if (data?.userRole) {
       fetchSignalSources();
+      fetchPublisherApplicationStatus();
     }
   }, [data?.userRole]);
+
+  const fetchPublisherApplicationStatus = async () => {
+    try {
+      const res = await fetch(`/api/planet/applications?planetId=${params.id}`);
+      const result = await res.json();
+      if (result.application) {
+        setPublisherApplicationStatus(result.application.status);
+      }
+    } catch (error) {
+      console.error('Failed to fetch application status:', error);
+    }
+  };
 
   const fetchPlanetDetail = async () => {
     try {
@@ -143,6 +160,37 @@ export default function PlanetDetailPage() {
       setError('加入失败，请稍后重试');
     } finally {
       setJoining(false);
+    }
+  };
+
+  const handleApplyPublisher = async () => {
+    if (!session) {
+      router.push('/login');
+      return;
+    }
+
+    setApplyingPublisher(true);
+    setError('');
+
+    try {
+      const res = await fetch('/api/planet/apply-publisher', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ planetId: data?.planet.id }),
+      });
+
+      const result = await res.json();
+
+      if (!res.ok) {
+        setError(result.error || '申请失败');
+      } else {
+        setSuccess('申请已提交，请等待星主审核');
+        setPublisherApplicationStatus('pending');
+      }
+    } catch (err) {
+      setError('申请失败，请稍后重试');
+    } finally {
+      setApplyingPublisher(false);
     }
   };
 
@@ -280,12 +328,75 @@ export default function PlanetDetailPage() {
 
         {/* Member Info */}
         {userRole && (
-          <Alert className="mb-8 border-green-200 bg-green-50 dark:bg-green-900/20">
-            <CheckCircle2 className="h-4 w-4 text-green-600" />
-            <AlertDescription className="text-green-700 dark:text-green-400">
-              您已是该星球成员（角色：{userRole === 'owner' ? '星主' : userRole === 'publisher' ? '发布者' : '跟单者'}）
-            </AlertDescription>
-          </Alert>
+          <div className="mb-8 space-y-4">
+            <Alert className="border-green-200 bg-green-50 dark:bg-green-900/20">
+              <CheckCircle2 className="h-4 w-4 text-green-600" />
+              <AlertDescription className="text-green-700 dark:text-green-400">
+                您已是该星球成员（角色：{userRole === 'owner' ? '星主' : userRole === 'publisher' ? '发布者' : '跟单者'}）
+              </AlertDescription>
+            </Alert>
+            
+            {/* 申请成为发布者按钮 - 仅对跟单者显示 */}
+            {userRole === 'follower' && (
+              <Card className="border-2 border-blue-200 dark:border-blue-800 bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20">
+                <CardContent className="pt-6">
+                  <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+                    <div className="flex items-center gap-3">
+                      <div className="w-12 h-12 rounded-full bg-blue-500 flex items-center justify-center">
+                        <UserPlus className="w-6 h-6 text-white" />
+                      </div>
+                      <div>
+                        <h3 className="font-semibold text-blue-800 dark:text-blue-300">申请成为信号发布者</h3>
+                        <p className="text-sm text-blue-600 dark:text-blue-400">
+                          成为发布者后可绑定MT账号分享交易信号
+                        </p>
+                      </div>
+                    </div>
+                    {publisherApplicationStatus === 'pending' ? (
+                      <div className="flex items-center gap-2 text-amber-600 dark:text-amber-400">
+                        <Clock className="w-5 h-5" />
+                        <span className="text-sm font-medium">申请审核中</span>
+                      </div>
+                    ) : publisherApplicationStatus === 'rejected' ? (
+                      <Button
+                        onClick={handleApplyPublisher}
+                        disabled={applyingPublisher}
+                        variant="outline"
+                        className="border-blue-300 dark:border-blue-700"
+                      >
+                        {applyingPublisher ? (
+                          <>
+                            <Spinner className="mr-2" />
+                            申请中...
+                          </>
+                        ) : (
+                          '重新申请'
+                        )}
+                      </Button>
+                    ) : (
+                      <Button
+                        onClick={handleApplyPublisher}
+                        disabled={applyingPublisher}
+                        className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700"
+                      >
+                        {applyingPublisher ? (
+                          <>
+                            <Spinner className="mr-2" />
+                            申请中...
+                          </>
+                        ) : (
+                          <>
+                            <UserPlus className="w-4 h-4 mr-2" />
+                            申请成为发布者
+                          </>
+                        )}
+                      </Button>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+          </div>
         )}
 
         {/* Two Column Layout */}
@@ -339,25 +450,17 @@ export default function PlanetDetailPage() {
                                     账号: {source.accountNumber} · {source.broker || '未知经纪商'}
                                   </p>
                                   
-                                  {/* Stats Grid */}
-                                  <div className="grid grid-cols-4 gap-3">
-                                    <div className="text-center">
-                                      <p className="text-xs text-gray-500">总盈利</p>
-                                      <p className={`font-bold ${parseFloat(source.totalProfit) >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                                  {/* Stats Grid - 只显示总盈利和收益率 */}
+                                  <div className="grid grid-cols-2 gap-6">
+                                    <div className="text-center p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                                      <p className="text-xs text-gray-500 mb-1">总盈利</p>
+                                      <p className={`text-xl font-bold ${parseFloat(source.totalProfit) >= 0 ? 'text-green-500' : 'text-red-500'}`}>
                                         ${source.totalProfit}
                                       </p>
                                     </div>
-                                    <div className="text-center">
-                                      <p className="text-xs text-gray-500">胜率</p>
-                                      <p className="font-bold text-blue-500">{source.winRate}%</p>
-                                    </div>
-                                    <div className="text-center">
-                                      <p className="text-xs text-gray-500">交易笔数</p>
-                                      <p className="font-bold">{source.totalTrades}</p>
-                                    </div>
-                                    <div className="text-center">
-                                      <p className="text-xs text-gray-500">收益率</p>
-                                      <p className={`font-bold ${parseFloat(source.returnRate) >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                                    <div className="text-center p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                                      <p className="text-xs text-gray-500 mb-1">收益率</p>
+                                      <p className={`text-xl font-bold ${parseFloat(source.returnRate) >= 0 ? 'text-green-500' : 'text-red-500'}`}>
                                         {source.returnRate}%
                                       </p>
                                     </div>
