@@ -42,7 +42,8 @@ import {
   Edit3,
   Ban,
   Lock,
-  Unlock
+  Unlock,
+  MessageSquare
 } from 'lucide-react';
 
 interface Application {
@@ -86,6 +87,7 @@ interface PlanetInfo {
   maxPublishers: number;
   status: string;
   inviteCode: string;
+  forumEnabled: boolean;
 }
 
 export default function PlanetManagePage() {
@@ -108,6 +110,7 @@ export default function PlanetManagePage() {
     description: '',
     rules: '',
     ticketPrice: 0,
+    forumEnabled: false,
   });
   const [savingInfo, setSavingInfo] = useState(false);
   
@@ -151,6 +154,7 @@ export default function PlanetManagePage() {
         description: planetData.planet.description || '',
         rules: planetData.planet.rules || '',
         ticketPrice: planetData.planet.ticketPrice || 0,
+        forumEnabled: planetData.planet.forumEnabled || false,
       });
 
       // Fetch applications
@@ -278,6 +282,7 @@ export default function PlanetManagePage() {
       description: planet?.description || '',
       rules: planet?.rules || '',
       ticketPrice: planet?.ticketPrice || 0,
+      forumEnabled: planet?.forumEnabled || false,
     });
   };
 
@@ -537,6 +542,28 @@ export default function PlanetManagePage() {
                           onChange={(e) => setEditForm({ ...editForm, ticketPrice: parseInt(e.target.value) || 0 })}
                           placeholder="0"
                           min="0"
+                        />
+                      </div>
+                      
+                      {/* 论坛开关 */}
+                      <div className="flex items-center justify-between p-4 bg-gradient-to-r from-purple-50 to-pink-50 dark:from-purple-900/20 dark:to-pink-900/20 rounded-lg border border-purple-200 dark:border-purple-800">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center">
+                            <MessageSquare className="w-5 h-5 text-white" />
+                          </div>
+                          <div>
+                            <Label htmlFor="forumEnabled" className="font-semibold cursor-pointer">
+                              开启星球论坛
+                            </Label>
+                            <p className="text-sm text-gray-500">
+                              允许成员在论坛发帖讨论
+                            </p>
+                          </div>
+                        </div>
+                        <Switch
+                          id="forumEnabled"
+                          checked={editForm.forumEnabled}
+                          onCheckedChange={(checked) => setEditForm({ ...editForm, forumEnabled: checked })}
                         />
                       </div>
                       

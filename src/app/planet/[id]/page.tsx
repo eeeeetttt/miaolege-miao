@@ -399,28 +399,23 @@ export default function PlanetDetailPage() {
               </Card>
             )}
             
-            {/* 论坛入口 */}
-            {planet.forumEnabled === true && (
-              <Link href={`/planet/${planet.id}/forum`}>
-                <Card className="border-2 border-purple-200 dark:border-purple-800 bg-gradient-to-br from-purple-50 to-pink-50 dark:from-purple-900/20 dark:to-pink-900/20 cursor-pointer hover:shadow-lg transition-shadow">
-                  <CardContent className="pt-6">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <div className="w-12 h-12 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center">
-                          <MessageSquare className="w-6 h-6 text-white" />
-                        </div>
-                        <div>
-                          <h3 className="font-semibold text-purple-800 dark:text-purple-300">星球论坛</h3>
-                          <p className="text-sm text-purple-600 dark:text-purple-400">
-                            与成员交流讨论，分享见解
-                          </p>
-                        </div>
-                      </div>
-                      <ChevronRight className="w-6 h-6 text-purple-400" />
+            {/* 星球公告 */}
+            {planet.rules && (
+              <Card className="border-2 border-amber-200 dark:border-amber-800 bg-gradient-to-br from-amber-50 to-yellow-50 dark:from-amber-900/20 dark:to-yellow-900/20">
+                <CardContent className="pt-6">
+                  <div className="flex items-start gap-3">
+                    <div className="w-10 h-10 rounded-full bg-amber-500 flex items-center justify-center flex-shrink-0">
+                      <AlertCircle className="w-5 h-5 text-white" />
                     </div>
-                  </CardContent>
-                </Card>
-              </Link>
+                    <div>
+                      <h3 className="font-semibold text-amber-800 dark:text-amber-300 mb-2">星球公告</h3>
+                      <p className="text-amber-700 dark:text-amber-400 text-sm whitespace-pre-wrap">
+                        {planet.rules}
+                      </p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
             )}
           </div>
         )}
@@ -521,27 +516,40 @@ export default function PlanetDetailPage() {
             </Card>
           </div>
 
-          {/* Right Column: Planet Rules */}
+          {/* Right Column: Forum Entry */}
           <div className="lg:col-span-1">
-            <Card className="sticky top-24">
-              <CardHeader>
-                <CardTitle className="text-lg">星球公告</CardTitle>
-              </CardHeader>
-              <CardContent>
-                {planet.rules ? (
-                  <div className="prose dark:prose-invert max-w-none">
-                    <p className="whitespace-pre-wrap text-gray-700 dark:text-gray-300 leading-relaxed text-sm">
-                      {planet.rules}
+            {planet.forumEnabled === true ? (
+              <Link href={`/planet/${planet.id}/forum`}>
+                <Card className="sticky top-24 border-2 border-purple-200 dark:border-purple-800 bg-gradient-to-br from-purple-50 to-pink-50 dark:from-purple-900/20 dark:to-pink-900/20 cursor-pointer hover:shadow-lg transition-shadow">
+                  <CardHeader>
+                    <CardTitle className="text-lg flex items-center gap-2">
+                      <MessageSquare className="w-5 h-5 text-purple-500" />
+                      星球论坛
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+                      与成员交流讨论，分享见解
                     </p>
+                    <div className="flex items-center justify-end text-purple-600 dark:text-purple-400">
+                      <span className="text-sm font-medium">进入论坛</span>
+                      <ChevronRight className="w-5 h-5 ml-1" />
+                    </div>
+                  </CardContent>
+                </Card>
+              </Link>
+            ) : (
+              <Card className="sticky top-24">
+                <CardHeader>
+                  <CardTitle className="text-lg">星球信息</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-center py-4 text-gray-500 text-sm">
+                    <p>星球未开启论坛功能</p>
                   </div>
-                ) : (
-                  <div className="text-center py-8">
-                    <AlertCircle className="w-12 h-12 mx-auto text-gray-300 dark:text-gray-600 mb-3" />
-                    <p className="text-gray-500 text-sm">暂无规则</p>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
+                </CardContent>
+              </Card>
+            )}
           </div>
         </div>
       </div>

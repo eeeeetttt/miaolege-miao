@@ -6,29 +6,20 @@ import { useSession } from 'next-auth/react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from '@/components/ui/dialog';
 import { 
   MessageSquare, 
   Heart, 
   MessageCircle, 
   Pin, 
-  Plus, 
   ArrowLeft,
   Clock,
   User,
   AlertCircle,
-  Lock
+  Lock,
+  Send
 } from 'lucide-react';
 
 interface Post {
@@ -60,12 +51,9 @@ export default function ForumPage() {
   const [loading, setLoading] = useState(true);
   const [isBanned, setIsBanned] = useState(false);
   
-  // 发帖对话框
-  const [dialogOpen, setDialogOpen] = useState(false);
-  const [newTitle, setNewTitle] = useState('');
+  // 发帖内容
   const [newContent, setNewContent] = useState('');
   const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState('');
 
   useEffect(() => {
     fetchPlanetInfo();
@@ -109,13 +97,11 @@ export default function ForumPage() {
   };
 
   const handleSubmitPost = async () => {
-    if (!newTitle.trim() || !newContent.trim()) {
-      setError('请填写标题和内容');
+    if (!newContent.trim()) {
       return;
     }
 
     setSubmitting(true);
-    setError('');
 
     try {
       const res = await fetch('/api/forum/posts', {
@@ -123,7 +109,7 @@ export default function ForumPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           planetId: parseInt(params.id as string),
-          title: newTitle,
+          title: newContent.substring(0, 50), // 自动用内容前50字作为标题
           content: newContent,
         }),
       });
@@ -131,15 +117,13 @@ export default function ForumPage() {
       const data = await res.json();
 
       if (!res.ok) {
-        setError(data.error || '发帖失败');
+        alert(data.error || '发帖失败');
       } else {
-        setNewTitle('');
         setNewContent('');
-        setDialogOpen(false);
         fetchPosts();
       }
     } catch (err) {
-      setError('发帖失败，请稍后重试');
+      alert('发帖失败，请稍后重试');
     } finally {
       setSubmitting(false);
     }
@@ -194,79 +178,22 @@ export default function ForumPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-purple-50 dark:from-gray-900 dark:to-slate-900 py-8 px-4">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-purple-50 dark:from-gray-900 dark:to-slate-900 pb-32">
       <div className="max-w-4xl mx-auto">
         {/* Header */}
-        <div className="flex items-center justify-between mb-6">
-          <div className="flex items-center gap-4">
-            <Link href={`/planet/${params.id}`}>
-              <Button variant="ghost" size="icon">
-                <ArrowLeft className="w-5 h-5" />
-              </Button>
-            </Link>
-            <div>
-              <h1 className="text-2xl font-bold flex items-center gap-2">
-                <MessageSquare className="w-6 h-6 text-purple-500" />
-                星球论坛
-              </h1>
-              <p className="text-gray-500 text-sm">{planet.name}</p>
-            </div>
+        <div className="flex items-center gap-4 mb-6 pt-4">
+          <Link href={`/planet/${params.id}`}>
+            <Button variant="ghost" size="icon">
+              <ArrowLeft className="w-5 h-5" />
+            </Button>
+          </Link>
+          <div>
+            <h1 className="text-2xl font-bold flex items-center gap-2">
+              <MessageSquare className="w-6 h-6 text-purple-500" />
+              星球论坛
+            </h1>
+            <p className="text-gray-500 text-sm">{planet.name}</p>
           </div>
-
-          {userRole && !isBanned && (
-            <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-              <DialogTrigger asChild>
-                <Button className="bg-gradient-to-r from-purple-600 to-blue-600">
-                  <Plus className="w-4 h-4 mr-2" />
-                  发帖
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="max-w-lg">
-                <DialogHeader>
-                  <DialogTitle>发布新帖</DialogTitle>
-                  <DialogDescription>
-                    分享你的想法和见解
-                  </DialogDescription>
-                </DialogHeader>
-                <div className="space-y-4 pt-4">
-                  {error && (
-                    <Alert variant="destructive">
-                      <AlertCircle className="h-4 w-4" />
-                      <AlertDescription>{error}</AlertDescription>
-                    </Alert>
-                  )}
-                  <div>
-                    <label className="text-sm font-medium mb-1 block">标题</label>
-                    <Input
-                      placeholder="请输入帖子标题"
-                      value={newTitle}
-                      onChange={(e) => setNewTitle(e.target.value)}
-                      maxLength={100}
-                    />
-                  </div>
-                  <div>
-                    <label className="text-sm font-medium mb-1 block">内容</label>
-                    <Textarea
-                      placeholder="请输入帖子内容..."
-                      value={newContent}
-                      onChange={(e) => setNewContent(e.target.value)}
-                      rows={6}
-                      maxLength={5000}
-                    />
-                    <p className="text-xs text-gray-400 mt-1">{newContent.length}/5000</p>
-                  </div>
-                  <div className="flex justify-end gap-2">
-                    <Button variant="outline" onClick={() => setDialogOpen(false)}>
-                      取消
-                    </Button>
-                    <Button onClick={handleSubmitPost} disabled={submitting}>
-                      {submitting ? '发布中...' : '发布'}
-                    </Button>
-                  </div>
-                </div>
-              </DialogContent>
-            </Dialog>
-          )}
         </div>
 
         {/* 禁言提示 */}
@@ -302,35 +229,28 @@ export default function ForumPage() {
                       
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-1">
+                          <span className="font-medium text-sm">{post.userName || '未知用户'}</span>
                           {post.isPinned && (
                             <Badge variant="secondary" className="text-xs">
                               <Pin className="w-3 h-3 mr-1" />
                               置顶
                             </Badge>
                           )}
-                          <h3 className="font-semibold truncate">{post.title}</h3>
+                          <span className="text-xs text-gray-400">{formatDate(post.createdAt)}</span>
                         </div>
                         
-                        <p className="text-sm text-gray-600 dark:text-gray-400 line-clamp-2 mb-2">
+                        <p className="text-sm text-gray-700 dark:text-gray-300 whitespace-pre-wrap break-words mb-2">
                           {post.content}
                         </p>
                         
                         <div className="flex items-center gap-4 text-xs text-gray-500">
-                          <span className="flex items-center gap-1">
-                            <User className="w-3 h-3" />
-                            {post.userName || '未知用户'}
+                          <span className="flex items-center gap-1 hover:text-red-500 transition-colors">
+                            <Heart className="w-3.5 h-3.5" />
+                            {post.likeCount || 0}
                           </span>
-                          <span className="flex items-center gap-1">
-                            <Clock className="w-3 h-3" />
-                            {formatDate(post.createdAt)}
-                          </span>
-                          <span className="flex items-center gap-1">
-                            <Heart className="w-3 h-3" />
-                            {post.likeCount}
-                          </span>
-                          <span className="flex items-center gap-1">
-                            <MessageCircle className="w-3 h-3" />
-                            {post.commentCount}
+                          <span className="flex items-center gap-1 hover:text-purple-500 transition-colors">
+                            <MessageCircle className="w-3.5 h-3.5" />
+                            {post.commentCount || 0}
                           </span>
                         </div>
                       </div>
@@ -342,6 +262,35 @@ export default function ForumPage() {
           </div>
         )}
       </div>
+
+      {/* 底部发帖输入框 - 固定在底部 */}
+      {userRole && !isBanned && (
+        <div className="fixed bottom-0 left-0 right-0 bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-800 p-4 shadow-lg">
+          <div className="max-w-4xl mx-auto">
+            <div className="flex gap-3">
+              <Textarea
+                placeholder="写下你想说的..."
+                value={newContent}
+                onChange={(e) => setNewContent(e.target.value)}
+                className="flex-1 min-h-[44px] max-h-32 resize-none"
+                rows={1}
+                maxLength={5000}
+              />
+              <Button
+                onClick={handleSubmitPost}
+                disabled={submitting || !newContent.trim()}
+                className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 h-11"
+              >
+                {submitting ? (
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                ) : (
+                  <Send className="w-4 h-4" />
+                )}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
