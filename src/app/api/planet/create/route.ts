@@ -56,7 +56,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: '请先登录' }, { status: 401 });
     }
 
-    const { name, description, rules, ticketPrice, inviteCode, maxPublishers, durationDays } = await request.json();
+    const { name, description, rules, ticketPrice, inviteCode, maxPublishers, durationDays, forumEnabled } = await request.json();
 
     if (!name) {
       return NextResponse.json({ error: '星球名称为必填项' }, { status: 400 });
@@ -114,6 +114,7 @@ export async function POST(request: NextRequest) {
       expireAt: expireAt,
       coins: 0,
       status: 'active',
+      forumEnabled: forumEnabled || false,
     }).$returningId();
 
     // 添加创建者为星球所有者

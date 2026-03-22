@@ -42,6 +42,7 @@ export const planets = mysqlTable('planets', {
   durationDays: int('duration_days').default(365), // 星球时长天数（0表示永久）
   expireAt: timestamp('expire_at'), // 星球过期时间（null表示永久）
   ownerAsPublisher: boolean('owner_as_publisher').default(false),
+  forumEnabled: boolean('forum_enabled').default(false), // 是否开启论坛
 });
 
 // Planet Members Table
@@ -246,6 +247,67 @@ export const systemConfig = mysqlTable('system_config', {
   keyUnique: uniqueIndex('uk_config_key').on(table.configKey),
 }));
 
+// Forum Posts Table (论坛帖子)
+export const forumPosts = mysqlTable('forum_posts', {
+  id: int('id').autoincrement().primaryKey(),
+  planetId: int('planet_id').notNull().references(() => planets.id, { onDelete: 'cascade' }),
+  userId: varchar('user_id', { length: 255 }).notNull().references(() => users.userId, { onDelete: 'cascade' }),
+  title: varchar('title', { length: 255 }).notNull(),
+  content: text('content').notNull(),
+  likeCount: int('like_count').default(0),
+  commentCount: int('comment_count').default(0),
+  isPinned: boolean('is_pinned').default(false), // 是否置顶
+  status: mysqlEnum('status', ['active', 'hidden', 'deleted']).default('active'),
+  createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow().onUpdateNow(),
+}, (table) => ({
+  planetIdx: index('idx_forum_post_planet').on(table.planetId),
+  userIdx: index('idx_forum_post_user').on(table.userId),
+  statusIdx: index('idx_forum_post_status').on(table.status),
+}));
+
+// Forum Comments Table (论坛评论)
+export const forumComments = mysqlTable('forum_comments', {
+  id: int('id').autoincrement().primaryKey(),
+  postId: int('post_id').notNull().references(() => forumPosts.id, { onDelete: 'cascade' }),
+  userId: varchar('user_id', { length: 255 }).notNull().references(() => users.userId, { onDelete: 'cascade' }),
+  content: text('content').notNull(),
+  parentId: int('parent_id'), // 回复的评论ID（支持楼中楼）
+  likeCount: int('like_count').default(0),
+  status: mysqlEnum('status', ['active', 'hidden', 'deleted']).default('active'),
+  createdAt: timestamp('created_at').defaultNow(),
+}, (table) => ({
+  postIdx: index('idx_forum_comment_post').on(table.postId),
+  userIdx: index('idx_forum_comment_user').on(table.userId),
+  parentIdx: index('idx_forum_comment_parent').on(table.parentId),
+}));
+
+// Forum Likes Table (论坛点赞)
+export const forumLikes = mysqlTable('forum_likes', {
+  id: int('id').autoincrement().primaryKey(),
+  userId: varchar('user_id', { length: 255 }).notNull().references(() => users.userId, { onDelete: 'cascade' }),
+  targetType: mysqlEnum('target_type', ['post', 'comment']).notNull(),
+  targetId: int('target_id').notNull(),
+  createdAt: timestamp('created_at').defaultNow(),
+}, (table) => ({
+  userTargetUnique: uniqueIndex('uk_forum_like_user_target').on(table.userId, table.targetType, table.targetId),
+  targetIdx: index('idx_forum_like_target').on(table.targetType, table.targetId),
+}));
+
+// Forum Bans Table (论坛禁言)
+export const forumBans = mysqlTable('forum_bans', {
+  id: int('id').autoincrement().primaryKey(),
+  planetId: int('planet_id').notNull().references(() => planets.id, { onDelete: 'cascade' }),
+  userId: varchar('user_id', { length: 255 }).notNull().references(() => users.userId, { onDelete: 'cascade' }),
+  bannedBy: varchar('banned_by', { length: 255 }).notNull().references(() => users.userId, { onDelete: 'cascade' }),
+  reason: varchar('reason', { length: 500 }),
+  expiresAt: timestamp('expires_at'), // 禁言过期时间（null表示永久）
+  createdAt: timestamp('created_at').defaultNow(),
+}, (table) => ({
+  planetUserUnique: uniqueIndex('uk_forum_ban_planet_user').on(table.planetId, table.userId),
+  planetIdx: index('idx_forum_ban_planet').on(table.planetId),
+}));
+
 // Type exports
 export type User = typeof users.$inferSelect;
 export type NewUser = typeof users.$inferInsert;
@@ -263,3 +325,11 @@ export type Document = typeof documents.$inferSelect;
 export type NewDocument = typeof documents.$inferInsert;
 export type SystemConfig = typeof systemConfig.$inferSelect;
 export type NewSystemConfig = typeof systemConfig.$inferInsert;
+export type ForumPost = typeof forumPosts.$inferSelect;
+export type NewForumPost = typeof forumPosts.$inferInsert;
+export type ForumComment = typeof forumComments.$inferSelect;
+export type NewForumComment = typeof forumComments.$inferInsert;
+export type ForumLike = typeof forumLikes.$inferSelect;
+export type NewForumLike = typeof forumLikes.$inferInsert;
+export type ForumBan = typeof forumBans.$inferSelect;
+export type NewForumBan = typeof forumBans.$inferInsert;

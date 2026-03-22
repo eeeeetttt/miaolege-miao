@@ -11,7 +11,8 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { Coins, Clock, Infinity, Sparkles } from 'lucide-react';
+import { Switch } from '@/components/ui/switch';
+import { Coins, Clock, Infinity, Sparkles, MessageSquare } from 'lucide-react';
 
 interface DurationOption {
   value: number;
@@ -43,6 +44,7 @@ export default function CreatePlanetPage() {
     inviteCode: '',
     maxPublishers: '3',
     durationDays: 365,
+    forumEnabled: false,
   });
 
   useEffect(() => {
@@ -299,6 +301,36 @@ export default function CreatePlanetPage() {
                     value={formData.inviteCode}
                     onChange={(e) => setFormData({ ...formData, inviteCode: e.target.value })}
                   />
+                </div>
+
+                {/* 论坛功能开关 */}
+                <div className="space-y-3 p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <MessageSquare className="w-5 h-5 text-purple-500" />
+                      <div>
+                        <Label htmlFor="forumEnabled" className="font-semibold cursor-pointer">
+                          开启星球论坛
+                        </Label>
+                        <p className="text-sm text-gray-500">
+                          允许成员在星球内发帖讨论、点赞评论
+                        </p>
+                      </div>
+                    </div>
+                    <Switch
+                      id="forumEnabled"
+                      checked={formData.forumEnabled}
+                      onCheckedChange={(checked) => setFormData({ ...formData, forumEnabled: checked })}
+                    />
+                  </div>
+                  {formData.forumEnabled && (
+                    <div className="text-sm text-green-600 dark:text-green-400 flex items-center gap-1">
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                      </svg>
+                      论坛功能已开启，成员可以发帖交流
+                    </div>
+                  )}
                 </div>
               </div>
             </CardContent>

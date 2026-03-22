@@ -24,7 +24,8 @@ import {
   ChevronRight,
   Signal,
   UserPlus,
-  Clock
+  Clock,
+  MessageSquare
 } from 'lucide-react';
 
 interface PlanetDetail {
@@ -37,6 +38,7 @@ interface PlanetDetail {
     status: string;
     inviteCode: string;
     createdAt: string;
+    forumEnabled: boolean;
   };
   members: Array<{
     userId: string;
@@ -395,6 +397,30 @@ export default function PlanetDetailPage() {
                   </div>
                 </CardContent>
               </Card>
+            )}
+            
+            {/* 论坛入口 */}
+            {planet.forumEnabled && (
+              <Link href={`/planet/${planet.id}/forum`}>
+                <Card className="border-2 border-purple-200 dark:border-purple-800 bg-gradient-to-br from-purple-50 to-pink-50 dark:from-purple-900/20 dark:to-pink-900/20 cursor-pointer hover:shadow-lg transition-shadow">
+                  <CardContent className="pt-6">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="w-12 h-12 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center">
+                          <MessageSquare className="w-6 h-6 text-white" />
+                        </div>
+                        <div>
+                          <h3 className="font-semibold text-purple-800 dark:text-purple-300">星球论坛</h3>
+                          <p className="text-sm text-purple-600 dark:text-purple-400">
+                            与成员交流讨论，分享见解
+                          </p>
+                        </div>
+                      </div>
+                      <ChevronRight className="w-6 h-6 text-purple-400" />
+                    </div>
+                  </CardContent>
+                </Card>
+              </Link>
             )}
           </div>
         )}
