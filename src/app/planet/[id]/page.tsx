@@ -10,22 +10,23 @@ import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { PlanetDetailSkeleton, SignalCardSkeleton } from '@/components/loading-skeleton';
 import { Spinner } from '@/components/ui/spinner';
+import { Textarea } from '@/components/ui/textarea';
 import { 
-  TrendingUp,
-  TrendingDown,
   Eye,
   AlertCircle,
   CheckCircle2,
   Coins,
   BarChart3,
-  Activity,
-  Percent,
-  DollarSign,
   ChevronRight,
   Signal,
   UserPlus,
   Clock,
-  MessageSquare
+  MessageSquare,
+  Heart,
+  MessageCircle,
+  Pin,
+  Send,
+  Lock
 } from 'lucide-react';
 
 interface PlanetDetail {
@@ -63,20 +64,40 @@ interface SignalSource {
   profitFactor: string;
 }
 
+interface ForumPost {
+  id: number;
+  title: string;
+  content: string;
+  likeCount: number;
+  commentCount: number;
+  isPinned: boolean;
+  createdAt: string;
+  userId: string;
+  userName: string;
+  userAvatar: string | null;
+}
+
 export default function PlanetDetailPage() {
   const params = useParams();
   const router = useRouter();
   const { data: session } = useSession();
   const [data, setData] = useState<PlanetDetail | null>(null);
   const [signalSources, setSignalSources] = useState<SignalSource[]>([]);
+  const [forumPosts, setForumPosts] = useState<ForumPost[]>([]);
   const [loading, setLoading] = useState(true);
   const [signalsLoading, setSignalsLoading] = useState(true);
+  const [forumLoading, setForumLoading] = useState(true);
   const [joining, setJoining] = useState(false);
   const [applyingPublisher, setApplyingPublisher] = useState(false);
   const [publisherApplicationStatus, setPublisherApplicationStatus] = useState<string | null>(null);
+  const [isBanned, setIsBanned] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [inviteCode, setInviteCode] = useState('');
+  
+  // 发帖状态
+  const [newPostContent, setNewPostContent] = useState('');
+  const [posting, setPosting] = useState(false);
 
   useEffect(() => {
     fetchPlanetDetail();
@@ -86,6 +107,8 @@ export default function PlanetDetailPage() {
     if (data?.userRole) {
       fetchSignalSources();
       fetchPublisherApplicationStatus();
+      fetchForumPosts();
+      checkBanStatus();
     }
   }, [data?.userRole]);
 
@@ -122,6 +145,31 @@ export default function PlanetDetailPage() {
       console.error('Failed to fetch signal sources:', error);
     } finally {
       setSignalsLoading(false);
+    }
+  };
+
+  const fetchForumPosts = async () => {
+    try {
+      const res = await fetch(`/api/forum/posts?planetId=${params.id}`);
+      const result = await res.json();
+      setForumPosts(result.posts || []);
+    } catch (error) {
+      console.error('Failed to fetch forum posts:', error);
+    } finally {
+      setForumLoading(false);
+    }
+  };
+
+  const checkBanStatus = async () => {
+    if (data?.userRole === 'owner') return;
+    try {
+      const res = await fetch(`/api/forum/ban/check?planetId=${params.id}`);
+      if (res.ok) {
+        const result = await res.json();
+        setIsBanned(result.isBanned);
+      }
+    } catch (error) {
+      console.error('Failed to check ban status:', error);
     }
   };
 
@@ -196,6 +244,51 @@ export default function PlanetDetailPage() {
     }
   };
 
+  const handlePostSubmit = async () => {
+    if (!newPostContent.trim()) return;
+
+    setPosting(true);
+    try {
+      const res = await fetch('/api/forum/posts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          planetId: data?.planet.id,
+          title: newPostContent.substring(0, 50),
+          content: newPostContent,
+        }),
+      });
+
+      const result = await res.json();
+
+      if (!res.ok) {
+        alert(result.error || '发帖失败');
+      } else {
+        setNewPostContent('');
+        fetchForumPosts();
+      }
+    } catch (err) {
+      alert('发帖失败，请稍后重试');
+    } finally {
+      setPosting(false);
+    }
+  };
+
+  const formatTime = (dateStr: string) => {
+    const date = new Date(dateStr);
+    const now = new Date();
+    const diff = now.getTime() - date.getTime();
+    const minutes = Math.floor(diff / 60000);
+    const hours = Math.floor(diff / 3600000);
+    const days = Math.floor(diff / 86400000);
+
+    if (minutes < 1) return '刚刚';
+    if (minutes < 60) return `${minutes}分钟前`;
+    if (hours < 24) return `${hours}小时前`;
+    if (days < 7) return `${days}天前`;
+    return date.toLocaleDateString('zh-CN');
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-50 to-purple-50 dark:from-gray-900 dark:to-slate-900 py-8 px-4">
@@ -224,9 +317,10 @@ export default function PlanetDetailPage() {
   }
 
   const { planet, userRole } = data;
+  const showForumInput = userRole && !isBanned && planet.forumEnabled;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-purple-50 dark:from-gray-900 dark:to-slate-900 py-8 px-4">
+    <div className={`min-h-screen bg-gradient-to-br from-slate-50 to-purple-50 dark:from-gray-900 dark:to-slate-900 py-8 px-4 ${showForumInput ? 'pb-24' : ''}`}>
       <div className="max-w-7xl mx-auto">
         {/* Header */}
         <div className="mb-8">
@@ -338,7 +432,7 @@ export default function PlanetDetailPage() {
               </AlertDescription>
             </Alert>
             
-            {/* 申请成为发布者按钮 - 仅对跟单者显示 */}
+            {/* 申请成为发布者按钮 */}
             {userRole === 'follower' && (
               <Card className="border-2 border-blue-200 dark:border-blue-800 bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20">
                 <CardContent className="pt-6">
@@ -420,11 +514,95 @@ export default function PlanetDetailPage() {
           </div>
         )}
 
-        {/* Two Column Layout */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Left Column: Signal Sources */}
-          <div className="lg:col-span-2">
-            <Card>
+        {/* Two Column Layout - 论坛在左，信号在右 */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Left Column: Forum */}
+          {planet.forumEnabled && userRole && (
+            <div className="lg:order-1">
+              <Card className="h-full">
+                <CardHeader className="pb-3">
+                  <CardTitle className="flex items-center gap-2 text-lg">
+                    <MessageSquare className="w-5 h-5 text-purple-500" />
+                    星球论坛
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="pt-0">
+                  {isBanned && (
+                    <Alert className="mb-3 border-red-200 bg-red-50 dark:bg-red-900/20">
+                      <Lock className="h-4 w-4 text-red-600" />
+                      <AlertDescription className="text-red-600 text-sm">
+                        您已被禁言，无法发帖
+                      </AlertDescription>
+                    </Alert>
+                  )}
+                  
+                  {forumLoading ? (
+                    <div className="space-y-3">
+                      {[1, 2, 3].map(i => (
+                        <div key={i} className="animate-pulse flex gap-3 p-3">
+                          <div className="w-10 h-10 bg-gray-200 dark:bg-gray-700 rounded-full"></div>
+                          <div className="flex-1 space-y-2">
+                            <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-1/3"></div>
+                            <div className="h-3 bg-gray-200 dark:bg-gray-700 rounded w-full"></div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : forumPosts.length === 0 ? (
+                    <div className="text-center py-8 text-gray-500">
+                      <MessageSquare className="w-10 h-10 mx-auto mb-2 opacity-50" />
+                      <p className="text-sm">暂无帖子，来发第一条吧！</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-2 max-h-[400px] overflow-y-auto">
+                      {forumPosts.map(post => (
+                        <Link 
+                          key={post.id} 
+                          href={`/planet/${planet.id}/forum/${post.id}`}
+                          className="block p-3 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+                        >
+                          <div className="flex gap-3">
+                            <div className="w-9 h-9 rounded-full bg-gradient-to-br from-purple-500 to-blue-500 flex items-center justify-center text-white text-sm font-bold flex-shrink-0">
+                              {post.userName?.charAt(0) || 'U'}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2 mb-1">
+                                <span className="font-medium text-sm">{post.userName || '用户'}</span>
+                                {post.isPinned && (
+                                  <Badge variant="secondary" className="text-xs py-0 h-4">
+                                    <Pin className="w-2.5 h-2.5 mr-1" />
+                                    置顶
+                                  </Badge>
+                                )}
+                                <span className="text-xs text-gray-400">{formatTime(post.createdAt)}</span>
+                              </div>
+                              <p className="text-sm text-gray-600 dark:text-gray-400 line-clamp-2 break-words">
+                                {post.content}
+                              </p>
+                              <div className="flex items-center gap-3 mt-1 text-xs text-gray-400">
+                                <span className="flex items-center gap-1">
+                                  <Heart className="w-3 h-3" />
+                                  {post.likeCount || 0}
+                                </span>
+                                <span className="flex items-center gap-1">
+                                  <MessageCircle className="w-3 h-3" />
+                                  {post.commentCount || 0}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                        </Link>
+                      ))}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+          )}
+
+          {/* Right Column: Signal Sources */}
+          <div className={planet.forumEnabled && userRole ? 'lg:order-2' : ''}>
+            <Card className="h-full">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Signal className="w-5 h-5 text-purple-500" />
@@ -448,18 +626,13 @@ export default function PlanetDetailPage() {
                         >
                           <Card className="overflow-hidden hover:shadow-lg transition-all duration-300 hover:-translate-y-1 cursor-pointer group">
                             <CardContent className="p-0">
-                              <div className="flex items-center p-6">
-                                {/* Account Icon */}
-                                <div className="w-14 h-14 rounded-full bg-gradient-to-br from-purple-500 to-blue-500 flex items-center justify-center text-white text-xl font-bold mr-4">
+                              <div className="flex items-center p-4">
+                                <div className="w-12 h-12 rounded-full bg-gradient-to-br from-purple-500 to-blue-500 flex items-center justify-center text-white text-lg font-bold mr-3">
                                   {index + 1}
                                 </div>
                                 
-                                {/* Account Info */}
                                 <div className="flex-1">
-                                  <div className="flex items-center gap-2 mb-2">
-                                    <h3 className="text-lg font-bold">
-                                      信号{index + 1}
-                                    </h3>
+                                  <div className="flex items-center gap-2 mb-1">
                                     <Badge variant="outline" className="text-xs">
                                       {source.platform}
                                     </Badge>
@@ -467,29 +640,27 @@ export default function PlanetDetailPage() {
                                       <Badge className="bg-green-500 text-xs">已验证</Badge>
                                     )}
                                   </div>
-                                  <p className="text-gray-600 dark:text-gray-400 text-sm mb-3">
-                                    账号: {source.accountNumber} · {source.broker || '未知经纪商'}
+                                  <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">
+                                    账号: {source.accountNumber}
                                   </p>
                                   
-                                  {/* Stats Grid - 只显示总盈利和收益率 */}
-                                  <div className="grid grid-cols-2 gap-6">
-                                    <div className="text-center p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
-                                      <p className="text-xs text-gray-500 mb-1">总盈利</p>
-                                      <p className={`text-xl font-bold ${parseFloat(source.totalProfit) >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                                  <div className="grid grid-cols-2 gap-3">
+                                    <div className="text-center p-2 bg-gray-50 dark:bg-gray-800 rounded">
+                                      <p className="text-xs text-gray-500">总盈利</p>
+                                      <p className={`text-base font-bold ${parseFloat(source.totalProfit) >= 0 ? 'text-green-500' : 'text-red-500'}`}>
                                         ${source.totalProfit}
                                       </p>
                                     </div>
-                                    <div className="text-center p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
-                                      <p className="text-xs text-gray-500 mb-1">收益率</p>
-                                      <p className={`text-xl font-bold ${parseFloat(source.returnRate) >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                                    <div className="text-center p-2 bg-gray-50 dark:bg-gray-800 rounded">
+                                      <p className="text-xs text-gray-500">收益率</p>
+                                      <p className={`text-base font-bold ${parseFloat(source.returnRate) >= 0 ? 'text-green-500' : 'text-red-500'}`}>
                                         {source.returnRate}%
                                       </p>
                                     </div>
                                   </div>
                                 </div>
 
-                                {/* Arrow */}
-                                <ChevronRight className="w-6 h-6 text-gray-400 group-hover:text-purple-500 transition-colors" />
+                                <ChevronRight className="w-5 h-5 text-gray-400 group-hover:text-purple-500 transition-colors" />
                               </div>
                             </CardContent>
                           </Card>
@@ -497,62 +668,54 @@ export default function PlanetDetailPage() {
                       ))}
                     </div>
                   ) : (
-                    <div className="py-16 text-center">
-                      <BarChart3 className="w-16 h-16 mx-auto text-gray-300 dark:text-gray-600 mb-4" />
-                      <p className="text-gray-500 text-lg">暂无信号源</p>
-                      <p className="text-gray-400 text-sm mt-2">信号发布者绑定MT账号后，将在此展示</p>
+                    <div className="py-12 text-center">
+                      <BarChart3 className="w-12 h-12 mx-auto text-gray-300 dark:text-gray-600 mb-3" />
+                      <p className="text-gray-500">暂无信号源</p>
+                      <p className="text-gray-400 text-sm mt-1">信号发布者绑定MT账号后展示</p>
                     </div>
                   )
                 ) : (
-                  <div className="py-16 text-center">
-                    <Eye className="w-16 h-16 mx-auto text-gray-300 dark:text-gray-600 mb-4" />
-                    <p className="text-gray-500 text-lg mb-2">
-                      加入星球后可查看信号源
-                    </p>
+                  <div className="py-12 text-center">
+                    <Eye className="w-12 h-12 mx-auto text-gray-300 dark:text-gray-600 mb-3" />
+                    <p className="text-gray-500 mb-1">加入星球后可查看信号源</p>
                     <p className="text-gray-400 text-sm">成为会员，获取实时交易信号</p>
                   </div>
                 )}
               </CardContent>
             </Card>
           </div>
-
-          {/* Right Column: Forum Entry */}
-          <div className="lg:col-span-1">
-            {planet.forumEnabled === true ? (
-              <Link href={`/planet/${planet.id}/forum`}>
-                <Card className="sticky top-24 border-2 border-purple-200 dark:border-purple-800 bg-gradient-to-br from-purple-50 to-pink-50 dark:from-purple-900/20 dark:to-pink-900/20 cursor-pointer hover:shadow-lg transition-shadow">
-                  <CardHeader>
-                    <CardTitle className="text-lg flex items-center gap-2">
-                      <MessageSquare className="w-5 h-5 text-purple-500" />
-                      星球论坛
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
-                      与成员交流讨论，分享见解
-                    </p>
-                    <div className="flex items-center justify-end text-purple-600 dark:text-purple-400">
-                      <span className="text-sm font-medium">进入论坛</span>
-                      <ChevronRight className="w-5 h-5 ml-1" />
-                    </div>
-                  </CardContent>
-                </Card>
-              </Link>
-            ) : (
-              <Card className="sticky top-24">
-                <CardHeader>
-                  <CardTitle className="text-lg">星球信息</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-center py-4 text-gray-500 text-sm">
-                    <p>星球未开启论坛功能</p>
-                  </div>
-                </CardContent>
-              </Card>
-            )}
-          </div>
         </div>
       </div>
+
+      {/* 底部发帖输入框 - 固定在底部 */}
+      {showForumInput && (
+        <div className="fixed bottom-0 left-0 right-0 bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-800 p-3 shadow-lg z-50">
+          <div className="max-w-7xl mx-auto">
+            <div className="flex gap-2">
+              <Textarea
+                placeholder="写下你想说的..."
+                value={newPostContent}
+                onChange={(e) => setNewPostContent(e.target.value)}
+                className="flex-1 min-h-[40px] max-h-24 resize-none text-sm"
+                rows={1}
+                maxLength={5000}
+              />
+              <Button
+                onClick={handlePostSubmit}
+                disabled={posting || !newPostContent.trim()}
+                className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 h-10 px-4"
+                size="sm"
+              >
+                {posting ? (
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                ) : (
+                  <Send className="w-4 h-4" />
+                )}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
