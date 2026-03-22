@@ -400,7 +400,7 @@ export default function PlanetDetailPage() {
             )}
             
             {/* 论坛入口 */}
-            {planet.forumEnabled && (
+            {planet.forumEnabled === true && (
               <Link href={`/planet/${planet.id}/forum`}>
                 <Card className="border-2 border-purple-200 dark:border-purple-800 bg-gradient-to-br from-purple-50 to-pink-50 dark:from-purple-900/20 dark:to-pink-900/20 cursor-pointer hover:shadow-lg transition-shadow">
                   <CardContent className="pt-6">
