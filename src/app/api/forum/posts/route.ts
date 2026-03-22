@@ -2,8 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { db } from '@/lib/db';
-import { forumPosts, users, planetMembers, forumBans, planets } from '@/lib/schema';
-import { eq, and, desc, isNull, or, gt } from 'drizzle-orm';
+import { forumPosts, users, planetMembers, forumBans, planets, forumLikes } from '@/lib/schema';
+import { eq, and, desc, asc, isNull, or, gt, inArray } from 'drizzle-orm';
 
 // 获取帖子列表
 export async function GET(request: NextRequest) {
@@ -13,7 +13,8 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const planetId = searchParams.get('planetId');
     const page = parseInt(searchParams.get('page') || '1');
-    const pageSize = parseInt(searchParams.get('pageSize') || '10');
+    const pageSize = parseInt(searchParams.get('pageSize') || '20');
+    const sort = searchParams.get('sort') || 'desc'; // 默认倒序，新帖在上
 
     if (!planetId) {
       return NextResponse.json({ error: '星球ID为必填项' }, { status: 400 });
@@ -44,7 +45,7 @@ export async function GET(request: NextRequest) {
       userRole = member?.role || null;
     }
 
-    // 获取帖子列表
+    // 获取帖子列表 - 支持升序/降序排序
     const posts = await db
       .select({
         id: forumPosts.id,
@@ -64,9 +65,33 @@ export async function GET(request: NextRequest) {
         eq(forumPosts.planetId, parseInt(planetId)),
         eq(forumPosts.status, 'active')
       ))
-      .orderBy(desc(forumPosts.isPinned), desc(forumPosts.createdAt))
+      .orderBy(
+        desc(forumPosts.isPinned),
+        sort === 'asc' ? asc(forumPosts.createdAt) : desc(forumPosts.createdAt)
+      )
       .limit(pageSize)
       .offset((page - 1) * pageSize);
+
+    // 获取用户的点赞状态
+    let likedPostIds: number[] = [];
+    if (session?.user?.id && posts.length > 0) {
+      const postIds = posts.map(p => p.id);
+      const likes = await db
+        .select({ targetId: forumLikes.targetId })
+        .from(forumLikes)
+        .where(and(
+          eq(forumLikes.userId, session.user.id),
+          eq(forumLikes.targetType, 'post'),
+          inArray(forumLikes.targetId, postIds)
+        ));
+      likedPostIds = likes.map(l => l.targetId);
+    }
+
+    // 添加点赞状态到帖子
+    const postsWithLikeStatus = posts.map(post => ({
+      ...post,
+      isLiked: likedPostIds.includes(post.id),
+    }));
 
     // 获取总数
     const [countResult] = await db
@@ -78,7 +103,7 @@ export async function GET(request: NextRequest) {
       ));
 
     return NextResponse.json({
-      posts,
+      posts: postsWithLikeStatus,
       userRole,
       total: countResult?.count || 0,
       page,
