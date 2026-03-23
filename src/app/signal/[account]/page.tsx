@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useMemo } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import Link from 'next/link';
@@ -156,12 +156,13 @@ export default function SignalDetailPage() {
     fetchSignalDetail(newPage);
   }, [data]);
 
-  // 根据时间周期过滤收益数据
-  const filterProfitHistory = useCallback((history: { date: string; time: string; profit: number; returnRate: string }[]) => {
+  // 根据时间周期过滤收益数据 - 使用 useMemo 确保响应式更新
+  const filteredProfitHistory = useMemo(() => {
+    const history = data?.stats?.profitHistory;
     if (!history || history.length === 0) return [];
     
     const now = new Date();
-    let startDate: Date;
+    let startDate: Date | null = null;
     
     switch (profitPeriod) {
       case 'week':
@@ -182,9 +183,9 @@ export default function SignalDetailPage() {
     
     return history.filter(item => {
       const itemDate = new Date(item.date);
-      return itemDate >= startDate;
+      return itemDate >= startDate!;
     });
-  }, [profitPeriod]);
+  }, [data?.stats?.profitHistory, profitPeriod]);
 
   const handleFollow = async () => {
     if (!session) {
@@ -457,11 +458,11 @@ export default function SignalDetailPage() {
                   </div>
                 </CardHeader>
                 <CardContent>
-                  {filterProfitHistory(stats.profitHistory).length > 0 ? (
+                  {filteredProfitHistory.length > 0 ? (
                     <div className="h-64 w-full">
                       <ResponsiveContainer width="100%" height="100%">
                         <AreaChart
-                          data={filterProfitHistory(stats.profitHistory).map((point) => ({
+                          data={filteredProfitHistory.map((point) => ({
                             name: point.date,
                             profit: point.profit,
                             returnRate: point.returnRate,

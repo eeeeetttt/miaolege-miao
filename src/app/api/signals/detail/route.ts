@@ -262,7 +262,7 @@ function calculateDetailedStats(accountSignals: any[], mtAccount: any) {
     avgLoss: avgLoss.toFixed(2),
     initialBalance: initialBalance.toFixed(2),
     broker: broker || '未知经纪商',
-    profitHistory: profitHistory.slice(-100), // 最近100条用于图表
+    profitHistory: profitHistory, // 返回全部收益历史用于图表
     // 品种统计
     symbolStats: calculateSymbolStats(closeSignals),
     // 方向统计
