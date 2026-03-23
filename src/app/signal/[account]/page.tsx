@@ -96,6 +96,7 @@ export default function SignalDetailPage() {
   const [hasMtAccount, setHasMtAccount] = useState<boolean | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [historyLoading, setHistoryLoading] = useState(false);
+  const [profitPeriod, setProfitPeriod] = useState<'week' | 'month' | 'quarter' | 'year' | 'all'>('all');
 
   const accountNumber = searchParams.get('account') || params.account;
   const planetId = searchParams.get('planetId');
@@ -154,6 +155,36 @@ export default function SignalDetailPage() {
     setHistoryLoading(true);
     fetchSignalDetail(newPage);
   }, [data]);
+
+  // 根据时间周期过滤收益数据
+  const filterProfitHistory = useCallback((history: { date: string; time: string; profit: number; returnRate: string }[]) => {
+    if (!history || history.length === 0) return [];
+    
+    const now = new Date();
+    let startDate: Date;
+    
+    switch (profitPeriod) {
+      case 'week':
+        startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+        break;
+      case 'month':
+        startDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+        break;
+      case 'quarter':
+        startDate = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
+        break;
+      case 'year':
+        startDate = new Date(now.getTime() - 365 * 24 * 60 * 60 * 1000);
+        break;
+      default:
+        return history;
+    }
+    
+    return history.filter(item => {
+      const itemDate = new Date(item.date);
+      return itemDate >= startDate;
+    });
+  }, [profitPeriod]);
 
   const handleFollow = async () => {
     if (!session) {
@@ -393,18 +424,44 @@ export default function SignalDetailPage() {
               {/* 收益曲线 - 左侧 */}
               <Card>
                 <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <BarChart3 className="w-5 h-5 text-blue-500" />
-                    累计收益曲线
-                  </CardTitle>
-                  <CardDescription>横轴：时间 | 纵轴：累计收益($)</CardDescription>
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                    <div>
+                      <CardTitle className="flex items-center gap-2">
+                        <BarChart3 className="w-5 h-5 text-blue-500" />
+                        累计收益曲线
+                      </CardTitle>
+                      <CardDescription>横轴：时间 | 纵轴：累计收益($)</CardDescription>
+                    </div>
+                    {/* 时间周期选择器 */}
+                    <div className="flex gap-1 flex-wrap">
+                      {[
+                        { key: 'week', label: '近一周' },
+                        { key: 'month', label: '近一月' },
+                        { key: 'quarter', label: '近三月' },
+                        { key: 'year', label: '近一年' },
+                        { key: 'all', label: '全部' },
+                      ].map(({ key, label }) => (
+                        <button
+                          key={key}
+                          onClick={() => setProfitPeriod(key as typeof profitPeriod)}
+                          className={`px-2.5 py-1 text-xs rounded-full transition-all ${
+                            profitPeriod === key
+                              ? 'bg-purple-500 text-white'
+                              : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700'
+                          }`}
+                        >
+                          {label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
                 </CardHeader>
                 <CardContent>
-                  {stats.profitHistory.length > 0 ? (
+                  {filterProfitHistory(stats.profitHistory).length > 0 ? (
                     <div className="h-64 w-full">
                       <ResponsiveContainer width="100%" height="100%">
                         <AreaChart
-                          data={stats.profitHistory.map((point) => ({
+                          data={filterProfitHistory(stats.profitHistory).map((point) => ({
                             name: point.date,
                             profit: point.profit,
                             returnRate: point.returnRate,
@@ -455,7 +512,7 @@ export default function SignalDetailPage() {
                     </div>
                   ) : (
                     <div className="h-64 flex items-center justify-center text-gray-400">
-                      暂无数据
+                      {stats.profitHistory.length > 0 ? '该时间段暂无数据' : '暂无数据'}
                     </div>
                   )}
                 </CardContent>
