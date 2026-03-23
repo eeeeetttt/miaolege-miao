@@ -13,37 +13,16 @@ import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Input } from '@/components/ui/input';
 import { Spinner } from '@/components/ui/spinner';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from '@/components/ui/dialog';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 import { 
   Settings, 
   Users, 
   FileText, 
-  Bell, 
-  Shield, 
   CheckCircle2,
   AlertCircle,
   Radio,
   RadioIcon,
   Save,
-  Edit3,
-  Ban,
-  Lock,
-  Unlock,
-  MessageSquare
+  Edit3
 } from 'lucide-react';
 
 interface Application {
@@ -67,16 +46,6 @@ interface Member {
   followStatus: string | null;
 }
 
-interface BanRecord {
-  id: number;
-  userId: string;
-  userName: string;
-  userEmail: string;
-  reason: string | null;
-  expiresAt: string | null;
-  createdAt: string;
-}
-
 interface PlanetInfo {
   id: number;
   name: string;
@@ -87,7 +56,6 @@ interface PlanetInfo {
   maxPublishers: number;
   status: string;
   inviteCode: string;
-  forumEnabled: boolean;
 }
 
 export default function PlanetManagePage() {
@@ -110,17 +78,8 @@ export default function PlanetManagePage() {
     description: '',
     rules: '',
     ticketPrice: 0,
-    forumEnabled: false,
   });
   const [savingInfo, setSavingInfo] = useState(false);
-  
-  // 禁言管理状态
-  const [banRecords, setBanRecords] = useState<BanRecord[]>([]);
-  const [banDialogOpen, setBanDialogOpen] = useState(false);
-  const [banUserId, setBanUserId] = useState<string>('');
-  const [banReason, setBanReason] = useState('');
-  const [banDuration, setBanDuration] = useState('0');
-  const [banning, setBanning] = useState(false);
 
   useEffect(() => {
     if (status === 'unauthenticated') {
@@ -154,7 +113,6 @@ export default function PlanetManagePage() {
         description: planetData.planet.description || '',
         rules: planetData.planet.rules || '',
         ticketPrice: planetData.planet.ticketPrice || 0,
-        forumEnabled: planetData.planet.forumEnabled || false,
       });
 
       // Fetch applications
@@ -166,13 +124,6 @@ export default function PlanetManagePage() {
       const membersRes = await fetch(`/api/planet/members?planetId=${params.id}`);
       const membersData = await membersRes.json();
       setMembers(membersData.members || []);
-      
-      // Fetch ban records
-      const banRes = await fetch(`/api/forum/ban?planetId=${params.id}`);
-      if (banRes.ok) {
-        const banData = await banRes.json();
-        setBanRecords(banData.bans || []);
-      }
     } catch (error) {
       console.error('Failed to fetch data:', error);
     } finally {
@@ -282,76 +233,7 @@ export default function PlanetManagePage() {
       description: planet?.description || '',
       rules: planet?.rules || '',
       ticketPrice: planet?.ticketPrice || 0,
-      forumEnabled: planet?.forumEnabled || false,
     });
-  };
-
-  const handleBanUser = async () => {
-    if (!banUserId) {
-      alert('请选择要禁言的用户');
-      return;
-    }
-
-    setBanning(true);
-    try {
-      const res = await fetch('/api/forum/ban', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          planetId: parseInt(params.id as string),
-          userId: banUserId,
-          reason: banReason || null,
-          durationDays: parseInt(banDuration) || 0,
-        }),
-      });
-
-      const data = await res.json();
-
-      if (res.ok) {
-        setBanDialogOpen(false);
-        setBanUserId('');
-        setBanReason('');
-        setBanDuration('0');
-        // Refresh ban records
-        const banRes = await fetch(`/api/forum/ban?planetId=${params.id}`);
-        if (banRes.ok) {
-          const banData = await banRes.json();
-          setBanRecords(banData.bans || []);
-        }
-      } else {
-        alert(data.error || '禁言失败');
-      }
-    } catch (error) {
-      console.error('Failed to ban user:', error);
-      alert('禁言失败，请稍后重试');
-    } finally {
-      setBanning(false);
-    }
-  };
-
-  const handleUnbanUser = async (userId: string) => {
-    if (!confirm('确定要解除该用户的禁言吗？')) return;
-
-    try {
-      const res = await fetch(`/api/forum/ban?planetId=${params.id}&userId=${userId}`, {
-        method: 'DELETE',
-      });
-
-      if (res.ok) {
-        // Refresh ban records
-        const banRes = await fetch(`/api/forum/ban?planetId=${params.id}`);
-        if (banRes.ok) {
-          const banData = await banRes.json();
-          setBanRecords(banData.bans || []);
-        }
-      } else {
-        const data = await res.json();
-        alert(data.error || '解除禁言失败');
-      }
-    } catch (error) {
-      console.error('Failed to unban user:', error);
-      alert('解除禁言失败，请稍后重试');
-    }
   };
 
   if (status === 'loading' || loading) {
@@ -456,7 +338,7 @@ export default function PlanetManagePage() {
 
         {/* Main Content */}
         <Tabs defaultValue="settings" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-4 max-w-lg">
+          <TabsList className="grid w-full grid-cols-3 max-w-md">
             <TabsTrigger value="settings" className="flex items-center gap-2">
               <Settings className="w-4 h-4" />
               星球设置
@@ -468,10 +350,6 @@ export default function PlanetManagePage() {
             <TabsTrigger value="members" className="flex items-center gap-2">
               <Users className="w-4 h-4" />
               成员列表
-            </TabsTrigger>
-            <TabsTrigger value="bans" className="flex items-center gap-2">
-              <Ban className="w-4 h-4" />
-              禁言管理
             </TabsTrigger>
           </TabsList>
 
@@ -542,28 +420,6 @@ export default function PlanetManagePage() {
                           onChange={(e) => setEditForm({ ...editForm, ticketPrice: parseInt(e.target.value) || 0 })}
                           placeholder="0"
                           min="0"
-                        />
-                      </div>
-                      
-                      {/* 论坛开关 */}
-                      <div className="flex items-center justify-between p-4 bg-gradient-to-r from-purple-50 to-pink-50 dark:from-purple-900/20 dark:to-pink-900/20 rounded-lg border border-purple-200 dark:border-purple-800">
-                        <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center">
-                            <MessageSquare className="w-5 h-5 text-white" />
-                          </div>
-                          <div>
-                            <Label htmlFor="forumEnabled" className="font-semibold cursor-pointer">
-                              开启星球论坛
-                            </Label>
-                            <p className="text-sm text-gray-500">
-                              允许成员在论坛发帖讨论
-                            </p>
-                          </div>
-                        </div>
-                        <Switch
-                          id="forumEnabled"
-                          checked={editForm.forumEnabled}
-                          onCheckedChange={(checked) => setEditForm({ ...editForm, forumEnabled: checked })}
                         />
                       </div>
                       
@@ -784,137 +640,6 @@ export default function PlanetManagePage() {
                     </tbody>
                   </table>
                 </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          {/* Bans Tab */}
-          <TabsContent value="bans">
-            <Card>
-              <CardHeader>
-                <div className="flex items-center justify-between">
-                  <div>
-                    <CardTitle className="flex items-center gap-2">
-                      <Ban className="w-5 h-5" />
-                      禁言管理
-                    </CardTitle>
-                    <CardDescription>管理星球论坛的禁言用户</CardDescription>
-                  </div>
-                  <Dialog open={banDialogOpen} onOpenChange={setBanDialogOpen}>
-                    <DialogTrigger asChild>
-                      <Button className="bg-gradient-to-r from-red-600 to-orange-600">
-                        <Lock className="w-4 h-4 mr-2" />
-                        禁言用户
-                      </Button>
-                    </DialogTrigger>
-                    <DialogContent>
-                      <DialogHeader>
-                        <DialogTitle>禁言用户</DialogTitle>
-                        <DialogDescription>
-                          选择要禁言的成员，设置禁言时长
-                        </DialogDescription>
-                      </DialogHeader>
-                      <div className="space-y-4 pt-4">
-                        <div className="space-y-2">
-                          <Label>选择用户</Label>
-                          <Select value={banUserId} onValueChange={setBanUserId}>
-                            <SelectTrigger>
-                              <SelectValue placeholder="选择要禁言的成员" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {members
-                                .filter(m => m.role !== 'owner')
-                                .map(member => (
-                                  <SelectItem key={member.userId} value={member.userId}>
-                                    {member.userName} ({member.userEmail})
-                                  </SelectItem>
-                                ))
-                              }
-                            </SelectContent>
-                          </Select>
-                        </div>
-                        <div className="space-y-2">
-                          <Label>禁言时长</Label>
-                          <Select value={banDuration} onValueChange={setBanDuration}>
-                            <SelectTrigger>
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="0">永久禁言</SelectItem>
-                              <SelectItem value="1">1天</SelectItem>
-                              <SelectItem value="7">7天</SelectItem>
-                              <SelectItem value="30">30天</SelectItem>
-                              <SelectItem value="90">90天</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
-                        <div className="space-y-2">
-                          <Label>禁言原因（可选）</Label>
-                          <Input
-                            placeholder="输入禁言原因"
-                            value={banReason}
-                            onChange={(e) => setBanReason(e.target.value)}
-                          />
-                        </div>
-                        <div className="flex justify-end gap-2 pt-4">
-                          <Button variant="outline" onClick={() => setBanDialogOpen(false)}>
-                            取消
-                          </Button>
-                          <Button 
-                            onClick={handleBanUser} 
-                            disabled={banning || !banUserId}
-                            className="bg-red-600 hover:bg-red-700"
-                          >
-                            {banning ? '处理中...' : '确认禁言'}
-                          </Button>
-                        </div>
-                      </div>
-                    </DialogContent>
-                  </Dialog>
-                </div>
-              </CardHeader>
-              <CardContent>
-                {banRecords.length === 0 ? (
-                  <div className="text-center py-12 text-gray-500">
-                    <Lock className="w-12 h-12 mx-auto mb-4 opacity-50" />
-                    <p>暂无禁言记录</p>
-                    <p className="text-sm mt-2">点击上方按钮对违规成员进行禁言</p>
-                  </div>
-                ) : (
-                  <div className="space-y-4">
-                    {banRecords.map((ban) => (
-                      <div key={ban.id} className="flex items-center justify-between p-4 border rounded-lg">
-                        <div>
-                          <div className="flex items-center gap-2">
-                            <p className="font-medium">{ban.userName}</p>
-                            <Badge variant="destructive" className="text-xs">
-                              {ban.expiresAt ? '临时禁言' : '永久禁言'}
-                            </Badge>
-                          </div>
-                          <p className="text-sm text-gray-500">{ban.userEmail}</p>
-                          <div className="flex items-center gap-4 mt-2 text-xs text-gray-400">
-                            {ban.reason && (
-                              <span>原因: {ban.reason}</span>
-                            )}
-                            {ban.expiresAt && (
-                              <span>到期: {new Date(ban.expiresAt).toLocaleDateString()}</span>
-                            )}
-                            <span>禁言时间: {new Date(ban.createdAt).toLocaleDateString()}</span>
-                          </div>
-                        </div>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => handleUnbanUser(ban.userId)}
-                          className="border-green-300 text-green-600 hover:bg-green-50"
-                        >
-                          <Unlock className="w-4 h-4 mr-2" />
-                          解除禁言
-                        </Button>
-                      </div>
-                    ))}
-                  </div>
-                )}
               </CardContent>
             </Card>
           </TabsContent>

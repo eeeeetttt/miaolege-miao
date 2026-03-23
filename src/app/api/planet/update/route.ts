@@ -14,7 +14,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: '未登录' }, { status: 401 });
     }
 
-    const { planetId, name, description, rules, ticketPrice, forumEnabled } = await request.json();
+    const { planetId, name, description, rules, ticketPrice } = await request.json();
 
     if (!planetId) {
       return NextResponse.json({ error: '缺少星球ID' }, { status: 400 });
@@ -43,7 +43,6 @@ export async function POST(request: NextRequest) {
         description: description?.trim() || null,
         rules: rules?.trim() || null,
         ticketPrice: ticketPrice !== undefined ? ticketPrice : planet.ticketPrice,
-        forumEnabled: forumEnabled !== undefined ? forumEnabled : planet.forumEnabled,
       })
       .where(eq(planets.id, planetId));
 

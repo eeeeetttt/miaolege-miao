@@ -10,7 +10,6 @@ import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { PlanetDetailSkeleton, SignalCardSkeleton } from '@/components/loading-skeleton';
 import { Spinner } from '@/components/ui/spinner';
-import { Textarea } from '@/components/ui/textarea';
 import { 
   Eye,
   AlertCircle,
@@ -21,11 +20,7 @@ import {
   Signal,
   UserPlus,
   Clock,
-  MessageSquare,
-  Heart,
-  Pin,
-  Send,
-  Lock
+  Bell
 } from 'lucide-react';
 
 interface PlanetDetail {
@@ -63,41 +58,20 @@ interface SignalSource {
   profitFactor: string;
 }
 
-interface ForumPost {
-  id: number;
-  title: string;
-  content: string;
-  likeCount: number;
-  commentCount: number;
-  isPinned: boolean;
-  createdAt: string;
-  userId: string;
-  userName: string;
-  userAvatar: string | null;
-  isLiked?: boolean;
-}
-
 export default function PlanetDetailPage() {
   const params = useParams();
   const router = useRouter();
   const { data: session } = useSession();
   const [data, setData] = useState<PlanetDetail | null>(null);
   const [signalSources, setSignalSources] = useState<SignalSource[]>([]);
-  const [forumPosts, setForumPosts] = useState<ForumPost[]>([]);
   const [loading, setLoading] = useState(true);
   const [signalsLoading, setSignalsLoading] = useState(true);
-  const [forumLoading, setForumLoading] = useState(true);
   const [joining, setJoining] = useState(false);
   const [applyingPublisher, setApplyingPublisher] = useState(false);
   const [publisherApplicationStatus, setPublisherApplicationStatus] = useState<string | null>(null);
-  const [isBanned, setIsBanned] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [inviteCode, setInviteCode] = useState('');
-  
-  // 发帖状态
-  const [newPostContent, setNewPostContent] = useState('');
-  const [posting, setPosting] = useState(false);
 
   useEffect(() => {
     fetchPlanetDetail();
@@ -107,8 +81,6 @@ export default function PlanetDetailPage() {
     if (data?.userRole) {
       fetchSignalSources();
       fetchPublisherApplicationStatus();
-      fetchForumPosts();
-      checkBanStatus();
     }
   }, [data?.userRole]);
 
@@ -145,31 +117,6 @@ export default function PlanetDetailPage() {
       console.error('Failed to fetch signal sources:', error);
     } finally {
       setSignalsLoading(false);
-    }
-  };
-
-  const fetchForumPosts = async () => {
-    try {
-      const res = await fetch(`/api/forum/posts?planetId=${params.id}&sort=asc`);
-      const result = await res.json();
-      setForumPosts(result.posts || []);
-    } catch (error) {
-      console.error('Failed to fetch forum posts:', error);
-    } finally {
-      setForumLoading(false);
-    }
-  };
-
-  const checkBanStatus = async () => {
-    if (data?.userRole === 'owner') return;
-    try {
-      const res = await fetch(`/api/forum/ban/check?planetId=${params.id}`);
-      if (res.ok) {
-        const result = await res.json();
-        setIsBanned(result.isBanned);
-      }
-    } catch (error) {
-      console.error('Failed to check ban status:', error);
     }
   };
 
@@ -244,85 +191,6 @@ export default function PlanetDetailPage() {
     }
   };
 
-  const handlePostSubmit = async () => {
-    if (!newPostContent.trim()) return;
-
-    setPosting(true);
-    try {
-      const res = await fetch('/api/forum/posts', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          planetId: data?.planet.id,
-          title: newPostContent.substring(0, 50),
-          content: newPostContent,
-        }),
-      });
-
-      const result = await res.json();
-
-      if (!res.ok) {
-        alert(result.error || '发帖失败');
-      } else {
-        setNewPostContent('');
-        fetchForumPosts();
-      }
-    } catch (err) {
-      alert('发帖失败，请稍后重试');
-    } finally {
-      setPosting(false);
-    }
-  };
-
-  const handleLike = async (postId: number, isLiked: boolean) => {
-    if (!session) {
-      router.push('/login');
-      return;
-    }
-
-    try {
-      const res = await fetch('/api/forum/like', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          targetType: 'post',
-          targetId: postId,
-        }),
-      });
-
-      const result = await res.json();
-      if (result.success) {
-        setForumPosts(prev => prev.map(post => {
-          if (post.id === postId) {
-            return {
-              ...post,
-              isLiked: result.liked,
-              likeCount: result.liked ? post.likeCount + 1 : post.likeCount - 1,
-            };
-          }
-          return post;
-        }));
-      }
-    } catch (error) {
-      console.error('Failed to like:', error);
-    }
-  };
-
-  const formatTime = (dateStr: string) => {
-    const date = new Date(dateStr);
-    const now = new Date();
-    const diff = now.getTime() - date.getTime();
-    const minutes = Math.floor(diff / 60000);
-    const hours = Math.floor(diff / 3600000);
-    const days = Math.floor(diff / 86400000);
-
-    if (minutes < 1) return '刚刚';
-    if (minutes < 60) return `${minutes}分钟前`;
-    if (hours < 24) return `${hours}小时前`;
-    if (days < 7) return `${days}天前`;
-    return date.toLocaleDateString('zh-CN');
-  };
-
   if (loading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-50 to-purple-50 dark:from-gray-900 dark:to-slate-900 py-8 px-4">
@@ -351,7 +219,6 @@ export default function PlanetDetailPage() {
   }
 
   const { planet, userRole } = data;
-  const showForumInput = userRole && !isBanned && planet.forumEnabled;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-purple-50 dark:from-gray-900 dark:to-slate-900 py-8 px-4">
@@ -526,159 +393,23 @@ export default function PlanetDetailPage() {
                 </CardContent>
               </Card>
             )}
-            
-            {/* 星球公告 */}
-            {planet.rules && (
-              <Card className="border-2 border-amber-200 dark:border-amber-800 bg-gradient-to-br from-amber-50 to-yellow-50 dark:from-amber-900/20 dark:to-yellow-900/20">
-                <CardContent className="pt-6">
-                  <div className="flex items-start gap-3">
-                    <div className="w-10 h-10 rounded-full bg-amber-500 flex items-center justify-center flex-shrink-0">
-                      <AlertCircle className="w-5 h-5 text-white" />
-                    </div>
-                    <div>
-                      <h3 className="font-semibold text-amber-800 dark:text-amber-300 mb-2">星球公告</h3>
-                      <p className="text-amber-700 dark:text-amber-400 text-sm whitespace-pre-wrap">
-                        {planet.rules}
-                      </p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            )}
           </div>
         )}
 
-        {/* Two Column Layout - 论坛在左，信号在右 */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Left Column: Forum */}
-          {planet.forumEnabled && userRole && (
-            <div className="lg:order-1">
-              <Card className="h-full flex flex-col">
-                <CardHeader className="pb-3 flex-shrink-0">
-                  <CardTitle className="flex items-center gap-2 text-lg">
-                    <MessageSquare className="w-5 h-5 text-purple-500" />
-                    星球论坛
+        {/* Two Column Layout - 信号在左，公告在右 */}
+        {userRole && (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Left Column: Signal Sources */}
+            <div>
+              <Card className="h-full">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Signal className="w-5 h-5 text-purple-500" />
+                    信号展示
                   </CardTitle>
                 </CardHeader>
-                <CardContent className="pt-0 flex-1 flex flex-col min-h-0">
-                  {isBanned && (
-                    <Alert className="mb-3 border-red-200 bg-red-50 dark:bg-red-900/20 flex-shrink-0">
-                      <Lock className="h-4 w-4 text-red-600" />
-                      <AlertDescription className="text-red-600 text-sm">
-                        您已被禁言，无法发帖
-                      </AlertDescription>
-                    </Alert>
-                  )}
-                  
-                  {/* 帖子列表区域 - 可滚动 */}
-                  <div className="flex-1 min-h-0 overflow-y-auto mb-3" style={{ maxHeight: '340px' }}>
-                    {forumLoading ? (
-                      <div className="space-y-3">
-                        {[1, 2, 3].map(i => (
-                          <div key={i} className="animate-pulse flex gap-3 p-3">
-                            <div className="w-10 h-10 bg-gray-200 dark:bg-gray-700 rounded-full"></div>
-                            <div className="flex-1 space-y-2">
-                              <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-1/3"></div>
-                              <div className="h-3 bg-gray-200 dark:bg-gray-700 rounded w-full"></div>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    ) : forumPosts.length === 0 ? (
-                      <div className="text-center py-8 text-gray-500">
-                        <MessageSquare className="w-10 h-10 mx-auto mb-2 opacity-50" />
-                        <p className="text-sm">暂无帖子，来发第一条吧！</p>
-                      </div>
-                    ) : (
-                      <div className="space-y-2">
-                        {forumPosts.map(post => (
-                          <div 
-                            key={post.id} 
-                            className="p-3 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
-                          >
-                            <div className="flex gap-3">
-                              <div className="w-9 h-9 rounded-full bg-gradient-to-br from-purple-500 to-blue-500 flex items-center justify-center text-white text-sm font-bold flex-shrink-0">
-                                {post.userName?.charAt(0) || 'U'}
-                              </div>
-                              <div className="flex-1 min-w-0">
-                                <div className="flex items-center gap-2 mb-1">
-                                  <span className="font-medium text-sm">{post.userName || '用户'}</span>
-                                  {post.isPinned && (
-                                    <Badge variant="secondary" className="text-xs py-0 h-4">
-                                      <Pin className="w-2.5 h-2.5 mr-1" />
-                                      置顶
-                                    </Badge>
-                                  )}
-                                  <span className="text-xs text-gray-400">{formatTime(post.createdAt)}</span>
-                                </div>
-                                <p className="text-sm text-gray-600 dark:text-gray-400 line-clamp-3 break-words">
-                                  {post.content}
-                                </p>
-                                <div className="flex items-center gap-3 mt-2">
-                                  <button
-                                    onClick={() => handleLike(post.id, post.isLiked || false)}
-                                    className={`flex items-center gap-1 text-xs transition-colors ${
-                                      post.isLiked 
-                                        ? 'text-red-500' 
-                                        : 'text-gray-400 hover:text-red-500'
-                                    }`}
-                                  >
-                                    <Heart className={`w-3.5 h-3.5 ${post.isLiked ? 'fill-current' : ''}`} />
-                                    <span>{post.likeCount || 0}</span>
-                                  </button>
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-
-                  {/* 发帖输入框 - 固定在论坛框内底部 */}
-                  {showForumInput && (
-                    <div className="flex-shrink-0 pt-3 border-t border-gray-200 dark:border-gray-700">
-                      <div className="flex gap-2">
-                        <Textarea
-                          placeholder="写下你想说的..."
-                          value={newPostContent}
-                          onChange={(e) => setNewPostContent(e.target.value)}
-                          className="flex-1 min-h-[40px] max-h-20 resize-none text-sm"
-                          rows={1}
-                          maxLength={5000}
-                        />
-                        <Button
-                          onClick={handlePostSubmit}
-                          disabled={posting || !newPostContent.trim()}
-                          className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 h-10 px-3"
-                          size="sm"
-                        >
-                          {posting ? (
-                            <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                          ) : (
-                            <Send className="w-4 h-4" />
-                          )}
-                        </Button>
-                      </div>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            </div>
-          )}
-
-          {/* Right Column: Signal Sources */}
-          <div className={planet.forumEnabled && userRole ? 'lg:order-2' : ''}>
-            <Card className="h-full">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Signal className="w-5 h-5 text-purple-500" />
-                  信号展示
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                {userRole ? (
-                  signalsLoading ? (
+                <CardContent>
+                  {signalsLoading ? (
                     <div className="space-y-4">
                       <SignalCardSkeleton />
                       <SignalCardSkeleton />
@@ -740,18 +471,60 @@ export default function PlanetDetailPage() {
                       <p className="text-gray-500">暂无信号源</p>
                       <p className="text-gray-400 text-sm mt-1">信号发布者绑定MT账号后展示</p>
                     </div>
-                  )
-                ) : (
-                  <div className="py-12 text-center">
-                    <Eye className="w-12 h-12 mx-auto text-gray-300 dark:text-gray-600 mb-3" />
-                    <p className="text-gray-500 mb-1">加入星球后可查看信号源</p>
-                    <p className="text-gray-400 text-sm">成为会员，获取实时交易信号</p>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Right Column: Planet Notice */}
+            <div>
+              <Card className="h-full">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Bell className="w-5 h-5 text-amber-500" />
+                    星球公告
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {planet.rules ? (
+                    <div className="prose dark:prose-invert max-w-none">
+                      <div className="p-4 bg-amber-50 dark:bg-amber-900/20 rounded-lg border border-amber-200 dark:border-amber-800">
+                        <p className="text-amber-800 dark:text-amber-300 whitespace-pre-wrap text-sm leading-relaxed">
+                          {planet.rules}
+                        </p>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="py-12 text-center">
+                      <Bell className="w-12 h-12 mx-auto text-gray-300 dark:text-gray-600 mb-3" />
+                      <p className="text-gray-500">暂无公告</p>
+                      <p className="text-gray-400 text-sm mt-1">星主尚未发布星球公告</p>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
           </div>
-        </div>
+        )}
+
+        {/* Non-member view */}
+        {!userRole && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Signal className="w-5 h-5 text-purple-500" />
+                信号展示
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="py-12 text-center">
+                <Eye className="w-12 h-12 mx-auto text-gray-300 dark:text-gray-600 mb-3" />
+                <p className="text-gray-500 mb-1">加入星球后可查看信号源</p>
+                <p className="text-gray-400 text-sm">成为会员，获取实时交易信号</p>
+              </div>
+            </CardContent>
+          </Card>
+        )}
       </div>
     </div>
   );
