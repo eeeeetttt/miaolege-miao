@@ -3,6 +3,7 @@ import { Inspector } from 'react-dev-inspector';
 import SessionProvider from '@/components/providers/session-provider';
 import { Header } from '@/components/header';
 import CustomerService from '@/components/customer-service';
+import { ServiceWorkerRegistration } from '@/components/pwa-registration';
 import './globals.css';
 
 export const viewport: Viewport = {
@@ -82,6 +83,7 @@ export default function RootLayout({
   return (
     <html lang="zh-CN" suppressHydrationWarning>
       <body className={`antialiased bg-gray-50 dark:bg-gray-900`}>
+        <ServiceWorkerRegistration />
         <SessionProvider>
           {isDev && <Inspector />}
           <div className="min-h-screen flex flex-col">
