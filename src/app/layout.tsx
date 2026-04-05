@@ -35,7 +35,8 @@ export const metadata: Metadata = {
     '星球',
   ],
   authors: [{ name: 'MLGM Team' }],
-  generator: 'Next.js',
+  // 移除 generator 标签，避免显示技术栈信息
+  // generator: 'Next.js',
   manifest: '/manifest.json',
   icons: {
     icon: [
