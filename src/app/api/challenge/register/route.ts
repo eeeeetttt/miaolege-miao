@@ -222,6 +222,17 @@ export async function GET() {
       ORDER BY level
     `);
     const levelRows = getResultRows<LevelRow>(levelResult);
+    
+    // 转换为camelCase格式以匹配前端接口
+    const levelConfigs = levelRows.map(row => ({
+      level: row.level,
+      name: row.name,
+      description: row.description,
+      targetBalance: row.target_balance,
+      initialBalance: row.initial_balance,
+      failBalance: row.fail_balance,
+      reward: row.reward,
+    }));
 
     if (!latestRegistration) {
       return NextResponse.json({
@@ -230,7 +241,7 @@ export async function GET() {
         registration: null,
         registrationFee: parseInt(configMap.registration_fee || '1000'),
         config: configMap,
-        levelConfigs: levelRows,
+        levelConfigs,
         message: '您还未申请挑战赛',
       });
     }
@@ -266,7 +277,7 @@ export async function GET() {
       canReapply,
       registrationFee: parseInt(configMap.registration_fee || '1000'),
       config: configMap,
-      levelConfigs: levelRows,
+      levelConfigs,
       message: getStatusMessage(latestRegistration.status),
     });
   } catch (error) {
