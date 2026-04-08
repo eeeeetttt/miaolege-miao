@@ -597,7 +597,7 @@ export default function AdminDashboardPage() {
 
         {/* Main Content */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-5 lg:w-auto lg:inline-grid">
+          <TabsList className="grid w-full grid-cols-6 lg:w-auto lg:inline-grid">
             <TabsTrigger value="users" className="flex items-center gap-2">
               <Users className="w-4 h-4" />
               用户管理
@@ -613,6 +613,10 @@ export default function AdminDashboardPage() {
             <TabsTrigger value="database" className="flex items-center gap-2">
               <Database className="w-4 h-4" />
               数据库
+            </TabsTrigger>
+            <TabsTrigger value="challenge" className="flex items-center gap-2" onClick={() => router.push('/admin/challenge')}>
+              <TrendingUp className="w-4 h-4" />
+              K线征途
             </TabsTrigger>
             <TabsTrigger value="ea" className="flex items-center gap-2">
               <FileCode className="w-4 h-4" />

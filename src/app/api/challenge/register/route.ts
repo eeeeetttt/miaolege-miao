@@ -5,6 +5,105 @@ import { db } from '@/lib/db';
 import { challengeRegistrations, users, challengeConfig, challengeLevelConfig } from '@/lib/schema';
 import { eq, and, sql } from 'drizzle-orm';
 
+// 自动创建数据库表和初始化配置
+async function ensureTablesAndConfigExist(): Promise<{ configMap: Record<string, string>; success: boolean; error?: string }> {
+  try {
+    // 创建挑战赛报名表
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS challenge_registrations (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        user_id VARCHAR(255) NOT NULL,
+        status ENUM('pending', 'approved', 'rejected', 'active', 'completed', 'failed') DEFAULT 'pending',
+        current_level INT DEFAULT 1,
+        completed_levels JSON,
+        started_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        completed_at TIMESTAMP NULL,
+        failed_at TIMESTAMP NULL,
+        failed_level INT NULL,
+        total_duration INT NULL,
+        server_name VARCHAR(255),
+        trading_account VARCHAR(50),
+        trading_password VARCHAR(255),
+        mt_account_id INT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        INDEX idx_challenge_user (user_id),
+        INDEX idx_challenge_status (status)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+    `);
+
+    // 创建配置表
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS challenge_config (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        config_key VARCHAR(100) NOT NULL UNIQUE,
+        config_value TEXT NOT NULL,
+        description VARCHAR(255),
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+    `);
+
+    // 创建关卡配置表
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS challenge_level_config (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        level INT NOT NULL UNIQUE,
+        name VARCHAR(100) NOT NULL,
+        description TEXT,
+        target_balance INT NOT NULL DEFAULT 2000,
+        initial_balance INT NOT NULL DEFAULT 1000,
+        fail_balance INT NOT NULL DEFAULT 100,
+        reward VARCHAR(255),
+        is_active BOOLEAN DEFAULT TRUE,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+    `);
+
+    // 初始化默认配置（如果不存在）
+    const existingConfig = await db.query.challengeConfig.findFirst({});
+    if (!existingConfig) {
+      await db.insert(challengeConfig).values([
+        { configKey: 'registration_fee', configValue: '1000', description: '报名费（星球币）' },
+        { configKey: 'email_notification', configValue: 'true', description: '是否启用邮件通知' },
+        { configKey: 'challenge_enabled', configValue: 'true', description: '挑战赛是否启用' },
+      ]);
+    }
+
+    // 初始化默认关卡配置
+    const existingLevels = await db.query.challengeLevelConfig.findMany({});
+    if (existingLevels.length === 0) {
+      await db.insert(challengeLevelConfig).values([
+        { level: 1, name: '启念', description: '开始你的交易之旅', targetBalance: 2000, initialBalance: 1000, failBalance: 100, reward: '继续挑战' },
+        { level: 2, name: '立规', description: '建立交易规则', targetBalance: 2000, initialBalance: 1000, failBalance: 100, reward: '继续挑战' },
+        { level: 3, name: '守戒', description: '遵守交易纪律', targetBalance: 2000, initialBalance: 1000, failBalance: 100, reward: '继续挑战' },
+        { level: 4, name: '忍痛', description: '学会止损止盈', targetBalance: 2000, initialBalance: 1000, failBalance: 100, reward: '继续挑战' },
+        { level: 5, name: '止喜', description: '控制情绪波动', targetBalance: 2000, initialBalance: 1000, failBalance: 100, reward: '继续挑战' },
+        { level: 6, name: '观己', description: '认识自我弱点', targetBalance: 2000, initialBalance: 1000, failBalance: 100, reward: '继续挑战' },
+        { level: 7, name: '破执', description: '突破固有思维', targetBalance: 2000, initialBalance: 1000, failBalance: 100, reward: '继续挑战' },
+        { level: 8, name: '随势', description: '顺势而为', targetBalance: 2000, initialBalance: 1000, failBalance: 100, reward: '继续挑战' },
+        { level: 9, name: '忘我', description: '达到交易境界', targetBalance: 2000, initialBalance: 1000, failBalance: 100, reward: '继续挑战' },
+        { level: 10, name: '得道', description: '完成终极挑战', targetBalance: 2000, initialBalance: 1000, failBalance: 100, reward: '通关大奖' },
+      ]);
+    }
+
+    // 获取配置
+    const configs = await db.query.challengeConfig.findMany({});
+    const configMap = configs.reduce((acc, cfg) => {
+      acc[cfg.configKey] = cfg.configValue;
+      return acc;
+    }, {} as Record<string, string>);
+
+    return { configMap, success: true };
+  } catch (error) {
+    console.error('初始化数据库失败:', error);
+    return { 
+      configMap: {}, 
+      success: false, 
+      error: error instanceof Error ? error.message : 'Unknown error' 
+    };
+  }
+}
+
 // 获取挑战状态
 export async function GET() {
   try {
@@ -16,6 +115,15 @@ export async function GET() {
 
     const userId = session.user.id;
 
+    // 确保表和配置存在
+    const { configMap, success, error } = await ensureTablesAndConfigExist();
+    if (!success) {
+      return NextResponse.json({ 
+        error: '系统初始化失败', 
+        details: error 
+      }, { status: 500 });
+    }
+
     // 获取用户的挑战申请记录（所有状态的）
     const registrations = await db.query.challengeRegistrations.findMany({
       where: eq(challengeRegistrations.userId, userId),
@@ -24,13 +132,6 @@ export async function GET() {
 
     // 获取最新的一条记录
     const latestRegistration = registrations[0] || null;
-
-    // 获取配置
-    const configs = await db.query.challengeConfig.findMany({});
-    const configMap = configs.reduce((acc, cfg) => {
-      acc[cfg.configKey] = cfg.configValue;
-      return acc;
-    }, {} as Record<string, string>);
 
     // 获取关卡配置
     const levelConfigs = await db.query.challengeLevelConfig.findMany({
@@ -104,12 +205,15 @@ export async function POST() {
 
     const userId = session.user.id;
 
-    // 获取配置
-    const configs = await db.query.challengeConfig.findMany({});
-    const configMap = configs.reduce((acc, cfg) => {
-      acc[cfg.configKey] = cfg.configValue;
-      return acc;
-    }, {} as Record<string, string>);
+    // 确保表和配置存在
+    const { configMap, success, error } = await ensureTablesAndConfigExist();
+    if (!success) {
+      console.error('初始化失败:', error);
+      return NextResponse.json({ 
+        error: '系统初始化失败，请稍后重试',
+        details: error 
+      }, { status: 500 });
+    }
 
     // 检查挑战赛是否启用
     if (configMap.challenge_enabled !== 'true') {
