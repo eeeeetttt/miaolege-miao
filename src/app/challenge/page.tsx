@@ -61,8 +61,10 @@ export default function ChallengePage() {
       const res = await fetch('/api/challenge/register');
       const data = await res.json();
       setChallengeStatus(data);
+      setLoading(false);
     } catch (error) {
       console.error('获取挑战状态失败:', error);
+      setLoading(false);
     }
   };
 
