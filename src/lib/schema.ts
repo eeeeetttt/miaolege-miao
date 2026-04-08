@@ -312,7 +312,7 @@ export const forumBans = mysqlTable('forum_bans', {
 export const challengeRegistrations = mysqlTable('challenge_registrations', {
   id: int('id').autoincrement().primaryKey(),
   userId: varchar('user_id', { length: 255 }).notNull().references(() => users.userId, { onDelete: 'cascade' }),
-  status: mysqlEnum('status', ['active', 'completed', 'failed']).default('active'),
+  status: mysqlEnum('status', ['pending', 'approved', 'rejected', 'active', 'completed', 'failed']).default('pending'), // pending=待审核, approved=已通过待绑定, active=挑战中, completed=已通关, failed=失败, rejected=已拒绝
   currentLevel: int('current_level').default(1), // 当前关卡（1-10）
   completedLevels: text('completed_levels'), // 已完成的关卡，JSON格式存储 [1,2,3...]
   startedAt: timestamp('started_at').defaultNow(), // 开始时间
@@ -320,12 +320,42 @@ export const challengeRegistrations = mysqlTable('challenge_registrations', {
   failedAt: timestamp('failed_at'), // 失败时间
   failedLevel: int('failed_level'), // 失败的关卡
   totalDuration: int('total_duration'), // 总耗时（秒）
+  // 管理员分配的账户信息
+  serverName: varchar('server_name', { length: 255 }), // 服务器名称
+  tradingAccount: varchar('trading_account', { length: 50 }), // 交易账号
+  tradingPassword: varchar('trading_password', { length: 255 }), // 交易密码（加密存储）
+  // 绑定的MT账户ID
+  mtAccountId: int('mt_account_id').references(() => mtAccounts.id, { onDelete: 'set null' }),
   createdAt: timestamp('created_at').defaultNow(),
 }, (table) => ({
   userActiveUnique: uniqueIndex('uk_challenge_user_active').on(table.userId, table.status),
   userIdx: index('idx_challenge_user').on(table.userId),
   statusIdx: index('idx_challenge_status').on(table.status),
 }));
+
+// K线征途配置表
+export const challengeConfig = mysqlTable('challenge_config', {
+  id: int('id').autoincrement().primaryKey(),
+  configKey: varchar('config_key', { length: 100 }).notNull().unique(),
+  configValue: text('config_value').notNull(),
+  description: varchar('description', { length: 255 }),
+  updatedAt: timestamp('updated_at').defaultNow().onUpdateNow(),
+});
+
+// K线征途关卡配置表
+export const challengeLevelConfig = mysqlTable('challenge_level_config', {
+  id: int('id').autoincrement().primaryKey(),
+  level: int('level').notNull().unique(), // 关卡号（1-10）
+  name: varchar('name', { length: 100 }).notNull(), // 关卡名称
+  description: text('description'), // 关卡描述
+  targetBalance: int('target_balance').notNull().default(2000), // 目标净值
+  initialBalance: int('initial_balance').notNull().default(1000), // 初始净值
+  failBalance: int('fail_balance').notNull().default(100), // 失败底线净值
+  reward: varchar('reward', { length: 255 }), // 奖励描述
+  isActive: boolean('is_active').default(true), // 是否启用
+  createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow().onUpdateNow(),
+});
 
 // K线征途名人堂
 export const challengeHallOfFame = mysqlTable('challenge_hall_of_fame', {
@@ -372,6 +402,10 @@ export type Document = typeof documents.$inferSelect;
 export type NewDocument = typeof documents.$inferInsert;
 export type SystemConfig = typeof systemConfig.$inferSelect;
 export type NewSystemConfig = typeof systemConfig.$inferInsert;
+export type ChallengeRegistration = typeof challengeRegistrations.$inferSelect;
+export type NewChallengeRegistration = typeof challengeRegistrations.$inferInsert;
+export type ChallengeConfig = typeof challengeConfig.$inferSelect;
+export type ChallengeLevelConfig = typeof challengeLevelConfig.$inferSelect;
 export type ForumPost = typeof forumPosts.$inferSelect;
 export type NewForumPost = typeof forumPosts.$inferInsert;
 export type ForumComment = typeof forumComments.$inferSelect;

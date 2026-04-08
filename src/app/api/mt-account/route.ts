@@ -5,7 +5,7 @@ import { db } from '@/lib/db';
 import { mtAccounts } from '@/lib/schema';
 import { eq } from 'drizzle-orm';
 
-// 获取用户的MT账号
+// 获取用户的所有MT账号
 export async function GET(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
@@ -14,13 +14,12 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: '请先登录' }, { status: 401 });
     }
 
-    const [account] = await db
+    const accounts = await db
       .select()
       .from(mtAccounts)
-      .where(eq(mtAccounts.userId, session.user.id))
-      .limit(1);
+      .where(eq(mtAccounts.userId, session.user.id));
 
-    return NextResponse.json({ account: account || null });
+    return NextResponse.json({ accounts: accounts || [] });
   } catch (error) {
     console.error('Get MT account error:', error);
     return NextResponse.json({ error: '获取MT账号失败' }, { status: 500 });
@@ -46,18 +45,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: '平台必须是MT4或MT5' }, { status: 400 });
     }
 
-    // 检查是否已绑定账号
-    const [existingAccount] = await db
-      .select()
-      .from(mtAccounts)
-      .where(eq(mtAccounts.userId, session.user.id))
-      .limit(1);
-
-    if (existingAccount) {
-      return NextResponse.json({ error: '您已绑定账号，每人只能绑定一个MT账号' }, { status: 400 });
-    }
-
-    // 检查账号是否已被其他人绑定
+    // 检查账号是否已被绑定（不限用户数量）
     const [accountExists] = await db
       .select()
       .from(mtAccounts)
