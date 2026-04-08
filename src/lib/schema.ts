@@ -308,6 +308,53 @@ export const forumBans = mysqlTable('forum_bans', {
   planetIdx: index('idx_forum_ban_planet').on(table.planetId),
 }));
 
+// K线征途挑战赛报名表
+export const challengeRegistrations = mysqlTable('challenge_registrations', {
+  id: int('id').autoincrement().primaryKey(),
+  userId: varchar('user_id', { length: 255 }).notNull().references(() => users.userId, { onDelete: 'cascade' }),
+  status: mysqlEnum('status', ['active', 'completed', 'failed']).default('active'),
+  currentLevel: int('current_level').default(1), // 当前关卡（1-10）
+  completedLevels: text('completed_levels'), // 已完成的关卡，JSON格式存储 [1,2,3...]
+  startedAt: timestamp('started_at').defaultNow(), // 开始时间
+  completedAt: timestamp('completed_at'), // 完成时间（通关第10关）
+  failedAt: timestamp('failed_at'), // 失败时间
+  failedLevel: int('failed_level'), // 失败的关卡
+  totalDuration: int('total_duration'), // 总耗时（秒）
+  createdAt: timestamp('created_at').defaultNow(),
+}, (table) => ({
+  userActiveUnique: uniqueIndex('uk_challenge_user_active').on(table.userId, table.status),
+  userIdx: index('idx_challenge_user').on(table.userId),
+  statusIdx: index('idx_challenge_status').on(table.status),
+}));
+
+// K线征途名人堂
+export const challengeHallOfFame = mysqlTable('challenge_hall_of_fame', {
+  id: int('id').autoincrement().primaryKey(),
+  userId: varchar('user_id', { length: 255 }).notNull().references(() => users.userId, { onDelete: 'cascade' }),
+  registrationId: int('registration_id').notNull().references(() => challengeRegistrations.id, { onDelete: 'cascade' }),
+  displayName: varchar('display_name', { length: 255 }).default('匿名用户'), // 显示昵称
+  isAnonymous: boolean('is_anonymous').default(false), // 是否匿名
+  completedAt: timestamp('completed_at').notNull(), // 通关时间
+  totalDuration: int('total_duration').notNull(), // 总耗时（秒）
+  rewardClaimed: boolean('reward_claimed').default(false), // 奖励是否已领取
+  rewardClaimedAt: timestamp('reward_claimed_at'), // 奖励领取时间
+  createdAt: timestamp('created_at').defaultNow(),
+}, (table) => ({
+  userUnique: uniqueIndex('uk_hall_user').on(table.userId),
+  completedAtIdx: index('idx_hall_completed_at').on(table.completedAt),
+}));
+
+// K线征途关卡记录
+export const challengeLevelRecords = mysqlTable('challenge_level_records', {
+  id: int('id').autoincrement().primaryKey(),
+  registrationId: int('registration_id').notNull().references(() => challengeRegistrations.id, { onDelete: 'cascade' }),
+  level: int('level').notNull(), // 关卡号（1-10）
+  startedAt: timestamp('started_at').defaultNow(), // 开始时间
+  completedAt: timestamp('completed_at'), // 完成时间
+  duration: int('duration'), // 用时（秒）
+  status: mysqlEnum('status', ['active', 'completed', 'failed']).default('active'),
+});
+
 // Type exports
 export type User = typeof users.$inferSelect;
 export type NewUser = typeof users.$inferInsert;
