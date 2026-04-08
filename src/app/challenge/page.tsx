@@ -46,6 +46,8 @@ export default function ChallengePage() {
   const [hallOfFame, setHallOfFame] = useState<HallOfFameEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [showConfetti, setShowConfetti] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [registering, setRegistering] = useState(false);
 
   useEffect(() => {
     if (status === 'authenticated') {
@@ -61,9 +63,15 @@ export default function ChallengePage() {
       const res = await fetch('/api/challenge/register');
       const data = await res.json();
       setChallengeStatus(data);
+      if (data.error) {
+        setErrorMessage(data.error);
+      } else {
+        setErrorMessage(null);
+      }
       setLoading(false);
     } catch (error) {
       console.error('获取挑战状态失败:', error);
+      setErrorMessage('网络错误，请刷新页面重试');
       setLoading(false);
     }
   };
@@ -79,6 +87,8 @@ export default function ChallengePage() {
   };
 
   const handleStartChallenge = async () => {
+    setRegistering(true);
+    setErrorMessage(null);
     try {
       const res = await fetch('/api/challenge/register', { method: 'POST' });
       const data = await res.json();
@@ -86,11 +96,13 @@ export default function ChallengePage() {
       if (data.success) {
         router.push('/challenge/play');
       } else {
-        alert(data.error || '报名失败');
+        setErrorMessage(data.error || data.details || '报名失败，请稍后重试');
       }
     } catch (error) {
       console.error('报名失败:', error);
-      alert('报名失败，请重试');
+      setErrorMessage('网络错误，请检查网络连接后重试');
+    } finally {
+      setRegistering(false);
     }
   };
 
@@ -209,9 +221,18 @@ export default function ChallengePage() {
                 <button 
                   className={styles.startButton}
                   onClick={handleStartChallenge}
+                  disabled={registering}
                 >
-                  立即报名（1000星球币）
+                  {registering ? '报名中...' : '立即报名（1000星球币）'}
                 </button>
+                {errorMessage && (
+                  <div className={styles.errorMessage}>
+                    <svg viewBox="0 0 24 24" fill="currentColor">
+                      <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/>
+                    </svg>
+                    {errorMessage}
+                  </div>
+                )}
               </div>
             )
           ) : (

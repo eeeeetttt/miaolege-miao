@@ -17,6 +17,67 @@ const TARGET_BALANCE = 2000;
 // 失败底线净值
 const FAIL_BALANCE = 100;
 
+// 自动创建数据库表
+async function ensureTablesExist(): Promise<boolean> {
+  try {
+    // 创建挑战赛报名表
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS challenge_registrations (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        user_id VARCHAR(255) NOT NULL,
+        status ENUM('active', 'completed', 'failed') DEFAULT 'active',
+        current_level INT DEFAULT 1,
+        completed_levels JSON,
+        started_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        completed_at TIMESTAMP NULL,
+        failed_at TIMESTAMP NULL,
+        failed_level INT NULL,
+        total_duration INT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        INDEX idx_challenge_user (user_id),
+        INDEX idx_challenge_status (status),
+        UNIQUE KEY uk_challenge_user_active (user_id, status)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+    `);
+
+    // 创建名人堂表
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS challenge_hall_of_fame (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        user_id VARCHAR(255) NOT NULL,
+        registration_id INT NOT NULL,
+        display_name VARCHAR(255) DEFAULT '通关大师',
+        is_anonymous BOOLEAN DEFAULT FALSE,
+        completed_at TIMESTAMP NOT NULL,
+        total_duration INT NOT NULL,
+        reward_claimed BOOLEAN DEFAULT FALSE,
+        reward_claimed_at TIMESTAMP NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE KEY uk_hall_user (user_id),
+        INDEX idx_hall_completed_at (completed_at)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+    `);
+
+    // 创建关卡记录表
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS challenge_level_records (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        registration_id INT NOT NULL,
+        level INT NOT NULL,
+        started_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        completed_at TIMESTAMP NULL,
+        duration INT NULL,
+        status ENUM('active', 'completed', 'failed') DEFAULT 'active'
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+    `);
+
+    return true;
+  } catch (error) {
+    console.error('创建表失败:', error);
+    return false;
+  }
+}
+
 // 参与挑战赛报名
 export async function POST() {
   try {
@@ -27,6 +88,14 @@ export async function POST() {
     }
 
     const userId = session.user.id;
+
+    // 自动确保表存在
+    const tablesExist = await ensureTablesExist();
+    if (!tablesExist) {
+      return NextResponse.json({ 
+        error: '系统初始化失败，请稍后重试或联系管理员' 
+      }, { status: 500 });
+    }
 
     // 检查是否已有活跃的挑战
     const existingRegistration = await db.query.challengeRegistrations.findFirst({
