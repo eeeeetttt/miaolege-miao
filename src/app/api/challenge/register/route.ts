@@ -5,6 +5,31 @@ import { db } from '@/lib/db';
 import { challengeRegistrations, users } from '@/lib/schema';
 import { eq, and, sql } from 'drizzle-orm';
 
+// 配置行类型
+interface ConfigRow {
+  config_key: string;
+  config_value: string;
+}
+
+// 关卡行类型
+interface LevelRow {
+  level: number;
+  name: string;
+  description: string | null;
+  target_balance: number;
+  initial_balance: number;
+  fail_balance: number;
+  reward: string | null;
+}
+
+// 安全获取查询结果
+function getResultRows<T>(result: unknown): T[] {
+  if (Array.isArray(result) && result.length > 0) {
+    return result[0] as T[];
+  }
+  return [] as T[];
+}
+
 // 自动创建数据库表和初始化配置
 async function ensureTablesAndConfigExist(): Promise<{ configMap: Record<string, string>; success: boolean; error?: string }> {
   try {
@@ -63,11 +88,10 @@ async function ensureTablesAndConfigExist(): Promise<{ configMap: Record<string,
     await new Promise(resolve => setTimeout(resolve, 100));
 
     // 使用原生SQL检查配置是否存在
-    const [configRows] = await db.execute<Array<{ config_key: string; config_value: string }>>(
-      sql`SELECT config_key, config_value FROM challenge_config`
-    );
+    const result = await db.execute(sql`SELECT config_key, config_value FROM challenge_config`);
+    const configRows = getResultRows<ConfigRow>(result);
     
-    if (!configRows || configRows.length === 0) {
+    if (configRows.length === 0) {
       // 插入默认配置
       await db.execute(sql`
         INSERT INTO challenge_config (config_key, config_value, description) VALUES 
@@ -78,21 +102,21 @@ async function ensureTablesAndConfigExist(): Promise<{ configMap: Record<string,
       `);
       
       // 重新获取配置
-      const [newConfigRows] = await db.execute<Array<{ config_key: string; config_value: string }>>(
-        sql`SELECT config_key, config_value FROM challenge_config`
-      );
-      const configMap = (newConfigRows || []).reduce((acc, cfg) => {
-        acc[cfg.config_key] = cfg.config_value;
-        return acc;
-      }, {} as Record<string, string>);
+      const newResult = await db.execute(sql`SELECT config_key, config_value FROM challenge_config`);
+      const newConfigRows = getResultRows<ConfigRow>(newResult);
+      
+      const configMap: Record<string, string> = {};
+      for (const cfg of newConfigRows) {
+        configMap[cfg.config_key] = cfg.config_value;
+      }
       return { configMap, success: true };
     }
 
     // 构建配置Map
-    const configMap = configRows.reduce((acc, cfg) => {
-      acc[cfg.config_key] = cfg.config_value;
-      return acc;
-    }, {} as Record<string, string>);
+    const configMap: Record<string, string> = {};
+    for (const cfg of configRows) {
+      configMap[cfg.config_key] = cfg.config_value;
+    }
 
     return { configMap, success: true };
   } catch (error) {
@@ -135,15 +159,13 @@ export async function GET() {
     const latestRegistration = registrations[0] || null;
 
     // 获取关卡配置
-    const [levelRows] = await db.execute<Array<{
-      level: number;
-      name: string;
-      description: string | null;
-      target_balance: number;
-      initial_balance: number;
-      fail_balance: number;
-      reward: string | null;
-    }>>(sql`SELECT level, name, description, target_balance, initial_balance, fail_balance, reward FROM challenge_level_config WHERE is_active = true ORDER BY level`);
+    const levelResult = await db.execute(sql`
+      SELECT level, name, description, target_balance, initial_balance, fail_balance, reward 
+      FROM challenge_level_config 
+      WHERE is_active = true 
+      ORDER BY level
+    `);
+    const levelRows = getResultRows<LevelRow>(levelResult);
 
     if (!latestRegistration) {
       return NextResponse.json({
@@ -152,7 +174,7 @@ export async function GET() {
         registration: null,
         registrationFee: parseInt(configMap.registration_fee || '1000'),
         config: configMap,
-        levelConfigs: levelRows || [],
+        levelConfigs: levelRows,
         message: '您还未申请挑战赛',
       });
     }
@@ -188,7 +210,7 @@ export async function GET() {
       canReapply,
       registrationFee: parseInt(configMap.registration_fee || '1000'),
       config: configMap,
-      levelConfigs: levelRows || [],
+      levelConfigs: levelRows,
       message: getStatusMessage(latestRegistration.status || 'pending'),
     });
   } catch (error) {
