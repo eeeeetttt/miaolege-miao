@@ -166,11 +166,3 @@ export async function GET() {
     }, { status: 500 });
   }
 }
-
-// 导出常量供其他模块使用
-export const CHALLENGE_CONFIG = {
-  REGISTRATION_FEE,
-  INITIAL_BALANCE,
-  TARGET_BALANCE,
-  FAIL_BALANCE,
-};
