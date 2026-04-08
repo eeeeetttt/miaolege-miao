@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { db } from '@/lib/db';
-import { challengeRegistrations, users } from '@/lib/schema';
+import { challengeRegistrations, users, challengeConfig, challengeLevelConfig } from '@/lib/schema';
 import { eq, and, sql } from 'drizzle-orm';
 
 // 获取挑战状态
@@ -34,7 +34,7 @@ export async function GET() {
 
     // 获取关卡配置
     const levelConfigs = await db.query.challengeLevelConfig.findMany({
-      where: eq(db.query.challengeLevelConfig.fields.isActive, true),
+      where: eq(challengeLevelConfig.isActive, true),
       orderBy: (t, { asc }) => [asc(t.level)],
     });
 
@@ -82,7 +82,7 @@ export async function GET() {
       registrationFee: parseInt(configMap.registration_fee || '1000'),
       config: configMap,
       levelConfigs,
-      message: getStatusMessage(latestRegistration.status),
+      message: getStatusMessage(latestRegistration.status || 'pending'),
     });
   } catch (error) {
     console.error('Get challenge status error:', error);
