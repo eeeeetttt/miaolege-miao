@@ -2,10 +2,17 @@ import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { db } from '@/lib/db';
-import { challengeRegistrations, users } from '@/lib/schema';
+import { users } from '@/lib/schema';
 import { eq, and, sql } from 'drizzle-orm';
 
-// 配置行类型
+// 用户行类型
+interface UserRow {
+  user_id: string;
+  email: string | null;
+  name: string | null;
+  coin_balance: number | null;
+  role: string | null;
+}
 interface ConfigRow {
   config_key: string;
   config_value: string;
@@ -20,6 +27,25 @@ interface LevelRow {
   initial_balance: number;
   fail_balance: number;
   reward: string | null;
+}
+
+// 报名记录行类型
+interface RegistrationRow {
+  id: number;
+  user_id: string;
+  status: string;
+  current_level: number | null;
+  completed_levels: string | null;
+  started_at: Date | null;
+  completed_at: Date | null;
+  failed_at: Date | null;
+  failed_level: number | null;
+  total_duration: number | null;
+  server_name: string | null;
+  trading_account: string | null;
+  trading_password: string | null;
+  mt_account_id: number | null;
+  created_at: Date | null;
 }
 
 // 安全获取查询结果
@@ -129,6 +155,41 @@ async function ensureTablesAndConfigExist(): Promise<{ configMap: Record<string,
   }
 }
 
+// 使用原生SQL查询用户的挑战申请记录
+async function getUserRegistrations(userId: string): Promise<RegistrationRow[]> {
+  const result = await db.execute<RegistrationRow>(
+    sql`SELECT * FROM challenge_registrations WHERE user_id = ${userId} ORDER BY created_at DESC`
+  );
+  return getResultRows<RegistrationRow>(result);
+}
+
+// 使用原生SQL查询用户的待审核申请
+async function getPendingRegistration(userId: string): Promise<RegistrationRow | null> {
+  const result = await db.execute<RegistrationRow>(
+    sql`SELECT * FROM challenge_registrations WHERE user_id = ${userId} AND status = 'pending' LIMIT 1`
+  );
+  const rows = getResultRows<RegistrationRow>(result);
+  return rows[0] || null;
+}
+
+// 使用原生SQL查询用户进行中的挑战
+async function getActiveRegistration(userId: string): Promise<RegistrationRow | null> {
+  const result = await db.execute<RegistrationRow>(
+    sql`SELECT * FROM challenge_registrations WHERE user_id = ${userId} AND status = 'active' LIMIT 1`
+  );
+  const rows = getResultRows<RegistrationRow>(result);
+  return rows[0] || null;
+}
+
+// 使用原生SQL查询用户待激活的申请
+async function getApprovedRegistration(userId: string): Promise<RegistrationRow | null> {
+  const result = await db.execute<RegistrationRow>(
+    sql`SELECT * FROM challenge_registrations WHERE user_id = ${userId} AND status = 'approved' LIMIT 1`
+  );
+  const rows = getResultRows<RegistrationRow>(result);
+  return rows[0] || null;
+}
+
 // 获取挑战状态
 export async function GET() {
   try {
@@ -149,13 +210,8 @@ export async function GET() {
       }, { status: 500 });
     }
 
-    // 获取用户的挑战申请记录（所有状态的）
-    const registrations = await db.query.challengeRegistrations.findMany({
-      where: eq(challengeRegistrations.userId, userId),
-      orderBy: (t, { desc }) => [desc(t.createdAt)],
-    });
-
-    // 获取最新的一条记录
+    // 获取用户的挑战申请记录
+    const registrations = await getUserRegistrations(userId);
     const latestRegistration = registrations[0] || null;
 
     // 获取关卡配置
@@ -196,22 +252,22 @@ export async function GET() {
       registration: {
         id: latestRegistration.id,
         status: latestRegistration.status,
-        currentLevel: latestRegistration.currentLevel,
-        completedLevels: latestRegistration.completedLevels 
-          ? JSON.parse(latestRegistration.completedLevels) 
+        currentLevel: latestRegistration.current_level,
+        completedLevels: latestRegistration.completed_levels 
+          ? JSON.parse(latestRegistration.completed_levels) 
           : [],
-        startedAt: latestRegistration.startedAt,
-        serverName: latestRegistration.serverName,
-        tradingAccount: latestRegistration.tradingAccount,
-        completedAt: latestRegistration.completedAt,
-        failedAt: latestRegistration.failedAt,
-        failedLevel: latestRegistration.failedLevel,
+        startedAt: latestRegistration.started_at,
+        serverName: latestRegistration.server_name,
+        tradingAccount: latestRegistration.trading_account,
+        completedAt: latestRegistration.completed_at,
+        failedAt: latestRegistration.failed_at,
+        failedLevel: latestRegistration.failed_level,
       },
       canReapply,
       registrationFee: parseInt(configMap.registration_fee || '1000'),
       config: configMap,
       levelConfigs: levelRows,
-      message: getStatusMessage(latestRegistration.status || 'pending'),
+      message: getStatusMessage(latestRegistration.status),
     });
   } catch (error) {
     console.error('Get challenge status error:', error);
@@ -254,22 +310,16 @@ export async function POST() {
     }
 
     // 获取用户信息
-    const user = await db.query.users.findFirst({
-      where: eq(users.userId, userId),
-    });
+    const userResult = await db.execute<UserRow>(sql`SELECT user_id, email, name, coin_balance, role FROM users WHERE user_id = ${userId} LIMIT 1`);
+    const userRows = getResultRows<UserRow>(userResult);
+    const user = userRows[0];
 
     if (!user) {
       return NextResponse.json({ error: '用户不存在' }, { status: 404 });
     }
 
     // 检查是否已有未处理的申请
-    const existingPending = await db.query.challengeRegistrations.findFirst({
-      where: and(
-        eq(challengeRegistrations.userId, userId),
-        eq(challengeRegistrations.status, 'pending')
-      ),
-    });
-
+    const existingPending = await getPendingRegistration(userId);
     if (existingPending) {
       return NextResponse.json({ 
         error: '您已提交过申请，请等待审核' 
@@ -277,13 +327,7 @@ export async function POST() {
     }
 
     // 检查是否已有进行中的挑战
-    const existingActive = await db.query.challengeRegistrations.findFirst({
-      where: and(
-        eq(challengeRegistrations.userId, userId),
-        eq(challengeRegistrations.status, 'active')
-      ),
-    });
-
+    const existingActive = await getActiveRegistration(userId);
     if (existingActive) {
       return NextResponse.json({ 
         error: '您已有正在进行的挑战' 
@@ -291,13 +335,7 @@ export async function POST() {
     }
 
     // 检查是否有待激活的申请
-    const existingApproved = await db.query.challengeRegistrations.findFirst({
-      where: and(
-        eq(challengeRegistrations.userId, userId),
-        eq(challengeRegistrations.status, 'approved')
-      ),
-    });
-
+    const existingApproved = await getApprovedRegistration(userId);
     if (existingApproved) {
       return NextResponse.json({ 
         error: '您的申请已通过，请等待激活' 
@@ -306,7 +344,7 @@ export async function POST() {
 
     // 检查星球币余额
     const registrationFee = parseInt(configMap.registration_fee || '1000');
-    const currentBalance = user.coinBalance ?? 0;
+    const currentBalance = user.coin_balance ?? 0;
     
     if (currentBalance < registrationFee) {
       return NextResponse.json({ 
@@ -315,26 +353,19 @@ export async function POST() {
     }
 
     // 扣除报名费
-    await db
-      .update(users)
-      .set({ 
-        coinBalance: sql`coin_balance - ${registrationFee}`,
-        updatedAt: new Date()
-      })
-      .where(eq(users.userId, userId));
+    await db.execute(
+      sql`UPDATE users SET coin_balance = coin_balance - ${registrationFee}, updated_at = NOW() WHERE user_id = ${userId}`
+    );
 
     // 创建申请记录
-    const [insertResult] = await db.insert(challengeRegistrations).values({
-      userId,
-      status: 'pending',
-      currentLevel: 1,
-      completedLevels: JSON.stringify([]),
-    }).$returningId();
+    const insertResult = await db.execute(
+      sql`INSERT INTO challenge_registrations (user_id, status, current_level, completed_levels) VALUES (${userId}, 'pending', 1, '[]')`
+    );
 
     return NextResponse.json({
       success: true,
       message: '申请已提交，请等待管理员审核。审核通过后，我们会通过邮件通知您。',
-      applicationId: insertResult.id,
+      applicationId: insertResult,
     });
   } catch (error) {
     console.error('Challenge application error:', error);
