@@ -97,11 +97,18 @@ export default function ChallengePage() {
     try {
       const res = await fetch('/api/challenge/register');
       const data = await res.json();
-      setChallengeData(data);
-      if (data.error) {
-        setErrorMessage(data.error);
+      console.log('获取挑战数据:', res.status, data);
+      
+      if (res.ok) {
+        setChallengeData(data);
+        if (data.error) {
+          setErrorMessage(data.error);
+        } else {
+          setErrorMessage(null);
+        }
       } else {
-        setErrorMessage(null);
+        // 处理401等错误
+        setErrorMessage(data.error || data.details || '获取挑战状态失败');
       }
       setLoading(false);
     } catch (error) {
@@ -145,12 +152,22 @@ export default function ChallengePage() {
     try {
       const res = await fetch('/api/challenge/register', { method: 'POST' });
       const data = await res.json();
+      console.log('报名响应:', res.status, data);
       
       if (data.success) {
         setSuccessMessage(data.message || '申请已提交，请等待审核');
         fetchChallengeData();
       } else {
-        setErrorMessage(data.error || data.details || '申请失败，请稍后重试');
+        // 优先显示具体错误原因
+        const errorMsg = data.details || data.error || '申请失败，请稍后重试';
+        console.log('报名失败原因:', errorMsg);
+        setErrorMessage(errorMsg);
+        
+        // 如果是未登录，提示用户去登录
+        if (data.errorCode === 'NOT_LOGGED_IN') {
+          // 可以添加一个跳转到登录页的提示
+          setErrorMessage('请先登录后再报名');
+        }
       }
     } catch (error) {
       console.error('申请失败:', error);

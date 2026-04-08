@@ -200,10 +200,15 @@ export async function POST() {
     const session = await getServerSession(authOptions);
     
     if (!session?.user?.id) {
-      return NextResponse.json({ error: '请先登录' }, { status: 401 });
+      // 返回更明确的错误提示
+      return NextResponse.json({ 
+        error: '请先登录后再报名',
+        errorCode: 'NOT_LOGGED_IN'
+      }, { status: 401 });
     }
 
     const userId = session.user.id;
+    console.log('用户报名:', userId);
 
     // 确保表和配置存在
     const { configMap, success, error } = await ensureTablesAndConfigExist();
