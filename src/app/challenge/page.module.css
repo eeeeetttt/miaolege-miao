@@ -250,6 +250,39 @@
   box-shadow: 0 6px 20px rgba(245, 158, 11, 0.5);
 }
 
+.rules {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin: 1rem 0 1.5rem;
+  padding: 1rem;
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 0.75rem;
+  text-align: left;
+}
+
+.ruleItem {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  font-size: 0.875rem;
+}
+
+.ruleLabel {
+  background: rgba(59, 130, 246, 0.2);
+  color: #3b82f6;
+  padding: 0.25rem 0.5rem;
+  border-radius: 0.25rem;
+  font-weight: 600;
+  font-size: 0.75rem;
+  min-width: 5rem;
+  text-align: center;
+}
+
+.ruleText {
+  color: #a1a1aa;
+}
+
 .loginPrompt {
   background: rgba(255, 255, 255, 0.05);
   border: 1px solid rgba(255, 255, 255, 0.1);

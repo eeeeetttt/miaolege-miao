@@ -1,149 +1,50 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import styles from './page.module.css';
 
-interface Level {
-  number: number;
-  name: string;
-  description: string;
-  target: string;
-  tasks: { id: string; text: string }[];
-}
-
-const levels: Level[] = [
-  { 
-    number: 1, 
-    name: '初入江湖', 
-    description: '完成一笔交易', 
-    target: '1笔交易',
-    tasks: [
-      { id: '1-1', text: '登录交易账户' },
-      { id: '1-2', text: '选择交易品种' },
-      { id: '1-3', text: '执行交易订单' },
-    ]
-  },
-  { 
-    number: 2, 
-    name: '小试牛刀', 
-    description: '连续3天每日交易', 
-    target: '3天交易',
-    tasks: [
-      { id: '2-1', text: '第1天：执行交易' },
-      { id: '2-2', text: '第2天：执行交易' },
-      { id: '2-3', text: '第3天：执行交易' },
-    ]
-  },
-  { 
-    number: 3, 
-    name: '稳步前进', 
-    description: '累计10笔交易', 
-    target: '10笔交易',
-    tasks: [
-      { id: '3-1', text: '完成5笔买入交易' },
-      { id: '3-2', text: '完成5笔卖出交易' },
-    ]
-  },
-  { 
-    number: 4, 
-    name: '略有小成', 
-    description: '周收益率达到5%', 
-    target: '5%收益',
-    tasks: [
-      { id: '4-1', text: '分析市场趋势' },
-      { id: '4-2', text: '设置止盈止损' },
-      { id: '4-3', text: '等待收益达到5%' },
-    ]
-  },
-  { 
-    number: 5, 
-    name: '渐入佳境', 
-    description: '连续5天稳定盈利', 
-    target: '5天盈利',
-    tasks: [
-      { id: '5-1', text: '第1天盈利' },
-      { id: '5-2', text: '第2天盈利' },
-      { id: '5-3', text: '第3天盈利' },
-      { id: '5-4', text: '第4天盈利' },
-      { id: '5-5', text: '第5天盈利' },
-    ]
-  },
-  { 
-    number: 6, 
-    name: '身手不凡', 
-    description: '月收益达到20%', 
-    target: '20%收益',
-    tasks: [
-      { id: '6-1', text: '制定交易计划' },
-      { id: '6-2', text: '执行多个交易策略' },
-      { id: '6-3', text: '累计收益达到20%' },
-    ]
-  },
-  { 
-    number: 7, 
-    name: '出类拔萃', 
-    description: '控制回撤在10%以内', 
-    target: '<10%回撤',
-    tasks: [
-      { id: '7-1', text: '设置严格止损' },
-      { id: '7-2', text: '监控账户风险' },
-      { id: '7-3', text: '保持回撤小于10%' },
-    ]
-  },
-  { 
-    number: 8, 
-    name: '技惊四座', 
-    description: '周收益翻倍', 
-    target: '100%收益',
-    tasks: [
-      { id: '8-1', text: '执行高收益策略' },
-      { id: '8-2', text: '把握市场机会' },
-      { id: '8-3', text: '实现资金翻倍' },
-    ]
-  },
-  { 
-    number: 9, 
-    name: '登峰造极', 
-    description: '连续30天稳定盈利', 
-    target: '30天盈利',
-    tasks: [
-      { id: '9-1', text: '第1-10天稳定盈利' },
-      { id: '9-2', text: '第11-20天稳定盈利' },
-      { id: '9-3', text: '第21-30天稳定盈利' },
-    ]
-  },
-  { 
-    number: 10, 
-    name: '一代宗师', 
-    description: '累计收益达到500%', 
-    target: '500%收益',
-    tasks: [
-      { id: '10-1', text: '执行大师级策略' },
-      { id: '10-2', text: '完成多个盈利周期' },
-      { id: '10-3', text: '达到500%累计收益' },
-      { id: '10-4', text: '通关K线征途！' },
-    ]
-  },
+const levels = [
+  { number: 1, name: '启念', description: '开始你的交易之旅' },
+  { number: 2, name: '立规', description: '建立交易规则' },
+  { number: 3, name: '守戒', description: '遵守交易纪律' },
+  { number: 4, name: '忍痛', description: '学会止损止盈' },
+  { number: 5, name: '止喜', description: '控制情绪波动' },
+  { number: 6, name: '观己', description: '认识自我弱点' },
+  { number: 7, name: '破执', description: '突破固有思维' },
+  { number: 8, name: '随势', description: '顺势而为' },
+  { number: 9, name: '忘我', description: '达到交易境界' },
+  { number: 10, name: '得道', description: '完成终极挑战' },
 ];
+
+const INITIAL_BALANCE = 1000;
+const TARGET_BALANCE = 2000;
+const FAIL_BALANCE = 100;
+
+interface ChallengeStatus {
+  id: number;
+  currentLevel: number;
+  completedLevels: number[];
+  startedAt: string;
+  initialBalance: number;
+  targetBalance: number;
+  failBalance: number;
+}
 
 export default function ChallengePlayPage() {
   const router = useRouter();
   const { data: session, status } = useSession();
-  const [challengeStatus, setChallengeStatus] = useState<{
-    id: number;
-    currentLevel: number;
-    completedLevels: number[];
-    startedAt: string;
-  } | null>(null);
+  const [challengeStatus, setChallengeStatus] = useState<ChallengeStatus | null>(null);
   const [loading, setLoading] = useState(true);
-  const [activeTask, setActiveTask] = useState<string | null>(null);
-  const [completedTasks, setCompletedTasks] = useState<string[]>([]);
-  const [levelComplete, setLevelComplete] = useState(false);
+  const [currentBalance, setCurrentBalance] = useState(INITIAL_BALANCE);
+  const [balanceInput, setBalanceInput] = useState(INITIAL_BALANCE.toString());
   const [showVictory, setShowVictory] = useState(false);
+  const [showFailed, setShowFailed] = useState(false);
   const [elapsedTime, setElapsedTime] = useState(0);
-  const [startTime, setStartTime] = useState<number | null>(null);
+  const [message, setMessage] = useState<{ type: 'success' | 'error' | 'info'; text: string } | null>(null);
+  const [levelJustCompleted, setLevelJustCompleted] = useState(false);
+  const [rewards, setRewards] = useState<{ cash: string; trophy: string } | null>(null);
 
   useEffect(() => {
     if (status === 'authenticated') {
@@ -155,13 +56,14 @@ export default function ChallengePlayPage() {
 
   useEffect(() => {
     let timer: NodeJS.Timeout;
-    if (startTime && !levelComplete && !showVictory) {
+    if (challengeStatus && !showVictory && !showFailed) {
       timer = setInterval(() => {
-        setElapsedTime(Math.floor((Date.now() - startTime) / 1000));
+        const start = new Date(challengeStatus.startedAt).getTime();
+        setElapsedTime(Math.floor((Date.now() - start) / 1000));
       }, 1000);
     }
     return () => clearInterval(timer);
-  }, [startTime, levelComplete, showVictory]);
+  }, [challengeStatus, showVictory, showFailed]);
 
   const fetchChallengeStatus = async () => {
     try {
@@ -170,19 +72,8 @@ export default function ChallengePlayPage() {
       
       if (data.hasActiveChallenge && data.registration) {
         setChallengeStatus(data.registration);
-        setStartTime(Date.now() - (elapsedTime * 1000));
-        
-        // 加载已完成的任务
-        if (data.registration.completedLevels.length > 0) {
-          const tasks: string[] = [];
-          data.registration.completedLevels.forEach((level: number) => {
-            const levelData = levels.find(l => l.number === level);
-            if (levelData) {
-              levelData.tasks.forEach(task => tasks.push(task.id));
-            }
-          });
-          setCompletedTasks(tasks);
-        }
+        setCurrentBalance(INITIAL_BALANCE);
+        setBalanceInput(INITIAL_BALANCE.toString());
       } else {
         router.push('/challenge');
       }
@@ -195,65 +86,76 @@ export default function ChallengePlayPage() {
 
   const currentLevelData = levels.find(l => l.number === challengeStatus?.currentLevel);
 
-  const handleTaskClick = (taskId: string) => {
-    if (completedTasks.includes(taskId)) return;
-    setActiveTask(taskId);
+  const handleUpdateBalance = async () => {
+    const balance = parseInt(balanceInput);
+    
+    if (isNaN(balance) || balance < 0) {
+      setMessage({ type: 'error', text: '请输入有效的账户净值' });
+      return;
+    }
+
+    setCurrentBalance(balance);
+
+    try {
+      // 先检查状态
+      const checkRes = await fetch('/api/challenge/level', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ balance }),
+      });
+      const checkData = await checkRes.json();
+
+      if (checkData.levelCompleted) {
+        setMessage({ type: 'success', text: checkData.message });
+        setLevelJustCompleted(true);
+      } else if (checkData.failed) {
+        setShowFailed(true);
+        setMessage({ type: 'error', text: checkData.message });
+      } else {
+        const progress = checkData.progress || '0';
+        setMessage({ 
+          type: 'info', 
+          text: `当前进度: ${progress}% | 目标: ${TARGET_BALANCE} | 底线: ${FAIL_BALANCE}` 
+        });
+      }
+    } catch (error) {
+      console.error('更新余额失败:', error);
+      setMessage({ type: 'error', text: '更新失败，请重试' });
+    }
   };
 
-  const handleCompleteTask = async () => {
-    if (!activeTask || !currentLevelData) return;
+  const handleContinueNextLevel = async () => {
+    try {
+      const res = await fetch('/api/challenge/level', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+      });
+      const data = await res.json();
 
-    const newCompletedTasks = [...completedTasks, activeTask];
-    setCompletedTasks(newCompletedTasks);
-    setActiveTask(null);
-
-    // 检查是否完成所有任务
-    const allTasksComplete = currentLevelData.tasks.every(task => 
-      newCompletedTasks.includes(task.id)
-    );
-
-    if (allTasksComplete) {
-      // 完成关卡
-      try {
-        const res = await fetch('/api/challenge/level', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            level: challengeStatus?.currentLevel,
-            duration: elapsedTime,
-          }),
-        });
-        const data = await res.json();
-
-        if (data.success) {
-          if (data.completed) {
-            // 通关
-            setShowVictory(true);
-            setLevelComplete(true);
-          } else {
-            // 继续下一关
-            setLevelComplete(true);
-            setTimeout(() => {
-              setChallengeStatus(prev => prev ? {
-                ...prev,
-                currentLevel: data.nextLevel,
-                completedLevels: data.completedLevels,
-              } : null);
-              setCompletedTasks([]);
-              setLevelComplete(false);
-              setElapsedTime(0);
-              setStartTime(Date.now());
-            }, 2000);
-          }
+      if (data.success) {
+        if (data.completed) {
+          setShowVictory(true);
+          setRewards(data.rewards);
+        } else {
+          // 进入下一关，重置余额
+          setLevelJustCompleted(false);
+          setCurrentBalance(INITIAL_BALANCE);
+          setBalanceInput(INITIAL_BALANCE.toString());
+          setMessage({ type: 'success', text: data.message });
+          // 刷新状态
+          await fetchChallengeStatus();
         }
-      } catch (error) {
-        console.error('完成关卡失败:', error);
+      } else {
+        setMessage({ type: 'error', text: data.error || '操作失败' });
       }
+    } catch (error) {
+      console.error('继续下一关失败:', error);
+      setMessage({ type: 'error', text: '操作失败，请重试' });
     }
   };
 
   const handleAbandon = async () => {
-    if (!confirm('确定要放弃当前挑战吗？')) return;
+    if (!confirm('确定要放弃当前挑战吗？报名费将不予退还。')) return;
     
     try {
       await fetch('/api/challenge/level', { method: 'DELETE' });
@@ -274,6 +176,18 @@ export default function ChallengePlayPage() {
     return `${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   };
 
+  const getProgress = () => {
+    if (currentBalance < INITIAL_BALANCE) {
+      // 计算距离失败的距离
+      return Math.max(0, ((currentBalance - FAIL_BALANCE) / (INITIAL_BALANCE - FAIL_BALANCE)) * 100);
+    }
+    // 计算距离通关的距离
+    return Math.min(100, ((currentBalance - INITIAL_BALANCE) / (TARGET_BALANCE - INITIAL_BALANCE)) * 100);
+  };
+
+  const isInDanger = currentBalance < INITIAL_BALANCE && currentBalance >= FAIL_BALANCE;
+  const isCritical = currentBalance < FAIL_BALANCE;
+
   if (loading) {
     return (
       <div className={styles.container}>
@@ -291,7 +205,6 @@ export default function ChallengePlayPage() {
 
   return (
     <div className={styles.container}>
-      
       {/* 背景装饰 */}
       <div className={styles.bgDecoration}>
         <div className={styles.particles}>
@@ -332,6 +245,19 @@ export default function ChallengePlayPage() {
                 </span>
               </div>
             </div>
+            {rewards && (
+              <div className={styles.rewardsSection}>
+                <h3>通关大奖</h3>
+                <div className={styles.rewardItem}>
+                  <span className={styles.rewardLabel}>现金奖</span>
+                  <span className={styles.rewardValue}>{rewards.cash}</span>
+                </div>
+                <div className={styles.rewardItem}>
+                  <span className={styles.rewardLabel}>实物奖</span>
+                  <span className={styles.rewardValue}>{rewards.trophy}</span>
+                </div>
+              </div>
+            )}
             <button 
               className={styles.victoryButton}
               onClick={() => router.push('/challenge')}
@@ -351,6 +277,40 @@ export default function ChallengePlayPage() {
                 }}
               />
             ))}
+          </div>
+        </div>
+      )}
+
+      {/* 失败动画 */}
+      {showFailed && (
+        <div className={styles.failedOverlay}>
+          <div className={styles.failedContent}>
+            <div className={styles.failedIcon}>
+              <svg viewBox="0 0 24 24" fill="currentColor">
+                <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/>
+              </svg>
+            </div>
+            <h1 className={styles.failedTitle}>挑战失败</h1>
+            <p className={styles.failedSubtitle}>账户净值已低于100</p>
+            <div className={styles.failedStats}>
+              <div className={styles.failedStat}>
+                <span className={styles.statLabel}>失败关卡</span>
+                <span className={styles.statValue}>第{challengeStatus.currentLevel}关</span>
+              </div>
+              <div className={styles.failedStat}>
+                <span className={styles.statLabel}>当前净值</span>
+                <span className={styles.statValue}>{currentBalance}</span>
+              </div>
+            </div>
+            <div className={styles.failedNote}>
+              报名费不予退还，重新开始需再次支付1000星球币
+            </div>
+            <button 
+              className={styles.failedButton}
+              onClick={() => router.push('/challenge')}
+            >
+              返回挑战主页
+            </button>
           </div>
         </div>
       )}
@@ -382,102 +342,130 @@ export default function ChallengePlayPage() {
         <div className={styles.progressSection}>
           <div className={styles.progressBar}>
             <div 
-              className={styles.progressFill}
-              style={{ 
-                width: `${(completedTasks.length / currentLevelData.tasks.length) * 100}%` 
-              }}
+              className={`${styles.progressFill} ${isInDanger ? styles.danger : ''} ${isCritical ? styles.critical : ''}`}
+              style={{ width: `${getProgress()}%` }}
+            />
+            <div 
+              className={styles.failLine}
+              style={{ left: `${((FAIL_BALANCE - FAIL_BALANCE) / (TARGET_BALANCE - FAIL_BALANCE)) * 100}%` }}
             />
           </div>
-          <span className={styles.progressText}>
-            {completedTasks.length} / {currentLevelData.tasks.length} 任务完成
-          </span>
+          <div className={styles.progressLabels}>
+            <span className={styles.failLabel}>失败线: {FAIL_BALANCE}</span>
+            <span className={styles.startLabel}>起始: {INITIAL_BALANCE}</span>
+            <span className={styles.targetLabel}>目标: {TARGET_BALANCE}</span>
+          </div>
         </div>
 
-        {/* 关卡提示 */}
-        {levelComplete && !showVictory && (
+        {/* 余额显示 */}
+        <div className={styles.balanceSection}>
+          <div className={`${styles.balanceDisplay} ${isInDanger ? styles.danger : ''} ${isCritical ? styles.critical : ''}`}>
+            <span className={styles.balanceLabel}>当前账户净值</span>
+            <span className={styles.balanceValue}>{currentBalance}</span>
+          </div>
+        </div>
+
+        {/* 关卡完成提示 */}
+        {levelJustCompleted && (
           <div className={styles.levelCompleteBanner}>
             <div className={styles.checkmark}>
               <svg viewBox="0 0 24 24" fill="currentColor">
                 <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/>
               </svg>
             </div>
-            <span>关卡完成！{challengeStatus.currentLevel < 10 ? '正在进入下一关...' : ''}</span>
+            <span>恭喜完成第{challengeStatus.currentLevel}关！</span>
+            <p className={styles.resetHint}>请将账户余额重置为1000后点击下方按钮继续</p>
+            <button 
+              className={styles.continueButton}
+              onClick={handleContinueNextLevel}
+            >
+              继续挑战第{challengeStatus.currentLevel + 1}关
+            </button>
           </div>
         )}
 
-        {/* 任务列表 */}
-        <section className={styles.tasksSection}>
+        {/* 消息提示 */}
+        {message && !levelJustCompleted && (
+          <div className={`${styles.messageBanner} ${styles[message.type]}`}>
+            {message.text}
+          </div>
+        )}
+
+        {/* 余额输入 */}
+        {!levelJustCompleted && !showVictory && !showFailed && (
+          <section className={styles.balanceInputSection}>
+            <h2 className={styles.sectionTitle}>
+              <svg viewBox="0 0 24 24" fill="currentColor">
+                <path d="M11.8 10.9c-2.27-.59-3-1.2-3-2.15 0-1.09 1.01-1.85 2.7-1.85 1.78 0 2.44.85 2.5 2.1h2.21c-.07-1.72-1.12-3.3-3.21-3.81V3h-3v2.16c-1.94.42-3.5 1.68-3.5 3.61 0 2.31 1.91 3.46 4.7 4.13 2.5.6 3 1.48 3 2.41 0 .69-.49 1.79-2.7 1.79-2.06 0-2.87-.92-2.98-2.1h-2.2c.12 2.19 1.76 3.42 3.68 3.83V21h3v-2.15c1.95-.37 3.5-1.5 3.5-3.55 0-2.84-2.43-3.81-4.7-4.4z"/>
+              </svg>
+              更新账户净值
+            </h2>
+            <div className={styles.inputGroup}>
+              <input
+                type="number"
+                className={styles.balanceInput}
+                value={balanceInput}
+                onChange={(e) => setBalanceInput(e.target.value)}
+                placeholder="输入当前账户净值"
+                min="0"
+              />
+              <button 
+                className={styles.updateButton}
+                onClick={handleUpdateBalance}
+              >
+                更新
+              </button>
+            </div>
+            <p className={styles.hint}>
+              请输入您在MT4/MT5账户中的当前净值，系统将自动判断通关或失败状态
+            </p>
+          </section>
+        )}
+
+        {/* 规则说明 */}
+        <section className={styles.rulesSection}>
           <h2 className={styles.sectionTitle}>
             <svg viewBox="0 0 24 24" fill="currentColor">
-              <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-9 14l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+              <path d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z"/>
             </svg>
-            任务清单
+            挑战规则
           </h2>
-          <div className={styles.tasksList}>
-            {currentLevelData.tasks.map((task, index) => {
-              const isCompleted = completedTasks.includes(task.id);
-              const isActive = activeTask === task.id;
-              
-              return (
-                <div 
-                  key={task.id}
-                  className={`${styles.taskCard} ${isCompleted ? styles.completed : ''} ${isActive ? styles.active : ''}`}
-                  onClick={() => handleTaskClick(task.id)}
-                >
-                  <div className={styles.taskNumber}>
-                    {isCompleted ? (
-                      <svg viewBox="0 0 24 24" fill="currentColor">
-                        <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/>
-                      </svg>
-                    ) : (
-                      index + 1
-                    )}
-                  </div>
-                  <span className={styles.taskText}>{task.text}</span>
-                  {isCompleted && (
-                    <span className={styles.completedTag}>已完成</span>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        </section>
-
-        {/* 任务详情弹窗 */}
-        {activeTask && (
-          <div className={styles.taskModal}>
-            <div className={styles.taskModalContent}>
-              <h3 className={styles.taskModalTitle}>完成任务</h3>
-              <p className={styles.taskModalDesc}>
-                {currentLevelData.tasks.find(t => t.id === activeTask)?.text}
-              </p>
-              <div className={styles.taskModalActions}>
-                <button 
-                  className={styles.cancelButton}
-                  onClick={() => setActiveTask(null)}
-                >
-                  取消
-                </button>
-                <button 
-                  className={styles.completeButton}
-                  onClick={handleCompleteTask}
-                >
-                  确认完成
-                </button>
+          <div className={styles.rulesList}>
+            <div className={styles.ruleCard}>
+              <div className={styles.ruleIcon} style={{ background: 'rgba(34, 197, 94, 0.2)', color: '#22c55e' }}>
+                <svg viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/>
+                </svg>
+              </div>
+              <div className={styles.ruleContent}>
+                <h4>通关条件</h4>
+                <p>账户净值达到 {TARGET_BALANCE}（盈利≥{TARGET_BALANCE - INITIAL_BALANCE}）</p>
+              </div>
+            </div>
+            <div className={styles.ruleCard}>
+              <div className={styles.ruleIcon} style={{ background: 'rgba(239, 68, 68, 0.2)', color: '#ef4444' }}>
+                <svg viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>
+                </svg>
+              </div>
+              <div className={styles.ruleContent}>
+                <h4>失败条件</h4>
+                <p>账户净值低于 {FAIL_BALANCE}</p>
+              </div>
+            </div>
+            <div className={styles.ruleCard}>
+              <div className={styles.ruleIcon} style={{ background: 'rgba(59, 130, 246, 0.2)', color: '#3b82f6' }}>
+                <svg viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+                </svg>
+              </div>
+              <div className={styles.ruleContent}>
+                <h4>继续挑战</h4>
+                <p>通关后将余额重置为 {INITIAL_BALANCE}，解锁下一关</p>
               </div>
             </div>
           </div>
-        )}
-
-        {/* 底部提示 */}
-        <footer className={styles.footer}>
-          <div className={styles.tips}>
-            <svg viewBox="0 0 24 24" fill="currentColor">
-              <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/>
-            </svg>
-            <span>提示：完成任务后点击任务卡片即可标记完成</span>
-          </div>
-        </footer>
+        </section>
       </main>
     </div>
   );

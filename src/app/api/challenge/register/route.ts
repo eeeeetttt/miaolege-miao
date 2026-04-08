@@ -3,7 +3,19 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { db } from '@/lib/db';
 import { challengeRegistrations, users } from '@/lib/schema';
-import { eq, and } from 'drizzle-orm';
+import { eq, and, sql } from 'drizzle-orm';
+
+// 报名费
+const REGISTRATION_FEE = 1000;
+
+// 初始账户净值
+const INITIAL_BALANCE = 1000;
+
+// 通关目标净值
+const TARGET_BALANCE = 2000;
+
+// 失败底线净值
+const FAIL_BALANCE = 100;
 
 // 参与挑战赛报名
 export async function POST() {
@@ -39,7 +51,24 @@ export async function POST() {
       return NextResponse.json({ error: '用户不存在' }, { status: 404 });
     }
 
-    // 创建新报名记录
+    // 检查星球币余额
+    const currentBalance = user.coinBalance ?? 0;
+    if (currentBalance < REGISTRATION_FEE) {
+      return NextResponse.json({ 
+        error: `星球币不足，需要 ${REGISTRATION_FEE} 星球币，当前余额 ${currentBalance} 星球币` 
+      }, { status: 400 });
+    }
+
+    // 扣除报名费
+    await db
+      .update(users)
+      .set({ 
+        coinBalance: sql`coin_balance - ${REGISTRATION_FEE}`,
+        updatedAt: new Date()
+      })
+      .where(eq(users.userId, userId));
+
+    // 创建新报名记录，初始账户净值为1000
     const [insertResult] = await db.insert(challengeRegistrations).values({
       userId,
       status: 'active',
@@ -55,11 +84,13 @@ export async function POST() {
 
     return NextResponse.json({
       success: true,
-      message: '挑战赛报名成功',
+      message: `挑战赛报名成功，已扣除 ${REGISTRATION_FEE} 星球币`,
       registration: {
         id: registration!.id,
         currentLevel: registration!.currentLevel,
         startedAt: registration!.startedAt,
+        initialBalance: INITIAL_BALANCE,
+        targetBalance: TARGET_BALANCE,
       }
     });
   } catch (error) {
@@ -94,6 +125,10 @@ export async function GET() {
       return NextResponse.json({
         hasActiveChallenge: false,
         registration: null,
+        registrationFee: REGISTRATION_FEE,
+        initialBalance: INITIAL_BALANCE,
+        targetBalance: TARGET_BALANCE,
+        failBalance: FAIL_BALANCE,
       });
     }
 
@@ -113,6 +148,9 @@ export async function GET() {
         currentLevel: activeRegistration.currentLevel,
         completedLevels: JSON.parse(activeRegistration.completedLevels || '[]'),
         startedAt: activeRegistration.startedAt,
+        initialBalance: INITIAL_BALANCE,
+        targetBalance: TARGET_BALANCE,
+        failBalance: FAIL_BALANCE,
       },
       completedCount: completedRegistrations.length,
       bestRecord: completedRegistrations[0] ? {
@@ -128,3 +166,11 @@ export async function GET() {
     }, { status: 500 });
   }
 }
+
+// 导出常量供其他模块使用
+export const CHALLENGE_CONFIG = {
+  REGISTRATION_FEE,
+  INITIAL_BALANCE,
+  TARGET_BALANCE,
+  FAIL_BALANCE,
+};

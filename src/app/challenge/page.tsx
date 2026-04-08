@@ -14,16 +14,16 @@ interface Level {
 }
 
 const levels: Level[] = [
-  { number: 1, name: '初入江湖', description: '完成一笔交易', target: '1笔交易', reward: '100金币' },
-  { number: 2, name: '小试牛刀', description: '连续3天每日交易', target: '3天交易', reward: '200金币' },
-  { number: 3, name: '稳步前进', description: '累计10笔交易', target: '10笔交易', reward: '300金币' },
-  { number: 4, name: '略有小成', description: '周收益率达到5%', target: '5%收益', reward: '500金币' },
-  { number: 5, name: '渐入佳境', description: '连续5天稳定盈利', target: '5天盈利', reward: '800金币' },
-  { number: 6, name: '身手不凡', description: '月收益达到20%', target: '20%收益', reward: '1000金币' },
-  { number: 7, name: '出类拔萃', description: '控制回撤在10%以内', target: '<10%回撤', reward: '1500金币' },
-  { number: 8, name: '技惊四座', description: '周收益翻倍', target: '100%收益', reward: '2000金币' },
-  { number: 9, name: '登峰造极', description: '连续30天稳定盈利', target: '30天盈利', reward: '3000金币' },
-  { number: 10, name: '一代宗师', description: '累计收益达到500%', target: '500%收益', reward: '5000金币' },
+  { number: 1, name: '启念', description: '开始你的交易之旅', target: '净值≥2000', reward: '继续挑战' },
+  { number: 2, name: '立规', description: '建立交易规则', target: '净值≥2000', reward: '继续挑战' },
+  { number: 3, name: '守戒', description: '遵守交易纪律', target: '净值≥2000', reward: '继续挑战' },
+  { number: 4, name: '忍痛', description: '学会止损止盈', target: '净值≥2000', reward: '继续挑战' },
+  { number: 5, name: '止喜', description: '控制情绪波动', target: '净值≥2000', reward: '继续挑战' },
+  { number: 6, name: '观己', description: '认识自我弱点', target: '净值≥2000', reward: '继续挑战' },
+  { number: 7, name: '破执', description: '突破固有思维', target: '净值≥2000', reward: '继续挑战' },
+  { number: 8, name: '随势', description: '顺势而为', target: '净值≥2000', reward: '继续挑战' },
+  { number: 9, name: '忘我', description: '达到交易境界', target: '净值≥2000', reward: '继续挑战' },
+  { number: 10, name: '得道', description: '完成终极挑战', target: '净值≥2000', reward: '通关大奖' },
 ];
 
 interface HallOfFameEntry {
@@ -187,20 +187,30 @@ export default function ChallengePage() {
             ) : (
               <div className={styles.startChallengeCard}>
                 <h3>开始你的K线征途</h3>
-                <p>10关挑战，从新手到大师</p>
+                <p>10关挑战，从启念到得道</p>
                 <div className={styles.rewards}>
                   <span className={styles.rewardIcon}>
                     <svg viewBox="0 0 24 24" fill="currentColor">
-                      <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+                      <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1.41 16.09V20h-2.67v-1.93c-1.71-.36-3.16-1.46-3.27-3.4h1.96c.1 1.05.82 1.87 2.65 1.87 1.96 0 2.4-.98 2.4-1.59 0-.83-.44-1.61-2.67-2.14-2.48-.6-4.18-1.62-4.18-3.67 0-1.72 1.39-2.84 3.11-3.21V4h2.67v1.95c1.86.45 2.79 1.86 2.85 3.39H14.3c-.05-1.11-.64-1.87-2.22-1.87-1.5 0-2.4.68-2.4 1.64 0 .84.65 1.39 2.67 1.91s4.18 1.39 4.18 3.91c-.01 1.83-1.38 2.83-3.12 3.16z"/>
                     </svg>
                   </span>
-                  通关可获得总计 15000+ 金币
+                  报名费：1000 星球币 | 通关大奖：10万元 + 冠军奖杯
+                </div>
+                <div className={styles.rules}>
+                  <div className={styles.ruleItem}>
+                    <span className={styles.ruleLabel}>通关条件</span>
+                    <span className={styles.ruleText}>每关账户净值达到 2000（盈利≥1000）</span>
+                  </div>
+                  <div className={styles.ruleItem}>
+                    <span className={styles.ruleLabel}>失败条件</span>
+                    <span className={styles.ruleText}>账户净值低于 100</span>
+                  </div>
                 </div>
                 <button 
                   className={styles.startButton}
                   onClick={handleStartChallenge}
                 >
-                  立即报名
+                  立即报名（1000星球币）
                 </button>
               </div>
             )

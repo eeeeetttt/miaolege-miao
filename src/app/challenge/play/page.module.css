@@ -166,41 +166,133 @@
 
 /* 进度条 */
 .progressSection {
-  margin-bottom: 2rem;
+  margin-bottom: 1.5rem;
 }
 
 .progressBar {
-  height: 8px;
+  height: 12px;
   background: rgba(255, 255, 255, 0.1);
-  border-radius: 4px;
+  border-radius: 6px;
   overflow: hidden;
+  position: relative;
   margin-bottom: 0.5rem;
 }
 
 .progressFill {
   height: 100%;
-  background: linear-gradient(90deg, #a855f7 0%, #6366f1 100%);
-  border-radius: 4px;
+  background: linear-gradient(90deg, #22c55e 0%, #16a34a 100%);
+  border-radius: 6px;
   transition: width 0.5s ease;
-  box-shadow: 0 0 10px rgba(168, 85, 247, 0.5);
+  box-shadow: 0 0 10px rgba(34, 197, 94, 0.5);
 }
 
-.progressText {
-  font-size: 0.875rem;
+.progressFill.danger {
+  background: linear-gradient(90deg, #f59e0b 0%, #d97706 100%);
+  box-shadow: 0 0 10px rgba(245, 158, 11, 0.5);
+}
+
+.progressFill.critical {
+  background: linear-gradient(90deg, #ef4444 0%, #dc2626 100%);
+  box-shadow: 0 0 10px rgba(239, 68, 68, 0.5);
+  animation: criticalPulse 0.5s ease infinite;
+}
+
+@keyframes criticalPulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
+
+.failLine {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: #ef4444;
+}
+
+.progressLabels {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.75rem;
   color: #71717a;
+}
+
+.failLabel {
+  color: #ef4444;
+}
+
+.startLabel {
+  color: #a1a1aa;
+}
+
+.targetLabel {
+  color: #22c55e;
+}
+
+/* 余额显示 */
+.balanceSection {
+  margin-bottom: 1.5rem;
+}
+
+.balanceDisplay {
+  background: linear-gradient(135deg, rgba(34, 197, 94, 0.15) 0%, rgba(22, 163, 74, 0.15) 100%);
+  border: 2px solid rgba(34, 197, 94, 0.3);
+  border-radius: 1rem;
+  padding: 1.5rem;
+  text-align: center;
+  transition: all 0.3s ease;
+}
+
+.balanceDisplay.danger {
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.15) 0%, rgba(217, 119, 6, 0.15) 100%);
+  border-color: rgba(245, 158, 11, 0.3);
+}
+
+.balanceDisplay.critical {
+  background: linear-gradient(135deg, rgba(239, 68, 68, 0.15) 0%, rgba(220, 38, 38, 0.15) 100%);
+  border-color: rgba(239, 68, 68, 0.3);
+  animation: criticalBorder 0.5s ease infinite;
+}
+
+@keyframes criticalBorder {
+  0%, 100% { border-color: rgba(239, 68, 68, 0.3); }
+  50% { border-color: rgba(239, 68, 68, 0.6); }
+}
+
+.balanceLabel {
+  display: block;
+  font-size: 0.875rem;
+  color: #a1a1aa;
+  margin-bottom: 0.5rem;
+}
+
+.balanceValue {
+  font-size: 3rem;
+  font-weight: 700;
+  color: #f4f4f5;
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+}
+
+.balanceDisplay.danger .balanceValue {
+  color: #f59e0b;
+}
+
+.balanceDisplay.critical .balanceValue {
+  color: #ef4444;
 }
 
 /* 关卡完成横幅 */
 .levelCompleteBanner {
   display: flex;
+  flex-direction: column;
   align-items: center;
-  justify-content: center;
   gap: 1rem;
   background: linear-gradient(135deg, rgba(34, 197, 94, 0.15) 0%, rgba(16, 185, 129, 0.15) 100%);
   border: 1px solid rgba(34, 197, 94, 0.3);
   border-radius: 1rem;
-  padding: 1.5rem;
-  margin-bottom: 2rem;
+  padding: 2rem;
+  margin-bottom: 1.5rem;
+  text-align: center;
   animation: slideIn 0.5s ease;
 }
 
@@ -216,8 +308,8 @@
 }
 
 .checkmark {
-  width: 2.5rem;
-  height: 2.5rem;
+  width: 3rem;
+  height: 3rem;
   background: #22c55e;
   border-radius: 50%;
   display: flex;
@@ -238,21 +330,74 @@
 }
 
 .levelCompleteBanner span {
-  font-size: 1.125rem;
+  font-size: 1.25rem;
   font-weight: 600;
   color: #22c55e;
 }
 
-/* 任务区域 */
-.tasksSection {
-  margin-bottom: 2rem;
+.resetHint {
+  color: #a1a1aa;
+  font-size: 0.875rem;
+}
+
+.continueButton {
+  background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
+  color: white;
+  border: none;
+  padding: 0.875rem 2rem;
+  border-radius: 0.5rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 15px rgba(34, 197, 94, 0.3);
+}
+
+.continueButton:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(34, 197, 94, 0.4);
+}
+
+/* 消息提示 */
+.messageBanner {
+  padding: 1rem;
+  border-radius: 0.75rem;
+  text-align: center;
+  margin-bottom: 1.5rem;
+  font-size: 0.9375rem;
+}
+
+.messageBanner.success {
+  background: rgba(34, 197, 94, 0.1);
+  border: 1px solid rgba(34, 197, 94, 0.3);
+  color: #22c55e;
+}
+
+.messageBanner.error {
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  color: #ef4444;
+}
+
+.messageBanner.info {
+  background: rgba(59, 130, 246, 0.1);
+  border: 1px solid rgba(59, 130, 246, 0.3);
+  color: #3b82f6;
+}
+
+/* 余额输入 */
+.balanceInputSection {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 1rem;
+  padding: 1.5rem;
+  margin-bottom: 1.5rem;
 }
 
 .sectionTitle {
   display: flex;
   align-items: center;
   gap: 0.75rem;
-  font-size: 1.25rem;
+  font-size: 1.125rem;
   font-weight: 700;
   margin-bottom: 1rem;
   color: #f4f4f5;
@@ -264,218 +409,104 @@
   color: #a855f7;
 }
 
-.tasksList {
+.inputGroup {
   display: flex;
-  flex-direction: column;
   gap: 0.75rem;
 }
 
-.taskCard {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 0.75rem;
-  padding: 1rem 1.25rem;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  position: relative;
-  overflow: hidden;
-}
-
-.taskCard::before {
-  content: '';
-  position: absolute;
-  left: 0;
-  top: 0;
-  bottom: 0;
-  width: 3px;
-  background: rgba(255, 255, 255, 0.1);
-  transition: all 0.3s ease;
-}
-
-.taskCard:hover:not(.completed) {
-  background: rgba(255, 255, 255, 0.05);
-  border-color: rgba(255, 255, 255, 0.15);
-  transform: translateX(4px);
-}
-
-.taskCard:hover:not(.completed)::before {
-  background: #a855f7;
-}
-
-.taskCard.active {
-  background: rgba(168, 85, 247, 0.1);
-  border-color: rgba(168, 85, 247, 0.3);
-}
-
-.taskCard.active::before {
-  background: #a855f7;
-}
-
-.taskCard.completed {
-  opacity: 0.7;
-  cursor: default;
-}
-
-.taskCard.completed::before {
-  background: #22c55e;
-}
-
-.taskNumber {
-  width: 2rem;
-  height: 2rem;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: rgba(255, 255, 255, 0.05);
-  border-radius: 50%;
-  font-weight: 700;
-  font-size: 0.875rem;
-  color: #a1a1aa;
-  flex-shrink: 0;
-}
-
-.taskCard.completed .taskNumber {
-  background: #22c55e;
-  color: white;
-}
-
-.taskNumber svg {
-  width: 1.25rem;
-  height: 1.25rem;
-}
-
-.taskText {
+.balanceInput {
   flex: 1;
-  font-size: 1rem;
-  color: #e4e4e7;
-}
-
-.taskCard.completed .taskText {
-  color: #71717a;
-  text-decoration: line-through;
-}
-
-.completedTag {
-  font-size: 0.75rem;
-  color: #22c55e;
-  background: rgba(34, 197, 94, 0.1);
-  padding: 0.25rem 0.75rem;
-  border-radius: 1rem;
-}
-
-/* 任务弹窗 */
-.taskModal {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.7);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 100;
-  padding: 1rem;
-  animation: fadeIn 0.2s ease;
-}
-
-@keyframes fadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
-}
-
-.taskModalContent {
-  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 1rem;
-  padding: 2rem;
-  max-width: 400px;
-  width: 100%;
-  animation: scaleIn 0.3s ease;
-}
-
-.taskModalTitle {
-  font-size: 1.25rem;
-  font-weight: 700;
-  color: #f4f4f5;
-  margin-bottom: 0.75rem;
-}
-
-.taskModalDesc {
-  color: #a1a1aa;
-  margin-bottom: 1.5rem;
-}
-
-.taskModalActions {
-  display: flex;
-  gap: 1rem;
-  justify-content: flex-end;
-}
-
-.cancelButton {
   background: rgba(255, 255, 255, 0.05);
   border: 1px solid rgba(255, 255, 255, 0.1);
-  color: #a1a1aa;
-  padding: 0.625rem 1.25rem;
   border-radius: 0.5rem;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.3s ease;
+  padding: 0.875rem 1rem;
+  font-size: 1rem;
+  color: #f4f4f5;
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
 }
 
-.cancelButton:hover {
-  background: rgba(255, 255, 255, 0.1);
-  color: #e4e4e7;
+.balanceInput:focus {
+  outline: none;
+  border-color: #a855f7;
 }
 
-.completeButton {
+.balanceInput::placeholder {
+  color: #71717a;
+}
+
+.updateButton {
   background: linear-gradient(135deg, #a855f7 0%, #6366f1 100%);
-  border: none;
   color: white;
-  padding: 0.625rem 1.25rem;
+  border: none;
+  padding: 0.875rem 1.5rem;
   border-radius: 0.5rem;
   font-weight: 600;
   cursor: pointer;
   transition: all 0.3s ease;
-  box-shadow: 0 4px 15px rgba(168, 85, 247, 0.3);
 }
 
-.completeButton:hover {
+.updateButton:hover {
   transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(168, 85, 247, 0.4);
+  box-shadow: 0 4px 15px rgba(168, 85, 247, 0.4);
 }
 
-/* 底部提示 */
-.footer {
-  position: fixed;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  padding: 1rem 1.5rem;
-  background: linear-gradient(to top, rgba(15, 15, 26, 0.95), transparent);
-  pointer-events: none;
+.hint {
+  margin-top: 0.75rem;
+  font-size: 0.8125rem;
+  color: #71717a;
 }
 
-.tips {
+/* 规则说明 */
+.rulesSection {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 1rem;
+  padding: 1.5rem;
+}
+
+.rulesList {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.ruleCard {
+  display: flex;
+  gap: 1rem;
+  padding: 1rem;
+  background: rgba(255, 255, 255, 0.02);
+  border-radius: 0.75rem;
+}
+
+.ruleIcon {
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 0.5rem;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 0.5rem;
-  color: #71717a;
-  font-size: 0.875rem;
+  flex-shrink: 0;
 }
 
-.tips svg {
+.ruleIcon svg {
   width: 1.25rem;
   height: 1.25rem;
-  color: #3b82f6;
+}
+
+.ruleContent h4 {
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: #f4f4f5;
+  margin-bottom: 0.25rem;
+}
+
+.ruleContent p {
+  font-size: 0.8125rem;
+  color: #71717a;
 }
 
 /* 通关动画 */
-.victoryOverlay {
+.victoryOverlay, .failedOverlay {
   position: fixed;
   top: 0;
   left: 0;
@@ -488,10 +519,12 @@
   z-index: 200;
 }
 
-.victoryContent {
+.victoryContent, .failedContent {
   text-align: center;
   z-index: 201;
   animation: victoryIn 0.8s ease;
+  max-width: 400px;
+  padding: 2rem;
 }
 
 @keyframes victoryIn {
@@ -540,14 +573,14 @@
   margin-bottom: 2rem;
 }
 
-.victoryStats {
+.victoryStats, .failedStats {
   display: flex;
   gap: 3rem;
   justify-content: center;
-  margin-bottom: 2rem;
+  margin-bottom: 1.5rem;
 }
 
-.victoryStat {
+.victoryStat, .failedStat {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
@@ -562,6 +595,37 @@
   font-size: 1.5rem;
   font-weight: 700;
   color: #f4f4f5;
+}
+
+.rewardsSection {
+  background: rgba(251, 191, 36, 0.1);
+  border: 1px solid rgba(251, 191, 36, 0.3);
+  border-radius: 1rem;
+  padding: 1.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.rewardsSection h3 {
+  color: #fbbf24;
+  font-size: 1.125rem;
+  margin-bottom: 1rem;
+}
+
+.rewardItem {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.5rem 0;
+}
+
+.rewardLabel {
+  color: #a1a1aa;
+  font-size: 0.875rem;
+}
+
+.rewardValue {
+  color: #f4f4f5;
+  font-weight: 600;
 }
 
 .victoryButton {
@@ -580,6 +644,61 @@
 .victoryButton:hover {
   transform: translateY(-2px);
   box-shadow: 0 6px 20px rgba(251, 191, 36, 0.5);
+}
+
+/* 失败动画 */
+.failedIcon {
+  width: 6rem;
+  height: 6rem;
+  margin: 0 auto 1.5rem;
+  color: #ef4444;
+}
+
+.failedIcon svg {
+  width: 100%;
+  height: 100%;
+  filter: drop-shadow(0 0 20px rgba(239, 68, 68, 0.5));
+}
+
+.failedTitle {
+  font-size: 2.5rem;
+  font-weight: 700;
+  color: #ef4444;
+  margin-bottom: 0.5rem;
+}
+
+.failedSubtitle {
+  color: #a1a1aa;
+  font-size: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.failedNote {
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.2);
+  border-radius: 0.5rem;
+  padding: 0.75rem;
+  color: #ef4444;
+  font-size: 0.875rem;
+  margin-bottom: 1.5rem;
+}
+
+.failedButton {
+  background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+  color: white;
+  border: none;
+  padding: 1rem 3rem;
+  border-radius: 0.75rem;
+  font-weight: 700;
+  font-size: 1.125rem;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 15px rgba(239, 68, 68, 0.4);
+}
+
+.failedButton:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(239, 68, 68, 0.5);
 }
 
 .confetti {
@@ -627,12 +746,20 @@
     font-size: 1.5rem;
   }
 
-  .victoryStats {
+  .victoryStats, .failedStats {
     flex-direction: column;
-    gap: 1.5rem;
+    gap: 1rem;
   }
 
-  .victoryTitle {
+  .victoryTitle, .failedTitle {
     font-size: 2rem;
+  }
+
+  .balanceValue {
+    font-size: 2.5rem;
+  }
+
+  .inputGroup {
+    flex-direction: column;
   }
 }
