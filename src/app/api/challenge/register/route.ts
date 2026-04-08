@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { db } from '@/lib/db';
-import { challengeRegistrations, users, challengeConfig, challengeLevelConfig } from '@/lib/schema';
+import { challengeRegistrations, users } from '@/lib/schema';
 import { eq, and, sql } from 'drizzle-orm';
 
 // 自动创建数据库表和初始化配置
@@ -59,37 +59,38 @@ async function ensureTablesAndConfigExist(): Promise<{ configMap: Record<string,
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
     `);
 
-    // 初始化默认配置（如果不存在）
-    const existingConfig = await db.query.challengeConfig.findFirst({});
-    if (!existingConfig) {
-      await db.insert(challengeConfig).values([
-        { configKey: 'registration_fee', configValue: '1000', description: '报名费（星球币）' },
-        { configKey: 'email_notification', configValue: 'true', description: '是否启用邮件通知' },
-        { configKey: 'challenge_enabled', configValue: 'true', description: '挑战赛是否启用' },
-      ]);
+    // 等待表创建完成后再查询
+    await new Promise(resolve => setTimeout(resolve, 100));
+
+    // 使用原生SQL检查配置是否存在
+    const [configRows] = await db.execute<Array<{ config_key: string; config_value: string }>>(
+      sql`SELECT config_key, config_value FROM challenge_config`
+    );
+    
+    if (!configRows || configRows.length === 0) {
+      // 插入默认配置
+      await db.execute(sql`
+        INSERT INTO challenge_config (config_key, config_value, description) VALUES 
+        ('registration_fee', '1000', '报名费（星球币）'),
+        ('email_notification', 'true', '是否启用邮件通知'),
+        ('challenge_enabled', 'true', '挑战赛是否启用')
+        ON DUPLICATE KEY UPDATE config_value = VALUES(config_value)
+      `);
+      
+      // 重新获取配置
+      const [newConfigRows] = await db.execute<Array<{ config_key: string; config_value: string }>>(
+        sql`SELECT config_key, config_value FROM challenge_config`
+      );
+      const configMap = (newConfigRows || []).reduce((acc, cfg) => {
+        acc[cfg.config_key] = cfg.config_value;
+        return acc;
+      }, {} as Record<string, string>);
+      return { configMap, success: true };
     }
 
-    // 初始化默认关卡配置
-    const existingLevels = await db.query.challengeLevelConfig.findMany({});
-    if (existingLevels.length === 0) {
-      await db.insert(challengeLevelConfig).values([
-        { level: 1, name: '启念', description: '开始你的交易之旅', targetBalance: 2000, initialBalance: 1000, failBalance: 100, reward: '继续挑战' },
-        { level: 2, name: '立规', description: '建立交易规则', targetBalance: 2000, initialBalance: 1000, failBalance: 100, reward: '继续挑战' },
-        { level: 3, name: '守戒', description: '遵守交易纪律', targetBalance: 2000, initialBalance: 1000, failBalance: 100, reward: '继续挑战' },
-        { level: 4, name: '忍痛', description: '学会止损止盈', targetBalance: 2000, initialBalance: 1000, failBalance: 100, reward: '继续挑战' },
-        { level: 5, name: '止喜', description: '控制情绪波动', targetBalance: 2000, initialBalance: 1000, failBalance: 100, reward: '继续挑战' },
-        { level: 6, name: '观己', description: '认识自我弱点', targetBalance: 2000, initialBalance: 1000, failBalance: 100, reward: '继续挑战' },
-        { level: 7, name: '破执', description: '突破固有思维', targetBalance: 2000, initialBalance: 1000, failBalance: 100, reward: '继续挑战' },
-        { level: 8, name: '随势', description: '顺势而为', targetBalance: 2000, initialBalance: 1000, failBalance: 100, reward: '继续挑战' },
-        { level: 9, name: '忘我', description: '达到交易境界', targetBalance: 2000, initialBalance: 1000, failBalance: 100, reward: '继续挑战' },
-        { level: 10, name: '得道', description: '完成终极挑战', targetBalance: 2000, initialBalance: 1000, failBalance: 100, reward: '通关大奖' },
-      ]);
-    }
-
-    // 获取配置
-    const configs = await db.query.challengeConfig.findMany({});
-    const configMap = configs.reduce((acc, cfg) => {
-      acc[cfg.configKey] = cfg.configValue;
+    // 构建配置Map
+    const configMap = configRows.reduce((acc, cfg) => {
+      acc[cfg.config_key] = cfg.config_value;
       return acc;
     }, {} as Record<string, string>);
 
@@ -134,10 +135,15 @@ export async function GET() {
     const latestRegistration = registrations[0] || null;
 
     // 获取关卡配置
-    const levelConfigs = await db.query.challengeLevelConfig.findMany({
-      where: eq(challengeLevelConfig.isActive, true),
-      orderBy: (t, { asc }) => [asc(t.level)],
-    });
+    const [levelRows] = await db.execute<Array<{
+      level: number;
+      name: string;
+      description: string | null;
+      target_balance: number;
+      initial_balance: number;
+      fail_balance: number;
+      reward: string | null;
+    }>>(sql`SELECT level, name, description, target_balance, initial_balance, fail_balance, reward FROM challenge_level_config WHERE is_active = true ORDER BY level`);
 
     if (!latestRegistration) {
       return NextResponse.json({
@@ -146,7 +152,7 @@ export async function GET() {
         registration: null,
         registrationFee: parseInt(configMap.registration_fee || '1000'),
         config: configMap,
-        levelConfigs,
+        levelConfigs: levelRows || [],
         message: '您还未申请挑战赛',
       });
     }
@@ -182,7 +188,7 @@ export async function GET() {
       canReapply,
       registrationFee: parseInt(configMap.registration_fee || '1000'),
       config: configMap,
-      levelConfigs,
+      levelConfigs: levelRows || [],
       message: getStatusMessage(latestRegistration.status || 'pending'),
     });
   } catch (error) {
@@ -200,7 +206,6 @@ export async function POST() {
     const session = await getServerSession(authOptions);
     
     if (!session?.user?.id) {
-      // 返回更明确的错误提示
       return NextResponse.json({ 
         error: '请先登录后再报名',
         errorCode: 'NOT_LOGGED_IN'
@@ -208,7 +213,6 @@ export async function POST() {
     }
 
     const userId = session.user.id;
-    console.log('用户报名:', userId);
 
     // 确保表和配置存在
     const { configMap, success, error } = await ensureTablesAndConfigExist();
