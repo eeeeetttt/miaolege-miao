@@ -32,7 +32,16 @@ import {
   TrendingUp,
   Crown,
   Star,
-  Ban
+  Ban,
+  MessageSquare,
+  Send,
+  ArrowRightLeft,
+  Search,
+  UserPlus,
+  UserCheck,
+  UserX,
+  ChevronRight,
+  RefreshCw
 } from 'lucide-react';
 
 interface UserInfo {
@@ -93,6 +102,645 @@ const RECHARGE_OPTIONS = [
 
 // 充值功能是否禁用
 const RECHARGE_DISABLED = true;
+
+// ============ 社交功能组件 ============
+interface Conversation {
+  userId: string;
+  userName: string;
+  userAvatar: string | null;
+  lastMessage: {
+    id: number;
+    content: string;
+    senderId: string;
+    createdAt: string;
+  };
+  unreadCount: number;
+}
+
+interface Message {
+  id: number;
+  sender_id: string;
+  receiver_id: string;
+  content: string;
+  is_read: number;
+  created_at: string;
+}
+
+interface TransferRecord {
+  id: number;
+  fromUserId: string;
+  fromUserName: string;
+  fromUserAvatar: string | null;
+  toUserId: string;
+  toUserName: string;
+  toUserAvatar: string | null;
+  amount: number;
+  remark: string | null;
+  status: string;
+  createdAt: string;
+  isSent: boolean;
+}
+
+interface SearchedUser {
+  userId: string;
+  name: string;
+  avatar: string | null;
+}
+
+function SocialTab({ userId, coinBalance }: { userId?: string; coinBalance?: number }) {
+  const [activeSection, setActiveSection] = useState<'messages' | 'transfer' | 'search'>('messages');
+  const [conversations, setConversations] = useState<Conversation[]>([]);
+  const [selectedConversation, setSelectedConversation] = useState<Conversation | null>(null);
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [newMessage, setNewMessage] = useState('');
+  const [sendLoading, setSendLoading] = useState(false);
+  const [conversationsLoading, setConversationsLoading] = useState(true);
+  const [messagesLoading, setMessagesLoading] = useState(false);
+  
+  // 转账相关状态
+  const [transfers, setTransfers] = useState<TransferRecord[]>([]);
+  const [transferLoading, setTransferLoading] = useState(false);
+  const [transferForm, setTransferForm] = useState({ toUserId: '', amount: '', remark: '' });
+  const [transferSuccess, setTransferSuccess] = useState('');
+  const [transferError, setTransferError] = useState('');
+  
+  // 搜索相关状态
+  const [searchKeyword, setSearchKeyword] = useState('');
+  const [searchResults, setSearchResults] = useState<SearchedUser[]>([]);
+  const [searchLoading, setSearchLoading] = useState(false);
+  const [followingIds, setFollowingIds] = useState<Set<string>>(new Set());
+
+  // 加载会话列表
+  const loadConversations = async () => {
+    setConversationsLoading(true);
+    try {
+      const res = await fetch('/api/message/conversations');
+      const data = await res.json();
+      if (data.success) {
+        setConversations(data.data || []);
+      }
+    } catch (err) {
+      console.error('Failed to load conversations:', err);
+    } finally {
+      setConversationsLoading(false);
+    }
+  };
+
+  // 加载与某用户的聊天记录
+  const loadMessages = async (targetUserId: string) => {
+    setMessagesLoading(true);
+    try {
+      const res = await fetch(`/api/message/send?userId=${targetUserId}`);
+      const data = await res.json();
+      if (data.success) {
+        setMessages(data.data || []);
+      }
+    } catch (err) {
+      console.error('Failed to load messages:', err);
+    } finally {
+      setMessagesLoading(false);
+    }
+  };
+
+  // 发送消息
+  const handleSendMessage = async () => {
+    if (!newMessage.trim() || !selectedConversation || sendLoading) return;
+    
+    setSendLoading(true);
+    try {
+      const res = await fetch('/api/message/send', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          receiverId: selectedConversation.userId,
+          content: newMessage.trim(),
+        }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setNewMessage('');
+        loadMessages(selectedConversation.userId);
+        loadConversations();
+      }
+    } catch (err) {
+      console.error('Failed to send message:', err);
+    } finally {
+      setSendLoading(false);
+    }
+  };
+
+  // 加载转账记录
+  const loadTransfers = async () => {
+    setTransferLoading(true);
+    try {
+      const res = await fetch('/api/coin/transfer');
+      const data = await res.json();
+      if (data.success) {
+        setTransfers(data.data || []);
+      }
+    } catch (err) {
+      console.error('Failed to load transfers:', err);
+    } finally {
+      setTransferLoading(false);
+    }
+  };
+
+  // 执行转账
+  const handleTransfer = async () => {
+    if (!transferForm.toUserId || !transferForm.amount) return;
+    
+    setTransferError('');
+    setTransferSuccess('');
+    
+    const amount = parseInt(transferForm.amount);
+    if (isNaN(amount) || amount <= 0) {
+      setTransferError('请输入有效金额');
+      return;
+    }
+    
+    if ((coinBalance || 0) < amount) {
+      setTransferError(`余额不足，当前余额: ${coinBalance || 0} 星球币`);
+      return;
+    }
+    
+    setTransferLoading(true);
+    try {
+      const res = await fetch('/api/coin/transfer', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          toUserId: transferForm.toUserId,
+          amount,
+          remark: transferForm.remark,
+        }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setTransferSuccess(data.message);
+        setTransferForm({ toUserId: '', amount: '', remark: '' });
+        loadTransfers();
+      } else {
+        setTransferError(data.error);
+      }
+    } catch (err) {
+      setTransferError('转账失败');
+    } finally {
+      setTransferLoading(false);
+    }
+  };
+
+  // 搜索用户
+  const handleSearch = async () => {
+    if (!searchKeyword.trim()) return;
+    
+    setSearchLoading(true);
+    try {
+      const res = await fetch(`/api/user/search?keyword=${encodeURIComponent(searchKeyword)}`);
+      const data = await res.json();
+      if (data.success) {
+        setSearchResults(data.data || []);
+        // 检查关注状态
+        const ids = data.data?.map((u: SearchedUser) => u.userId) || [];
+        checkFollowStatus(ids);
+      }
+    } catch (err) {
+      console.error('Failed to search users:', err);
+    } finally {
+      setSearchLoading(false);
+    }
+  };
+
+  // 检查关注状态
+  const checkFollowStatus = async (userIds: string[]) => {
+    const newFollowing = new Set<string>();
+    for (const uid of userIds) {
+      try {
+        const res = await fetch(`/api/user/follow?followedId=${uid}`);
+        const data = await res.json();
+        if (data.success && data.isFollowing) {
+          newFollowing.add(uid);
+        }
+      } catch {}
+    }
+    setFollowingIds(newFollowing);
+  };
+
+  // 关注/取消关注
+  const handleFollow = async (targetUserId: string) => {
+    try {
+      const res = await fetch('/api/user/follow', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ followedId: targetUserId }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setFollowingIds(prev => {
+          const newSet = new Set(prev);
+          if (data.isFollowing) {
+            newSet.add(targetUserId);
+          } else {
+            newSet.delete(targetUserId);
+          }
+          return newSet;
+        });
+      }
+    } catch (err) {
+      console.error('Failed to follow/unfollow:', err);
+    }
+  };
+
+  // 初始化
+  useEffect(() => {
+    if (userId) {
+      loadConversations();
+      loadTransfers();
+    }
+  }, [userId]);
+
+  // 选中会话时加载消息
+  useEffect(() => {
+    if (selectedConversation) {
+      loadMessages(selectedConversation.userId);
+    }
+  }, [selectedConversation]);
+
+  return (
+    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      {/* 左侧导航 */}
+      <Card className="lg:col-span-1">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <MessageSquare className="w-5 h-5" />
+            社交中心
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-2">
+          <button
+            onClick={() => { setActiveSection('messages'); setSelectedConversation(null); }}
+            className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
+              activeSection === 'messages' ? 'bg-purple-100 dark:bg-purple-900/30' : 'hover:bg-gray-100 dark:hover:bg-gray-800'
+            }`}
+          >
+            <MessageSquare className="w-5 h-5" />
+            <span>私信</span>
+          </button>
+          <button
+            onClick={() => { setActiveSection('transfer'); setSelectedConversation(null); }}
+            className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
+              activeSection === 'transfer' ? 'bg-purple-100 dark:bg-purple-900/30' : 'hover:bg-gray-100 dark:hover:bg-gray-800'
+            }`}
+          >
+            <ArrowRightLeft className="w-5 h-5" />
+            <span>转账</span>
+          </button>
+          <button
+            onClick={() => { setActiveSection('search'); setSelectedConversation(null); }}
+            className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
+              activeSection === 'search' ? 'bg-purple-100 dark:bg-purple-900/30' : 'hover:bg-gray-100 dark:hover:bg-gray-800'
+            }`}
+          >
+            <Search className="w-5 h-5" />
+            <span>搜索用户</span>
+          </button>
+        </CardContent>
+      </Card>
+
+      {/* 右侧内容区 */}
+      <div className="lg:col-span-2">
+        {/* 私信列表/聊天 */}
+        {activeSection === 'messages' && !selectedConversation && (
+          <Card>
+            <CardHeader>
+              <CardTitle>私信</CardTitle>
+              <CardDescription>与用户的对话列表</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {conversationsLoading ? (
+                <div className="space-y-4">
+                  {[1, 2, 3].map(i => (
+                    <div key={i} className="animate-pulse flex items-center gap-4 p-4 bg-gray-100 dark:bg-gray-800 rounded-lg">
+                      <div className="w-12 h-12 bg-gray-300 dark:bg-gray-700 rounded-full" />
+                      <div className="flex-1">
+                        <div className="h-4 bg-gray-300 dark:bg-gray-700 rounded w-1/3 mb-2" />
+                        <div className="h-3 bg-gray-200 dark:bg-gray-600 rounded w-2/3" />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : conversations.length === 0 ? (
+                <div className="text-center py-12 text-gray-500">
+                  <MessageSquare className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                  <p>暂无私信记录</p>
+                  <p className="text-sm mt-2">在搜索用户中找到感兴趣的人，给他发私信吧</p>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {conversations.map(conv => (
+                    <button
+                      key={conv.userId}
+                      onClick={() => setSelectedConversation(conv)}
+                      className="w-full flex items-center gap-4 p-4 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors text-left"
+                    >
+                      <Avatar className="w-12 h-12">
+                        <AvatarFallback className="bg-gradient-to-br from-purple-500 to-blue-500 text-white">
+                          {conv.userName.slice(0, 1)}
+                        </AvatarFallback>
+                        {conv.userAvatar && <AvatarImage src={conv.userAvatar} />}
+                      </Avatar>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between">
+                          <span className="font-medium truncate">{conv.userName}</span>
+                          <span className="text-xs text-gray-500">
+                            {new Date(conv.lastMessage.createdAt).toLocaleDateString()}
+                          </span>
+                        </div>
+                        <p className="text-sm text-gray-500 truncate">
+                          {conv.lastMessage.senderId === userId ? '我: ' : ''}
+                          {conv.lastMessage.content}
+                        </p>
+                      </div>
+                      {conv.unreadCount > 0 && (
+                        <Badge className="bg-red-500">{conv.unreadCount}</Badge>
+                      )}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
+
+        {/* 聊天界面 */}
+        {activeSection === 'messages' && selectedConversation && (
+          <Card className="h-[600px] flex flex-col">
+            <CardHeader className="flex-row items-center gap-4 pb-4 border-b">
+              <Button variant="ghost" size="sm" onClick={() => setSelectedConversation(null)}>
+                ← 返回
+              </Button>
+              <Avatar className="w-10 h-10">
+                <AvatarFallback className="bg-gradient-to-br from-purple-500 to-blue-500 text-white">
+                  {selectedConversation.userName.slice(0, 1)}
+                </AvatarFallback>
+                {selectedConversation.userAvatar && <AvatarImage src={selectedConversation.userAvatar} />}
+              </Avatar>
+              <CardTitle className="text-lg">{selectedConversation.userName}</CardTitle>
+            </CardHeader>
+            <CardContent className="flex-1 overflow-y-auto p-4 space-y-4">
+              {messagesLoading ? (
+                <div className="text-center py-8">加载中...</div>
+              ) : messages.length === 0 ? (
+                <div className="text-center py-8 text-gray-500">暂无消息，开始对话吧</div>
+              ) : (
+                messages.map(msg => (
+                  <div
+                    key={msg.id}
+                    className={`flex ${msg.sender_id === userId ? 'justify-end' : 'justify-start'}`}
+                  >
+                    <div
+                      className={`max-w-[70%] px-4 py-2 rounded-lg ${
+                        msg.sender_id === userId
+                          ? 'bg-purple-500 text-white'
+                          : 'bg-gray-100 dark:bg-gray-800'
+                      }`}
+                    >
+                      <p>{msg.content}</p>
+                      <p className={`text-xs mt-1 ${
+                        msg.sender_id === userId ? 'text-purple-200' : 'text-gray-500'
+                      }`}>
+                        {new Date(msg.created_at).toLocaleString()}
+                      </p>
+                    </div>
+                  </div>
+                ))
+              )}
+            </CardContent>
+            <div className="p-4 border-t flex gap-2">
+              <Input
+                value={newMessage}
+                onChange={e => setNewMessage(e.target.value)}
+                placeholder="输入消息..."
+                onKeyDown={e => e.key === 'Enter' && handleSendMessage()}
+                disabled={sendLoading}
+              />
+              <Button onClick={handleSendMessage} disabled={sendLoading || !newMessage.trim()}>
+                <Send className="w-4 h-4" />
+              </Button>
+            </div>
+          </Card>
+        )}
+
+        {/* 转账界面 */}
+        {activeSection === 'transfer' && (
+          <div className="space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <ArrowRightLeft className="w-5 h-5" />
+                  转账
+                </CardTitle>
+                <CardDescription>
+                  向其他用户转账星球币，当前余额: <span className="font-bold text-purple-600">{coinBalance || 0}</span>
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {transferSuccess && (
+                  <Alert className="border-green-200 bg-green-50">
+                    <CheckCircle2 className="h-4 w-4 text-green-600" />
+                    <AlertDescription className="text-green-700">{transferSuccess}</AlertDescription>
+                  </Alert>
+                )}
+                {transferError && (
+                  <Alert className="border-red-200 bg-red-50">
+                    <XCircle className="h-4 w-4 text-red-600" />
+                    <AlertDescription className="text-red-700">{transferError}</AlertDescription>
+                  </Alert>
+                )}
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <Label>收款方用户ID</Label>
+                    <Input
+                      value={transferForm.toUserId}
+                      onChange={e => setTransferForm({ ...transferForm, toUserId: e.target.value })}
+                      placeholder="输入用户ID"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>转账金额</Label>
+                    <Input
+                      type="number"
+                      value={transferForm.amount}
+                      onChange={e => setTransferForm({ ...transferForm, amount: e.target.value })}
+                      placeholder="输入转账金额"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>备注 (可选)</Label>
+                    <Input
+                      value={transferForm.remark}
+                      onChange={e => setTransferForm({ ...transferForm, remark: e.target.value })}
+                      placeholder="输入备注"
+                    />
+                  </div>
+                  <Button
+                    onClick={handleTransfer}
+                    disabled={transferLoading || !transferForm.toUserId || !transferForm.amount}
+                    className="w-full bg-gradient-to-r from-purple-600 to-blue-600"
+                  >
+                    {transferLoading ? '转账中...' : '确认转账'}
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <RefreshCw className="w-5 h-5" />
+                  转账记录
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {transferLoading && transfers.length === 0 ? (
+                  <div className="space-y-4">
+                    {[1, 2, 3].map(i => (
+                      <div key={i} className="animate-pulse flex items-center gap-4 p-4 bg-gray-100 dark:bg-gray-800 rounded-lg">
+                        <div className="flex-1">
+                          <div className="h-4 bg-gray-300 dark:bg-gray-700 rounded w-1/2 mb-2" />
+                          <div className="h-3 bg-gray-200 dark:bg-gray-600 rounded w-1/3" />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : transfers.length === 0 ? (
+                  <div className="text-center py-8 text-gray-500">暂无转账记录</div>
+                ) : (
+                  <div className="space-y-3">
+                    {transfers.map(t => (
+                      <div key={t.id} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                        <div className="flex items-center gap-3">
+                          <Avatar className="w-10 h-10">
+                            <AvatarFallback className="bg-gradient-to-br from-purple-500 to-blue-500 text-white text-sm">
+                              {(t.isSent ? t.toUserName : t.fromUserName).slice(0, 1)}
+                            </AvatarFallback>
+                          </Avatar>
+                          <div>
+                            <p className="font-medium">
+                              {t.isSent ? `转给 ${t.toUserName}` : `收到 ${t.fromUserName}`}
+                            </p>
+                            <p className="text-xs text-gray-500">
+                              {new Date(t.createdAt).toLocaleString()}
+                              {t.remark && ` · ${t.remark}`}
+                            </p>
+                          </div>
+                        </div>
+                        <span className={`font-bold ${t.isSent ? 'text-red-500' : 'text-green-500'}`}>
+                          {t.isSent ? '-' : '+'}{t.amount}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+        )}
+
+        {/* 搜索用户 */}
+        {activeSection === 'search' && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Search className="w-5 h-5" />
+                搜索用户
+              </CardTitle>
+              <CardDescription>搜索并关注其他用户，或给他们发私信</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex gap-2">
+                <Input
+                  value={searchKeyword}
+                  onChange={e => setSearchKeyword(e.target.value)}
+                  placeholder="输入用户昵称或ID搜索..."
+                  onKeyDown={e => e.key === 'Enter' && handleSearch()}
+                />
+                <Button onClick={handleSearch} disabled={searchLoading}>
+                  {searchLoading ? '搜索中...' : '搜索'}
+                </Button>
+              </div>
+
+              {searchResults.length === 0 && !searchLoading && (
+                <div className="text-center py-8 text-gray-500">
+                  <UserIcon className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                  <p>搜索用户以关注或发私信</p>
+                </div>
+              )}
+
+              {searchResults.length > 0 && (
+                <div className="space-y-3">
+                  {searchResults.map(user => (
+                    <div key={user.userId} className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                      <div className="flex items-center gap-3">
+                        <Avatar className="w-12 h-12">
+                          <AvatarFallback className="bg-gradient-to-br from-purple-500 to-blue-500 text-white">
+                            {user.name.slice(0, 1)}
+                          </AvatarFallback>
+                          {user.avatar && <AvatarImage src={user.avatar} />}
+                        </Avatar>
+                        <div>
+                          <p className="font-medium">{user.name}</p>
+                          <p className="text-xs text-gray-500">ID: {user.userId}</p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          variant={followingIds.has(user.userId) ? 'outline' : 'default'}
+                          size="sm"
+                          onClick={() => handleFollow(user.userId)}
+                          className={followingIds.has(user.userId) ? '' : 'bg-purple-600'}
+                        >
+                          {followingIds.has(user.userId) ? (
+                            <>
+                              <UserCheck className="w-4 h-4 mr-1" />
+                              已关注
+                            </>
+                          ) : (
+                            <>
+                              <UserPlus className="w-4 h-4 mr-1" />
+                              关注
+                            </>
+                          )}
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            setActiveSection('messages');
+                            setSelectedConversation({
+                              userId: user.userId,
+                              userName: user.name,
+                              userAvatar: user.avatar,
+                              lastMessage: { id: 0, content: '', senderId: '', createdAt: '' },
+                              unreadCount: 0,
+                            });
+                          }}
+                        >
+                          <MessageSquare className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ============ 主页面组件 ============
 
 export default function UserCenterPage() {
   const router = useRouter();
@@ -505,7 +1153,7 @@ export default function UserCenterPage() {
 
         {/* Main Content */}
         <Tabs defaultValue="profile" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-4 lg:w-auto lg:inline-grid">
+          <TabsList className="grid w-full grid-cols-5 lg:w-auto lg:inline-grid">
             <TabsTrigger value="profile" className="flex items-center gap-2">
               <UserIcon className="w-4 h-4" />
               个人资料
@@ -521,6 +1169,10 @@ export default function UserCenterPage() {
             <TabsTrigger value="recharge" className="flex items-center gap-2">
               <Wallet className="w-4 h-4" />
               充值
+            </TabsTrigger>
+            <TabsTrigger value="social" className="flex items-center gap-2">
+              <MessageSquare className="w-4 h-4" />
+              社交
             </TabsTrigger>
           </TabsList>
 
@@ -968,6 +1620,11 @@ export default function UserCenterPage() {
                 </div>
               </CardContent>
             </Card>
+          </TabsContent>
+
+          {/* Social Tab */}
+          <TabsContent value="social">
+            <SocialTab userId={user?.userId} coinBalance={user?.coinBalance} />
           </TabsContent>
         </Tabs>
       </div>

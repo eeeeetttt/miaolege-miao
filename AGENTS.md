@@ -66,6 +66,42 @@
 - 通关目标净值: 2000
 - 失败底线净值: 100
 
+### 用户社交功能
+
+#### 私信功能
+- 用户间一对一私信通信
+- 会话列表展示最新对话
+- 未读消息标记
+
+#### 星球币转账
+- 用户间互相转账星球币
+- 转账记录查询
+- 余额检查
+
+#### 用户搜索与关注
+- 按昵称/ID搜索用户
+- 关注/取消关注用户
+- 关注列表管理
+
+#### 相关页面
+- `/user` - 用户中心（包含社交tab）
+
+#### 相关API
+- `POST /api/message/send` - 发送私信
+- `GET /api/message/send?userId=xxx` - 获取与某用户的聊天记录
+- `GET /api/message/conversations` - 获取私信会话列表
+- `POST /api/coin/transfer` - 转账
+- `GET /api/coin/transfer` - 获取转账记录
+- `GET /api/user/search` - 搜索用户
+- `POST /api/user/follow` - 关注/取消关注
+- `GET /api/user/follow` - 获取关注状态
+- `GET /api/user/follow/list` - 获取关注/粉丝列表
+
+#### 数据库表（Supabase）
+- `private_messages` - 私信表
+- `coin_transfers` - 星球币转账表
+- `user_follows` - 用户关注表
+
 ## 开发规范
 
 ### API 路由

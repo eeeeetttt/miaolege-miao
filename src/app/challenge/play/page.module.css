@@ -281,6 +281,140 @@
   color: #ef4444;
 }
 
+.balanceMain {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+}
+
+.profitTag {
+  font-size: 1.25rem;
+  font-weight: 600;
+  padding: 0.25rem 0.75rem;
+  border-radius: 0.5rem;
+}
+
+.profitTag.profit {
+  background: rgba(34, 197, 94, 0.2);
+  color: #22c55e;
+}
+
+.profitTag.loss {
+  background: rgba(239, 68, 68, 0.2);
+  color: #ef4444;
+}
+
+.balanceDetails {
+  display: flex;
+  justify-content: center;
+  gap: 2rem;
+  margin-top: 0.75rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.balanceItem {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.balanceItemLabel {
+  font-size: 0.75rem;
+  color: #71717a;
+}
+
+.balanceItemValue {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #a1a1aa;
+  font-family: 'JetBrains Mono', monospace;
+}
+
+.balanceItemValue.profit {
+  color: #22c55e;
+}
+
+.balanceItemValue.loss {
+  color: #ef4444;
+}
+
+.autoRefresh {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  margin-top: 0.75rem;
+}
+
+.refreshButton {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  background: rgba(59, 130, 246, 0.2);
+  border: 1px solid rgba(59, 130, 246, 0.3);
+  border-radius: 0.5rem;
+  color: #60a5fa;
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.refreshButton:hover {
+  background: rgba(59, 130, 246, 0.3);
+}
+
+.refreshButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.refreshButton svg {
+  width: 1rem;
+  height: 1rem;
+}
+
+.spinning {
+  animation: spin 1s linear infinite;
+}
+
+.dataSource {
+  font-size: 0.75rem;
+  color: #52525b;
+}
+
+.failedButtons {
+  display: flex;
+  gap: 1rem;
+  justify-content: center;
+  margin-top: 1.5rem;
+}
+
+.rechallengeButton {
+  padding: 0.75rem 2rem;
+  background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
+  border: none;
+  border-radius: 0.5rem;
+  color: white;
+  font-weight: 600;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.rechallengeButton:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(34, 197, 94, 0.3);
+}
+
+.rechallengeButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+}
+
 /* 关卡完成横幅 */
 .levelCompleteBanner {
   display: flex;

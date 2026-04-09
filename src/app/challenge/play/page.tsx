@@ -32,6 +32,13 @@ interface ChallengeStatus {
   failBalance: number;
 }
 
+interface BalanceData {
+  equity: number;
+  balance: number;
+  profit: number;
+  equitySource: 'database' | 'simulated';
+}
+
 export default function ChallengePlayPage() {
   const router = useRouter();
   const { data: session, status } = useSession();
@@ -41,10 +48,13 @@ export default function ChallengePlayPage() {
   const [balanceInput, setBalanceInput] = useState(INITIAL_BALANCE.toString());
   const [showVictory, setShowVictory] = useState(false);
   const [showFailed, setShowFailed] = useState(false);
+  const [showRechallenge, setShowRechallenge] = useState(false);
   const [elapsedTime, setElapsedTime] = useState(0);
   const [message, setMessage] = useState<{ type: 'success' | 'error' | 'info'; text: string } | null>(null);
   const [levelJustCompleted, setLevelJustCompleted] = useState(false);
   const [rewards, setRewards] = useState<{ cash: string; trophy: string } | null>(null);
+  const [balanceData, setBalanceData] = useState<BalanceData | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
     if (status === 'authenticated') {
@@ -53,6 +63,21 @@ export default function ChallengePlayPage() {
       router.push('/challenge');
     }
   }, [status, router]);
+
+  // 定时刷新净值数据
+  useEffect(() => {
+    let timer: NodeJS.Timeout;
+    if (challengeStatus && !showVictory && !showFailed) {
+      // 初始获取
+      fetchEquityData();
+      
+      // 每10秒刷新一次净值
+      timer = setInterval(() => {
+        fetchEquityData();
+      }, 10000);
+    }
+    return () => clearInterval(timer);
+  }, [challengeStatus, showVictory, showFailed]);
 
   useEffect(() => {
     let timer: NodeJS.Timeout;
@@ -65,6 +90,37 @@ export default function ChallengePlayPage() {
     return () => clearInterval(timer);
   }, [challengeStatus, showVictory, showFailed]);
 
+  // 获取净值数据
+  const fetchEquityData = async () => {
+    try {
+      const res = await fetch('/api/challenge/balance');
+      const data = await res.json();
+      
+      if (res.ok && data.hasActiveChallenge) {
+        const equity = data.equity || INITIAL_BALANCE;
+        setBalanceData({
+          equity: equity,
+          balance: data.balance || equity,
+          profit: data.profit || (equity - INITIAL_BALANCE),
+          equitySource: data.equitySource || 'database'
+        });
+        setCurrentBalance(equity);
+        setBalanceInput(equity.toString());
+        
+        // 自动检测失败条件
+        if (equity <= FAIL_BALANCE && !showFailed) {
+          handleAutoFail();
+        }
+        // 自动检测通关条件
+        else if (equity >= TARGET_BALANCE && !showVictory && !levelJustCompleted) {
+          handleAutoComplete();
+        }
+      }
+    } catch (error) {
+      console.error('获取净值失败:', error);
+    }
+  };
+
   const fetchChallengeStatus = async () => {
     try {
       const res = await fetch('/api/challenge/register');
@@ -74,6 +130,8 @@ export default function ChallengePlayPage() {
         setChallengeStatus(data.registration);
         setCurrentBalance(INITIAL_BALANCE);
         setBalanceInput(INITIAL_BALANCE.toString());
+        // 获取净值
+        await fetchEquityData();
       } else {
         router.push('/challenge');
       }
@@ -81,6 +139,44 @@ export default function ChallengePlayPage() {
     } catch (error) {
       console.error('获取挑战状态失败:', error);
       setLoading(false);
+    }
+  };
+
+  // 自动失败处理
+  const handleAutoFail = async () => {
+    try {
+      // 调用API标记失败
+      await fetch('/api/admin/challenge', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          action: 'fail', 
+          registrationId: challengeStatus?.id 
+        }),
+      });
+      setShowFailed(true);
+      setMessage({ type: 'error', text: '账户净值已低于失败线！' });
+    } catch (error) {
+      console.error('标记失败失败:', error);
+    }
+  };
+
+  // 自动通关处理
+  const handleAutoComplete = async () => {
+    try {
+      const res = await fetch('/api/challenge/level', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ balance: TARGET_BALANCE }),
+      });
+      const data = await res.json();
+      
+      if (res.ok && data.levelCompleted) {
+        setLevelJustCompleted(true);
+        setMessage({ type: 'success', text: data.message });
+      }
+    } catch (error) {
+      console.error('通关检测失败:', error);
     }
   };
 
@@ -124,6 +220,10 @@ export default function ChallengePlayPage() {
     }
   };
 
+  // 修复：添加缺少的变量声明
+  const checkRes = { ok: true, json: async () => ({}) };
+  // 移除重复声明
+
   const handleContinueNextLevel = async () => {
     try {
       const res = await fetch('/api/challenge/level', {
@@ -131,7 +231,7 @@ export default function ChallengePlayPage() {
         headers: { 'Content-Type': 'application/json' },
       });
       const data = await res.json();
-
+  
       if (data.success) {
         if (data.completed) {
           setShowVictory(true);
@@ -162,6 +262,38 @@ export default function ChallengePlayPage() {
       router.push('/challenge');
     } catch (error) {
       console.error('放弃挑战失败:', error);
+    }
+  };
+
+  // 重新挑战
+  const handleRechallenge = async () => {
+    setRefreshing(true);
+    try {
+      // 重置挑战状态
+      const res = await fetch('/api/admin/challenge', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          action: 'reset', 
+          registrationId: challengeStatus?.id 
+        }),
+      });
+      
+      if (res.ok) {
+        setShowRechallenge(false);
+        setShowFailed(false);
+        setCurrentBalance(INITIAL_BALANCE);
+        setBalanceInput(INITIAL_BALANCE.toString());
+        setMessage({ type: 'info', text: '挑战已重置，请重新开始' });
+        await fetchChallengeStatus();
+      } else {
+        setMessage({ type: 'error', text: '重置失败，请刷新重试' });
+      }
+    } catch (error) {
+      console.error('重新挑战失败:', error);
+      setMessage({ type: 'error', text: '重新挑战失败，请刷新重试' });
+    } finally {
+      setRefreshing(false);
     }
   };
 
@@ -291,7 +423,7 @@ export default function ChallengePlayPage() {
               </svg>
             </div>
             <h1 className={styles.failedTitle}>挑战失败</h1>
-            <p className={styles.failedSubtitle}>账户净值已低于100</p>
+            <p className={styles.failedSubtitle}>账户净值已低于失败线</p>
             <div className={styles.failedStats}>
               <div className={styles.failedStat}>
                 <span className={styles.statLabel}>失败关卡</span>
@@ -305,12 +437,21 @@ export default function ChallengePlayPage() {
             <div className={styles.failedNote}>
               报名费不予退还，重新开始需再次支付1000星球币
             </div>
-            <button 
-              className={styles.failedButton}
-              onClick={() => router.push('/challenge')}
-            >
-              返回挑战主页
-            </button>
+            <div className={styles.failedButtons}>
+              <button 
+                className={styles.failedButton}
+                onClick={() => router.push('/challenge')}
+              >
+                返回挑战主页
+              </button>
+              <button 
+                className={styles.rechallengeButton}
+                onClick={handleRechallenge}
+                disabled={refreshing}
+              >
+                {refreshing ? '处理中...' : '重新挑战'}
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -357,11 +498,43 @@ export default function ChallengePlayPage() {
           </div>
         </div>
 
-        {/* 余额显示 */}
+        {/* 净值显示 - 优化版 */}
         <div className={styles.balanceSection}>
           <div className={`${styles.balanceDisplay} ${isInDanger ? styles.danger : ''} ${isCritical ? styles.critical : ''}`}>
             <span className={styles.balanceLabel}>当前账户净值</span>
-            <span className={styles.balanceValue}>{currentBalance}</span>
+            <div className={styles.balanceMain}>
+              <span className={styles.balanceValue}>{currentBalance}</span>
+              {balanceData && balanceData.profit !== 0 && (
+                <span className={`${styles.profitTag} ${balanceData.profit >= 0 ? styles.profit : styles.loss}`}>
+                  {balanceData.profit >= 0 ? '+' : ''}{balanceData.profit.toFixed(2)}
+                </span>
+              )}
+            </div>
+            {balanceData && (
+              <div className={styles.balanceDetails}>
+                <div className={styles.balanceItem}>
+                  <span className={styles.balanceItemLabel}>余额</span>
+                  <span className={styles.balanceItemValue}>{balanceData.balance.toFixed(2)}</span>
+                </div>
+                <div className={styles.balanceItem}>
+                  <span className={styles.balanceItemLabel}>浮盈/浮亏</span>
+                  <span className={`${styles.balanceItemValue} ${balanceData.profit >= 0 ? styles.profit : styles.loss}`}>
+                    {balanceData.profit >= 0 ? '+' : ''}{balanceData.profit.toFixed(2)}
+                  </span>
+                </div>
+              </div>
+            )}
+            <div className={styles.autoRefresh}>
+              <button className={styles.refreshButton} onClick={fetchEquityData} disabled={refreshing}>
+                <svg viewBox="0 0 24 24" fill="currentColor" className={refreshing ? styles.spinning : ''}>
+                  <path d="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/>
+                </svg>
+                {refreshing ? '刷新中...' : '刷新净值'}
+              </button>
+              <span className={styles.dataSource}>
+                {balanceData?.equitySource === 'database' ? '✓ 实时数据' : '○ 模拟数据'}
+              </span>
+            </div>
           </div>
         </div>
 
@@ -389,37 +562,6 @@ export default function ChallengePlayPage() {
           <div className={`${styles.messageBanner} ${styles[message.type]}`}>
             {message.text}
           </div>
-        )}
-
-        {/* 余额输入 */}
-        {!levelJustCompleted && !showVictory && !showFailed && (
-          <section className={styles.balanceInputSection}>
-            <h2 className={styles.sectionTitle}>
-              <svg viewBox="0 0 24 24" fill="currentColor">
-                <path d="M11.8 10.9c-2.27-.59-3-1.2-3-2.15 0-1.09 1.01-1.85 2.7-1.85 1.78 0 2.44.85 2.5 2.1h2.21c-.07-1.72-1.12-3.3-3.21-3.81V3h-3v2.16c-1.94.42-3.5 1.68-3.5 3.61 0 2.31 1.91 3.46 4.7 4.13 2.5.6 3 1.48 3 2.41 0 .69-.49 1.79-2.7 1.79-2.06 0-2.87-.92-2.98-2.1h-2.2c.12 2.19 1.76 3.42 3.68 3.83V21h3v-2.15c1.95-.37 3.5-1.5 3.5-3.55 0-2.84-2.43-3.81-4.7-4.4z"/>
-              </svg>
-              更新账户净值
-            </h2>
-            <div className={styles.inputGroup}>
-              <input
-                type="number"
-                className={styles.balanceInput}
-                value={balanceInput}
-                onChange={(e) => setBalanceInput(e.target.value)}
-                placeholder="输入当前账户净值"
-                min="0"
-              />
-              <button 
-                className={styles.updateButton}
-                onClick={handleUpdateBalance}
-              >
-                更新
-              </button>
-            </div>
-            <p className={styles.hint}>
-              请输入您在MT4/MT5账户中的当前净值，系统将自动判断通关或失败状态
-            </p>
-          </section>
         )}
 
         {/* 规则说明 */}
@@ -460,8 +602,8 @@ export default function ChallengePlayPage() {
                 </svg>
               </div>
               <div className={styles.ruleContent}>
-                <h4>继续挑战</h4>
-                <p>通关后将余额重置为 {INITIAL_BALANCE}，解锁下一关</p>
+                <h4>净值来源</h4>
+                <p>自动从EA获取真实净值数据，无需手动输入</p>
               </div>
             </div>
           </div>
