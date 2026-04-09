@@ -355,15 +355,26 @@ export default function ChallengePage() {
                           <span className={styles.balanceLabel}>当前净值</span>
                           {accountBalance.equity !== null ? (
                             <>
-                              <span className={`${styles.balanceValue} ${(accountBalance.profit || 0) >= 0 ? styles.profit : styles.loss}`}>
-                                ${accountBalance.equity.toFixed(2)}
-                              </span>
-                              <div className={styles.balanceSub}>
-                                <span>余额: ${(accountBalance.balance || 0).toFixed(2)}</span>
-                                <span className={(accountBalance.profit || 0) >= 0 ? styles.profitText : styles.lossText}>
-                                  {(accountBalance.profit || 0) >= 0 ? '+' : ''}{(accountBalance.profit || 0).toFixed(2)}
-                                </span>
-                              </div>
+                              {(() => {
+                                const failBalance = parseInt(challengeData?.config?.fail_balance || '100');
+                                const targetBalance = parseInt(challengeData?.config?.target_balance || '2000');
+                                const isFailed = accountBalance.equity < failBalance;
+                                const isPassed = accountBalance.equity >= targetBalance;
+                                return (
+                                  <>
+                                    <span className={`${styles.balanceValue} ${isFailed ? styles.loss : isPassed ? styles.profit : ''}`}>
+                                      ${accountBalance.equity.toFixed(2)}
+                                      {isFailed && <span className={styles.failedBadge}> 失败</span>}
+                                    </span>
+                                    <div className={styles.balanceSub}>
+                                      <span>余额: ${(accountBalance.balance || 0).toFixed(2)}</span>
+                                      <span className={(accountBalance.profit || 0) >= 0 ? styles.profitText : styles.lossText}>
+                                        {(accountBalance.profit || 0) >= 0 ? '+' : ''}{(accountBalance.profit || 0).toFixed(2)}
+                                      </span>
+                                    </div>
+                                  </>
+                                );
+                              })()}
                             </>
                           ) : (
                             <span className={styles.balanceValue}>
@@ -458,16 +469,16 @@ export default function ChallengePage() {
                             <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1.41 16.09V20h-2.67v-1.93c-1.71-.36-3.16-1.46-3.27-3.4h1.96c.1 1.05.82 1.87 2.65 1.87 1.96 0 2.4-.98 2.4-1.59 0-.83-.44-1.61-2.67-2.14-2.48-.6-4.18-1.62-4.18-3.67 0-1.72 1.39-2.84 3.11-3.21V4h2.67v1.95c1.86.45 2.79 1.86 2.85 3.39H14.3c-.05-1.11-.64-1.87-2.22-1.87-1.5 0-2.4.68-2.4 1.64 0 .84.65 1.39 2.67 1.91s4.18 1.39 4.18 3.91c-.01 1.83-1.38 2.83-3.12 3.16z"/>
                           </svg>
                         </span>
-                        报名费：{challengeData?.registrationFee || 1000} 星球币 | 通关大奖：10万元 + 冠军奖杯
+                        报名费：{challengeData?.registrationFee || 1000} 星球币 | 通关大奖：{parseInt(challengeData?.config?.completion_reward || '100000').toLocaleString()}星球币 + 冠军奖杯
                       </div>
                       <div className={styles.rules}>
                         <div className={styles.ruleItem}>
                           <span className={styles.ruleLabel}>通关条件</span>
-                          <span className={styles.ruleText}>每关账户净值达到 2000（盈利≥1000）</span>
+                          <span className={styles.ruleText}>每关账户净值达到 {challengeData?.config?.target_balance || 2000}（盈利≥{challengeData?.config?.profit_target || 1000}）</span>
                         </div>
                         <div className={styles.ruleItem}>
                           <span className={styles.ruleLabel}>失败条件</span>
-                          <span className={styles.ruleText}>账户净值低于 100</span>
+                          <span className={styles.ruleText}>账户净值低于 {challengeData?.config?.fail_balance || 100}</span>
                         </div>
                       </div>
                       <button 
@@ -533,127 +544,130 @@ export default function ChallengePage() {
             )}
 
             {/* 参赛者排行榜 */}
-            <section className={styles.hallOfFameSection}>
-              <h2 className={styles.sectionTitle}>
-                <svg viewBox="0 0 24 24" fill="currentColor" className={styles.sectionIcon}>
-                  <path d="M16 6l2.29 2.29-4.88 4.88-4-4L2 16.59 3.41 18l6-6 4 4 6.3-6.29L22 12V6z"/>
-                </svg>
-                挑战进度榜
-                <span className={styles.participantCount}>{participants.length}人参与</span>
-              </h2>
-              
-              {participantsLoading && participants.length === 0 ? (
-                <div className={styles.loadingText}>加载中...</div>
-              ) : participants.length === 0 ? (
-                <div className={styles.loadingText}>暂无参赛者</div>
-              ) : (
-                <>
-                  <div className={styles.participantsList}>
-                    {participants.slice(0, 10).map((p) => (
-                      <div 
-                        key={p.userId} 
-                        className={`${styles.participantItem} ${selectedParticipant?.userId === p.userId ? styles.selected : ''}`}
-                        onClick={() => handleViewParticipant(p)}
-                      >
-                        <span className={`${styles.participantRank} ${p.rank <= 3 ? styles.topRank : ''}`}>
-                          #{p.rank}
-                        </span>
-                        <div className={styles.participantInfo}>
-                          <span className={styles.participantLevel}>第{p.currentLevel}关</span>
-                          <div className={styles.levelProgress}>
-                            {Array.from({ length: 10 }, (_, i) => (
-                              <span 
-                                key={i} 
-                                className={`${styles.progressDot} ${p.completedLevels.includes(i + 1) ? styles.completedDot : ''} ${p.currentLevel === i + 1 ? styles.currentDot : ''}`}
-                              />
-                            ))}
+            {challengeData?.config?.show_leaderboard !== 'false' && (
+              <section className={styles.hallOfFameSection}>
+                <h2 className={styles.sectionTitle}>
+                  <svg viewBox="0 0 24 24" fill="currentColor" className={styles.sectionIcon}>
+                    <path d="M16 6l2.29 2.29-4.88 4.88-4-4L2 16.59 3.41 18l6-6 4 4 6.3-6.29L22 12V6z"/>
+                  </svg>
+                  挑战进度榜
+                  <span className={styles.participantCount}>{participants.length}人参与</span>
+                </h2>
+                
+                {participantsLoading && participants.length === 0 ? (
+                  <div className={styles.loadingText}>加载中...</div>
+                ) : participants.length === 0 ? (
+                  <div className={styles.loadingText}>暂无参赛者</div>
+                ) : (
+                  <div>
+                    <div className={styles.participantsList}>
+                      {participants.slice(0, 10).map((p) => (
+                        <div 
+                          key={p.userId} 
+                          className={`${styles.participantItem} ${selectedParticipant?.userId === p.userId ? styles.selected : ''}`}
+                          onClick={() => handleViewParticipant(p)}
+                        >
+                          <span className={`${styles.participantRank} ${p.rank <= 3 ? styles.topRank : ''}`}>
+                            #{p.rank}
+                          </span>
+                          <div className={styles.participantInfo}>
+                            <span className={styles.participantLevel}>第{p.currentLevel}关</span>
+                            <div className={styles.levelProgress}>
+                              {Array.from({ length: 10 }, (_, i) => (
+                                <span 
+                                  key={i} 
+                                  className={`${styles.progressDot} ${p.completedLevels.includes(i + 1) ? styles.completedDot : ''} ${p.currentLevel === i + 1 ? styles.currentDot : ''}`}
+                                />
+                              ))}
+                            </div>
+                          </div>
+                          <div className={styles.participantEquity}>
+                            {p.equity !== null ? (
+                              <>
+                                <span className={`${styles.equityValue} ${(p.profit || 0) >= 0 ? styles.profit : styles.loss}`}>
+                                  ${p.equity.toFixed(2)}
+                                </span>
+                                <span className={`${styles.profitValue} ${(p.profit || 0) >= 0 ? styles.profitText : styles.lossText}`}>
+                                  {(p.profit || 0) >= 0 ? '+' : ''}{(p.profit || 0).toFixed(2)}
+                                </span>
+                              </>
+                            ) : (
+                              <span className={styles.equityValue}>--</span>
+                            )}
                           </div>
                         </div>
-                        <div className={styles.participantEquity}>
-                          {p.equity !== null ? (
-                            <>
-                              <span className={`${styles.equityValue} ${(p.profit || 0) >= 0 ? styles.profit : styles.loss}`}>
-                                ${p.equity.toFixed(2)}
-                              </span>
-                              <span className={`${styles.profitValue} ${(p.profit || 0) >= 0 ? styles.profitText : styles.lossText}`}>
-                                {(p.profit || 0) >= 0 ? '+' : ''}{(p.profit || 0).toFixed(2)}
-                              </span>
-                            </>
-                          ) : (
-                            <span className={styles.equityValue}>--</span>
-                          )}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                  
-                  {/* 选中参赛者的净值曲线 */}
-                  {selectedParticipant && equityHistory.length > 0 && (
-                    <div className={styles.equityChartCard}>
-                      <h3 className={styles.chartTitle}>
-                        #{selectedParticipant.rank} 第{selectedParticipant.currentLevel}关 净值曲线
-                      </h3>
-                      {equityHistoryLoading ? (
-                        <div className={styles.loadingText}>加载中...</div>
-                      ) : (
-                        <div className={styles.chartContainer}>
-                          <ResponsiveContainer width="100%" height={200}>
-                            <AreaChart data={equityHistory}>
-                              <defs>
-                                <linearGradient id="colorEquity" x1="0" y1="0" x2="0" y2="1">
-                                  <stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.3} />
-                                  <stop offset="95%" stopColor="#8b5cf6" stopOpacity={0} />
-                                </linearGradient>
-                              </defs>
-                              <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" vertical={false} />
-                              <XAxis 
-                                dataKey="date" 
-                                tick={{ fontSize: 10, fill: '#9ca3af' }}
-                                tickLine={false}
-                                axisLine={false}
-                                interval="preserveStartEnd"
-                              />
-                              <YAxis 
-                                tick={{ fontSize: 10, fill: '#9ca3af' }}
-                                tickLine={false}
-                                axisLine={false}
-                                tickFormatter={(value) => `$${value}`}
-                                domain={['auto', 'auto']}
-                              />
-                              <Tooltip 
-                                contentStyle={{
-                                  backgroundColor: 'rgba(255, 255, 255, 0.95)',
-                                  border: 'none',
-                                  borderRadius: '8px',
-                                  boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
-                                }}
-                                formatter={(value: number) => [`$${value.toFixed(2)}`, '净值']}
-                                labelFormatter={(label) => `日期: ${label}`}
-                              />
-                              <ReferenceLine y={1000} stroke="#9ca3af" strokeDasharray="3 3" label="起始净值" />
-                              <Area
-                                type="monotone"
-                                dataKey="equity"
-                                stroke="#8b5cf6"
-                                strokeWidth={2}
-                                fillOpacity={1}
-                                fill="url(#colorEquity)"
-                              />
-                            </AreaChart>
-                          </ResponsiveContainer>
-                        </div>
-                      )}
-                      <button 
-                        className={styles.closeChartBtn}
-                        onClick={() => setSelectedParticipant(null)}
-                      >
-                        关闭
-                      </button>
+                      ))}
                     </div>
-                  )}
-                </>
-              )}
-            </section>
+                    
+                    {/* 选中参赛者的净值曲线 */}
+                    {selectedParticipant && equityHistory.length > 0 && (
+                      <div className={styles.equityChartCard}>
+                        <h3 className={styles.chartTitle}>
+                          #{selectedParticipant.rank} 第{selectedParticipant.currentLevel}关 净值曲线
+                        </h3>
+                        {equityHistoryLoading ? (
+                          <div className={styles.loadingText}>加载中...</div>
+                        ) : (
+                          <div className={styles.chartContainer}>
+                            <ResponsiveContainer width="100%" height={200}>
+                              <AreaChart data={equityHistory}>
+                                <defs>
+                                  <linearGradient id="colorEquity" x1="0" y1="0" x2="0" y2="1">
+                                    <stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.3} />
+                                    <stop offset="95%" stopColor="#8b5cf6" stopOpacity={0} />
+                                  </linearGradient>
+                                </defs>
+                                <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" vertical={false} />
+                                <XAxis 
+                                  dataKey="date" 
+                                  tick={{ fontSize: 10, fill: '#9ca3af' }}
+                                  tickLine={false}
+                                  axisLine={false}
+                                  interval="preserveStartEnd"
+                                />
+                                <YAxis 
+                                  tick={{ fontSize: 10, fill: '#9ca3af' }}
+                                  tickLine={false}
+                                  axisLine={false}
+                                  tickFormatter={(value) => `$${value}`}
+                                  domain={['auto', 'auto']}
+                                />
+                                <Tooltip 
+                                  contentStyle={{
+                                    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+                                    border: 'none',
+                                    borderRadius: '8px',
+                                    boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
+                                  }}
+                                  formatter={(value: number) => [`$${value.toFixed(2)}`, '净值']}
+                                  labelFormatter={(label) => `日期: ${label}`}
+                                />
+                                <ReferenceLine y={1000} stroke="#9ca3af" strokeDasharray="3 3" label="起始净值" />
+                                <Area
+                                  type="monotone"
+                                  dataKey="equity"
+                                  stroke="#8b5cf6"
+                                  strokeWidth={2}
+                                  fillOpacity={1}
+                                  fill="url(#colorEquity)"
+                                />
+                              </AreaChart>
+                            </ResponsiveContainer>
+                          </div>
+                        )}
+                        <button 
+                          className={styles.closeChartBtn}
+                          onClick={() => setSelectedParticipant(null)}
+                        >
+                          关闭
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </section>
+            )}
+
           </div>
 
           {/* 右侧：关卡列表 */}

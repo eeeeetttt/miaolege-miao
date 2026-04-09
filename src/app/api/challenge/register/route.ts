@@ -82,6 +82,11 @@ export async function GET() {
       // 使用默认值
       configMap.registration_fee = '1000';
       configMap.challenge_enabled = 'true';
+      configMap.fail_balance = '100';
+      configMap.target_balance = '2000';
+      configMap.profit_target = '1000';
+      configMap.show_leaderboard = 'true';
+      configMap.completion_reward = '100000';
     }
 
     // 获取关卡配置

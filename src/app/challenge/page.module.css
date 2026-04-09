@@ -230,6 +230,16 @@
   color: #ef4444;
 }
 
+.failedBadge {
+  font-size: 0.75rem;
+  background: #ef4444;
+  color: white;
+  padding: 0.125rem 0.5rem;
+  border-radius: 0.25rem;
+  margin-left: 0.5rem;
+  font-weight: normal;
+}
+
 .balanceSub {
   display: flex;
   justify-content: center;

@@ -546,6 +546,106 @@ export default function ChallengeAdminPage() {
               </Select>
             </div>
             
+            <div className="space-y-2">
+              <Label htmlFor="showLeaderboard">挑战进度榜</Label>
+              <Select
+                defaultValue={config.show_leaderboard || 'true'}
+                onValueChange={(value) => handleUpdateConfig('show_leaderboard', value)}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="true">显示</SelectItem>
+                  <SelectItem value="false">隐藏</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="failBalance">失败底线净值</Label>
+              <div className="flex gap-2">
+                <Input
+                  id="failBalance"
+                  type="number"
+                  defaultValue={config.fail_balance || '100'}
+                  className="flex-1"
+                />
+                <Button
+                  onClick={(e) => {
+                    const value = (e.target as HTMLButtonElement).parentElement?.querySelector('input')?.value;
+                    if (value) handleUpdateConfig('fail_balance', value);
+                  }}
+                >
+                  保存
+                </Button>
+              </div>
+              <p className="text-xs text-gray-500">净值低于此值判定挑战失败</p>
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="targetBalance">通关目标净值</Label>
+              <div className="flex gap-2">
+                <Input
+                  id="targetBalance"
+                  type="number"
+                  defaultValue={config.target_balance || '2000'}
+                  className="flex-1"
+                />
+                <Button
+                  onClick={(e) => {
+                    const value = (e.target as HTMLButtonElement).parentElement?.querySelector('input')?.value;
+                    if (value) handleUpdateConfig('target_balance', value);
+                  }}
+                >
+                  保存
+                </Button>
+              </div>
+              <p className="text-xs text-gray-500">每关需要达到的净值目标</p>
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="profitTarget">通关盈利目标</Label>
+              <div className="flex gap-2">
+                <Input
+                  id="profitTarget"
+                  type="number"
+                  defaultValue={config.profit_target || '1000'}
+                  className="flex-1"
+                />
+                <Button
+                  onClick={(e) => {
+                    const value = (e.target as HTMLButtonElement).parentElement?.querySelector('input')?.value;
+                    if (value) handleUpdateConfig('profit_target', value);
+                  }}
+                >
+                  保存
+                </Button>
+              </div>
+              <p className="text-xs text-gray-500">盈利达到此值视为通关（目标净值-初始净值）</p>
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="completionReward">通关奖励（星球币）</Label>
+              <div className="flex gap-2">
+                <Input
+                  id="completionReward"
+                  type="number"
+                  defaultValue={config.completion_reward || '100000'}
+                  className="flex-1"
+                />
+                <Button
+                  onClick={(e) => {
+                    const value = (e.target as HTMLButtonElement).parentElement?.querySelector('input')?.value;
+                    if (value) handleUpdateConfig('completion_reward', value);
+                  }}
+                >
+                  保存
+                </Button>
+              </div>
+              <p className="text-xs text-gray-500">通关后发放的奖励星球币数量</p>
+            </div>
+            
             <div className="border-t pt-4 mt-4">
               <h4 className="font-medium mb-3">关卡配置</h4>
               <div className="space-y-2 max-h-60 overflow-y-auto">
