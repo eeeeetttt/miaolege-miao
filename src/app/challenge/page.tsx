@@ -6,39 +6,11 @@ import { useSession } from 'next-auth/react';
 import dynamic from 'next/dynamic';
 import styles from './page.module.css';
 
-// 动态导入 recharts 组件以避免 SSR 问题
-const AreaChart = dynamic(
-  () => import('recharts').then((mod) => mod.AreaChart),
-  { ssr: false, loading: () => <div className="h-48 flex items-center justify-center text-gray-400">加载图表...</div> }
-);
-const Area = dynamic(
-  () => import('recharts').then((mod) => mod.Area),
-  { ssr: false }
-);
-const XAxis = dynamic(
-  () => import('recharts').then((mod) => mod.XAxis),
-  { ssr: false }
-);
-const YAxis = dynamic(
-  () => import('recharts').then((mod) => mod.YAxis),
-  { ssr: false }
-);
-const CartesianGrid = dynamic(
-  () => import('recharts').then((mod) => mod.CartesianGrid),
-  { ssr: false }
-);
-const Tooltip = dynamic(
-  () => import('recharts').then((mod) => mod.Tooltip),
-  { ssr: false }
-);
-const ResponsiveContainer = dynamic(
-  () => import('recharts').then((mod) => mod.ResponsiveContainer),
-  { ssr: false }
-);
-const ReferenceLine = dynamic(
-  () => import('recharts').then((mod) => mod.ReferenceLine),
-  { ssr: false }
-);
+// 动态导入图表组件以避免 SSR 问题
+const EquityChart = dynamic(() => import('@/components/charts/equity-chart'), {
+  ssr: false,
+  loading: () => <div className="h-48 flex items-center justify-center text-gray-400">加载图表...</div>
+});
 
 interface LevelConfig {
   level: number;
@@ -546,50 +518,7 @@ export default function ChallengePage() {
                           <div className={styles.loadingText}>加载中...</div>
                         ) : (
                           <div className={styles.chartContainer}>
-                            <ResponsiveContainer width="100%" height={200}>
-                              <AreaChart data={equityHistory}>
-                                <defs>
-                                  <linearGradient id="colorEquity" x1="0" y1="0" x2="0" y2="1">
-                                    <stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.3} />
-                                    <stop offset="95%" stopColor="#8b5cf6" stopOpacity={0} />
-                                  </linearGradient>
-                                </defs>
-                                <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" vertical={false} />
-                                <XAxis 
-                                  dataKey="date" 
-                                  tick={{ fontSize: 10, fill: '#9ca3af' }}
-                                  tickLine={false}
-                                  axisLine={false}
-                                  interval="preserveStartEnd"
-                                />
-                                <YAxis 
-                                  tick={{ fontSize: 10, fill: '#9ca3af' }}
-                                  tickLine={false}
-                                  axisLine={false}
-                                  tickFormatter={(value) => `$${value}`}
-                                  domain={['auto', 'auto']}
-                                />
-                                <Tooltip 
-                                  contentStyle={{
-                                    backgroundColor: 'rgba(255, 255, 255, 0.95)',
-                                    border: 'none',
-                                    borderRadius: '8px',
-                                    boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
-                                  }}
-                                  formatter={(value: number) => [`$${value.toFixed(2)}`, '净值']}
-                                  labelFormatter={(label) => `日期: ${label}`}
-                                />
-                                <ReferenceLine y={1000} stroke="#9ca3af" strokeDasharray="3 3" label="起始净值" />
-                                <Area
-                                  type="monotone"
-                                  dataKey="equity"
-                                  stroke="#8b5cf6"
-                                  strokeWidth={2}
-                                  fillOpacity={1}
-                                  fill="url(#colorEquity)"
-                                />
-                              </AreaChart>
-                            </ResponsiveContainer>
+                            <EquityChart data={equityHistory} height={200} />
                           </div>
                         )}
                         <button 
