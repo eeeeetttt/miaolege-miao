@@ -36,9 +36,17 @@ interface ChallengeData {
   message: string;
 }
 
+interface Announcement {
+  id: number;
+  title: string;
+  content: string;
+  created_at: string;
+}
+
 export default function ChallengePage() {
   const { data: session, status } = useSession();
   const [challengeData, setChallengeData] = useState<ChallengeData | null>(null);
+  const [announcement, setAnnouncement] = useState<Announcement | null>(null);
   const [equityData, setEquityData] = useState<{
     equity: number | null;
     balance: number | null;
@@ -71,6 +79,18 @@ export default function ChallengePage() {
     }
   }, []);
 
+  const fetchAnnouncement = useCallback(async () => {
+    try {
+      const res = await fetch('/api/challenge/announcement');
+      const data = await res.json();
+      if (res.ok && data.announcement) {
+        setAnnouncement(data.announcement);
+      }
+    } catch {
+      // 忽略错误
+    }
+  }, []);
+
   const fetchChallengeData = useCallback(async () => {
     try {
       const res = await fetch('/api/challenge/register');
@@ -96,10 +116,12 @@ export default function ChallengePage() {
   useEffect(() => {
     if (status === 'authenticated') {
       fetchChallengeData();
+      fetchAnnouncement();
     } else if (status === 'unauthenticated') {
       setLoading(false);
+      fetchAnnouncement();
     }
-  }, [status, fetchChallengeData]);
+  }, [status, fetchChallengeData, fetchAnnouncement]);
 
   const handleApply = async () => {
     if (!session) {
@@ -314,8 +336,9 @@ export default function ChallengePage() {
             )}
           </div>
 
-          {/* 右侧 - 规则和奖励 */}
+          {/* 右侧 - 规则和公告 */}
           <div className={styles.rightSection}>
+            {/* 挑战规则 */}
             <div className={styles.card}>
               <h2 className={styles.sectionTitle}>
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{width: '1.5rem', height: '1.5rem', color: '#8b5cf6'}}>
@@ -351,33 +374,29 @@ export default function ChallengePage() {
               </div>
             </div>
 
-            <div className={styles.rewardCard}>
-              <h4>
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{width: '1.25rem', height: '1.25rem'}}>
-                  <circle cx="12" cy="8" r="7"/>
-                  <polyline points="8.21 13.89 7 23 12 20 17 23 15.79 13.88"/>
-                </svg>
-                奖励说明
-              </h4>
-              <div className={styles.rewardItem}>
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <polyline points="20 6 9 17 4 12"/>
-                </svg>
-                通关奖励: 2000 星球币
+            {/* 公告栏 */}
+            {announcement && (
+              <div className={styles.announcementCard}>
+                <div className={styles.announcementHeader}>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{width: '1.25rem', height: '1.25rem'}}>
+                    <path d="M22 17H2a3 3 0 0 0 3-3V9a7 7 0 0 1 14 0v5a3 3 0 0 0 3 3zm-8.27 4a2 2 0 0 1-3.46 0"/>
+                  </svg>
+                  <h3>{announcement.title || '活动公告'}</h3>
+                </div>
+                <div className={styles.announcementContent}>
+                  <p>{announcement.content}</p>
+                </div>
+                {announcement.created_at && (
+                  <div className={styles.announcementTime}>
+                    {new Date(announcement.created_at).toLocaleDateString('zh-CN', {
+                      year: 'numeric',
+                      month: 'long',
+                      day: 'numeric'
+                    })}
+                  </div>
+                )}
               </div>
-              <div className={styles.rewardItem}>
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <polyline points="20 6 9 17 4 12"/>
-                </svg>
-                每关奖励: 100 星球币
-              </div>
-              <div className={styles.rewardItem}>
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <polyline points="20 6 9 17 4 12"/>
-                </svg>
-                排行榜荣耀称号
-              </div>
-            </div>
+            )}
           </div>
         </div>
       </div>
