@@ -1,508 +1,175 @@
-.container {
+/* K线征途挑战赛页面样式 */
+
+/* 主容器 */
+.pageContainer {
   min-height: 100vh;
-  background: linear-gradient(180deg, #0f0f1a 0%, #1a1a2e 50%, #0f0f1a 100%);
-  color: #e4e4e7;
+  background: linear-gradient(135deg, #0a0a1a 0%, #1a1035 50%, #0d1f3c 100%);
+  color: #e2e8f0;
   position: relative;
+  overflow-x: hidden;
 }
 
-.bgDecoration {
+/* 背景装饰 */
+.pageContainer::before {
+  content: '';
   position: fixed;
   top: 0;
   left: 0;
   right: 0;
   bottom: 0;
+  background: 
+    radial-gradient(circle at 20% 20%, rgba(139, 92, 246, 0.1) 0%, transparent 50%),
+    radial-gradient(circle at 80% 80%, rgba(59, 130, 246, 0.1) 0%, transparent 50%),
+    radial-gradient(circle at 50% 50%, rgba(236, 72, 153, 0.05) 0%, transparent 70%);
   pointer-events: none;
-  overflow: hidden;
+  z-index: 0;
 }
 
-.grid {
-  position: absolute;
+/* 背景网格 */
+.pageContainer::after {
+  content: '';
+  position: fixed;
   top: 0;
   left: 0;
   right: 0;
   bottom: 0;
   background-image: 
-    linear-gradient(rgba(59, 130, 246, 0.03) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(59, 130, 246, 0.03) 1px, transparent 1px);
-  background-size: 50px 50px;
+    linear-gradient(rgba(139, 92, 246, 0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(139, 92, 246, 0.03) 1px, transparent 1px);
+  background-size: 60px 60px;
+  pointer-events: none;
+  z-index: 0;
 }
 
-.loading {
+/* 加载状态 */
+.pageLoading {
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  min-height: 50vh;
-  gap: 1rem;
+  min-height: 60vh;
+  gap: 1.5rem;
+  position: relative;
+  z-index: 1;
 }
 
-.spinner {
-  width: 40px;
-  height: 40px;
-  border: 3px solid rgba(59, 130, 246, 0.2);
-  border-top-color: #3b82f6;
+.pageSpinner {
+  width: 48px;
+  height: 48px;
+  border: 3px solid rgba(139, 92, 246, 0.2);
+  border-top-color: #8b5cf6;
   border-radius: 50%;
   animation: spin 1s linear infinite;
+}
+
+.pageLoading p {
+  color: #94a3b8;
+  font-size: 1rem;
 }
 
 @keyframes spin {
   to { transform: rotate(360deg); }
 }
 
-.main {
+/* 主布局 */
+.layoutContainer {
   position: relative;
   z-index: 1;
-  max-width: 1400px;
+  max-width: 1200px;
   margin: 0 auto;
-  padding: 2rem;
+  padding: 3rem 1.5rem;
 }
 
-.header {
+/* 页面标题区域 */
+.headerSection {
   text-align: center;
   margin-bottom: 3rem;
 }
 
-.title {
-  font-size: 2.5rem;
-  font-weight: 700;
-  background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%);
+.pageTitle {
+  font-size: 3rem;
+  font-weight: 800;
+  background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 50%, #d97706 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
-  display: flex;
+  display: inline-flex;
   align-items: center;
-  justify-content: center;
-  gap: 0.75rem;
+  gap: 1rem;
+  margin-bottom: 0.75rem;
+  text-shadow: 0 0 40px rgba(251, 191, 36, 0.3);
 }
 
-.titleIcon {
-  width: 2.5rem;
-  height: 2.5rem;
-  color: #fbbf24;
+.pageTitleIcon {
+  width: 3.5rem;
+  height: 3.5rem;
+  filter: drop-shadow(0 0 20px rgba(251, 191, 36, 0.5));
 }
 
-.titleIcon svg {
-  width: 100%;
-  height: 100%;
-}
-
-.subtitle {
-  color: #71717a;
-  margin-top: 0.5rem;
+.pageDesc {
+  color: #94a3b8;
   font-size: 1.125rem;
+  max-width: 500px;
+  margin: 0 auto;
 }
 
-/* 左右布局容器 */
-.layoutContainer {
+/* 左右布局 */
+.mainContent {
   display: grid;
-  grid-template-columns: 400px 1fr;
-  gap: 2rem;
+  grid-template-columns: 1fr 1fr;
+  gap: 2.5rem;
   align-items: start;
 }
 
-@media (max-width: 1024px) {
-  .layoutContainer {
+@media (max-width: 900px) {
+  .mainContent {
     grid-template-columns: 1fr;
+    gap: 2rem;
   }
 }
 
-/* 左侧面板 */
-.leftPanel {
-  display: flex;
-  flex-direction: column;
-  gap: 1.5rem;
-}
-
-/* 右侧面板 */
-.rightPanel {
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 1rem;
-  padding: 1.5rem;
-}
-
-.rightPanel .sectionTitle {
-  margin-bottom: 1rem;
-}
-
-/* 状态卡片通用样式 */
-.statusSection {
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 1rem;
-  padding: 1.5rem;
-}
-
-/* 挑战进行中卡片 */
-.activeChallengeCard {
-  background: linear-gradient(135deg, rgba(34, 197, 94, 0.1) 0%, rgba(22, 163, 74, 0.1) 100%);
-  border: 1px solid rgba(34, 197, 94, 0.3);
-  border-radius: 1rem;
-  padding: 1.5rem;
-}
-
-.challengeHeader {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 1rem;
-}
-
-.challengeHeader h3 {
-  font-size: 1.125rem;
-  font-weight: 600;
-  color: #22c55e;
-}
-
-.levelBadge {
-  background: #22c55e;
-  color: white;
-  padding: 0.25rem 0.75rem;
-  border-radius: 9999px;
-  font-size: 0.875rem;
-  font-weight: 600;
-}
-
-/* 账户信息 */
-.accountInfo {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  background: rgba(0, 0, 0, 0.2);
-  padding: 0.75rem 1rem;
-  border-radius: 0.5rem;
-  margin-bottom: 1rem;
-}
-
-.accountTitle {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  font-size: 0.875rem;
-  color: #a1a1aa;
-}
-
-.accountIcon {
-  width: 1.25rem;
-  height: 1.25rem;
-}
-
-.simulatedBadge {
-  background: rgba(251, 191, 36, 0.2);
-  color: #fbbf24;
-  padding: 0.125rem 0.5rem;
-  border-radius: 0.25rem;
-  font-size: 0.75rem;
-}
-
-/* 净值显示 */
-.balanceDisplay {
-  text-align: center;
-  padding: 1.5rem;
-  background: rgba(0, 0, 0, 0.3);
-  border-radius: 0.75rem;
-  margin-bottom: 1rem;
-}
-
-.balanceMain {
-  display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
-  margin-bottom: 0.5rem;
-}
-
-.balanceLabel {
-  font-size: 0.875rem;
-  color: #71717a;
-}
-
-.balanceValue {
-  font-size: 2.5rem;
-  font-weight: 700;
-  font-family: 'JetBrains Mono', monospace;
-}
-
-.balanceValue.profit {
-  color: #22c55e;
-}
-
-.balanceValue.loss {
-  color: #ef4444;
-}
-
-.failedBadge {
-  font-size: 0.75rem;
-  background: #ef4444;
-  color: white;
-  padding: 0.125rem 0.5rem;
-  border-radius: 0.25rem;
-  margin-left: 0.5rem;
-  font-weight: normal;
-}
-
-.balanceSub {
-  display: flex;
-  justify-content: center;
-  gap: 1rem;
-  font-size: 0.875rem;
-  color: #71717a;
-}
-
-.profitText {
-  color: #22c55e;
-}
-
-.lossText {
-  color: #ef4444;
-}
-
-/* 进度 */
-.progressSection {
-  text-align: center;
-}
-
-.progressText {
-  color: #71717a;
-  font-size: 0.875rem;
-  margin-bottom: 0.5rem;
-}
-
-.levelDots {
-  display: flex;
-  justify-content: center;
-  gap: 0.5rem;
-}
-
-.levelDot {
-  width: 12px;
-  height: 12px;
-  border-radius: 50%;
-  background: rgba(255, 255, 255, 0.1);
-  border: 2px solid rgba(255, 255, 255, 0.2);
-  transition: all 0.3s ease;
-}
-
-.levelDot.completed {
-  background: #22c55e;
-  border-color: #22c55e;
-}
-
-.levelDot.current {
-  background: #fbbf24;
-  border-color: #fbbf24;
-  box-shadow: 0 0 10px rgba(251, 191, 36, 0.5);
-  animation: pulse 2s infinite;
-}
-
-@keyframes pulse {
-  0%, 100% { transform: scale(1); }
-  50% { transform: scale(1.2); }
-}
-
-.refreshing {
-  text-align: center;
-  font-size: 0.75rem;
-  color: #71717a;
-  margin-top: 0.5rem;
-}
-
-/* 待审核卡片 */
-.pendingCard {
-  background: linear-gradient(135deg, rgba(251, 191, 36, 0.1) 0%, rgba(245, 158, 11, 0.1) 100%);
-  border: 1px solid rgba(251, 191, 36, 0.3);
-  border-radius: 1rem;
+/* 卡片通用样式 */
+.card {
+  background: linear-gradient(145deg, rgba(30, 30, 50, 0.8) 0%, rgba(20, 20, 40, 0.9) 100%);
+  border: 1px solid rgba(139, 92, 246, 0.2);
+  border-radius: 1.5rem;
   padding: 2rem;
-  text-align: center;
+  backdrop-filter: blur(10px);
+  box-shadow: 
+    0 4px 6px -1px rgba(0, 0, 0, 0.3),
+    0 2px 4px -2px rgba(0, 0, 0, 0.2),
+    inset 0 1px 0 rgba(255, 255, 255, 0.05);
 }
 
-.pendingIcon {
-  width: 3rem;
-  height: 3rem;
-  margin: 0 auto 1rem;
-  color: #fbbf24;
-}
-
-.pendingIcon svg {
-  width: 100%;
-  height: 100%;
-}
-
-.pendingCard h3 {
+/* 卡片标题 */
+.cardTitle {
   font-size: 1.25rem;
-  color: #fbbf24;
-  margin-bottom: 0.5rem;
-}
-
-.pendingCard p {
-  color: #a1a1aa;
-  margin-bottom: 1rem;
-}
-
-.pendingHint {
-  font-size: 0.875rem;
-  color: #71717a;
-  background: rgba(0, 0, 0, 0.2);
-  padding: 0.75rem;
-  border-radius: 0.5rem;
-}
-
-.accountPreview {
-  display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
-  font-size: 0.875rem;
-  color: #a1a1aa;
-  background: rgba(0, 0, 0, 0.2);
-  padding: 0.75rem;
-  border-radius: 0.5rem;
-}
-
-/* 开始挑战卡片 */
-.startChallengeCard {
-  background: linear-gradient(135deg, rgba(251, 191, 36, 0.1) 0%, rgba(245, 158, 11, 0.1) 100%);
-  border: 1px solid rgba(251, 191, 36, 0.3);
-  border-radius: 1rem;
-  padding: 1.5rem;
-  text-align: center;
-}
-
-.startChallengeCard h3 {
-  font-size: 1.125rem;
-  color: #fbbf24;
-  margin-bottom: 0.5rem;
-}
-
-.startChallengeCard > p {
-  color: #a1a1aa;
-  margin-bottom: 1rem;
-}
-
-.rewards {
+  font-weight: 700;
+  color: #f1f5f9;
+  margin-bottom: 1.5rem;
   display: flex;
   align-items: center;
-  justify-content: center;
-  gap: 0.5rem;
-  background: rgba(0, 0, 0, 0.2);
-  padding: 0.75rem;
-  border-radius: 0.5rem;
-  margin-bottom: 1rem;
-  font-size: 0.875rem;
-  color: #a1a1aa;
-  flex-wrap: wrap;
+  gap: 0.75rem;
 }
 
-.rewardIcon {
-  width: 1.25rem;
-  height: 1.25rem;
-  color: #fbbf24;
-}
-
-.rewardIcon svg {
-  width: 100%;
-  height: 100%;
-}
-
-.rules {
-  text-align: left;
-  margin-bottom: 1rem;
-}
-
-.ruleItem {
-  display: flex;
-  justify-content: space-between;
-  padding: 0.5rem 0;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-}
-
-.ruleItem:last-child {
-  border-bottom: none;
-}
-
-.ruleLabel {
-  color: #71717a;
-  font-size: 0.875rem;
-}
-
-.ruleText {
-  color: #e4e4e7;
-  font-size: 0.875rem;
-}
-
-.reapplySection {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
-
-.feeNote {
-  font-size: 0.75rem;
-  color: #71717a;
-}
-
-.startButton {
-  background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%);
-  color: #1a1a2e;
-  border: none;
-  padding: 0.875rem 2rem;
-  border-radius: 0.75rem;
-  font-weight: 600;
-  font-size: 1rem;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  width: 100%;
-}
-
-.startButton:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 15px rgba(251, 191, 36, 0.4);
-}
-
-.startButton:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-  transform: none;
-}
-
-/* 登录提示 */
-.loginPrompt {
-  text-align: center;
-  padding: 2rem;
-}
-
-.loginPrompt p {
-  color: #71717a;
-  margin-bottom: 1rem;
-}
-
-.loginButton {
-  background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
-  color: white;
-  border: none;
-  padding: 0.875rem 2rem;
-  border-radius: 0.75rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.3s ease;
-}
-
-.loginButton:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 15px rgba(59, 130, 246, 0.4);
+.cardTitleIcon {
+  width: 1.5rem;
+  height: 1.5rem;
+  color: #8b5cf6;
 }
 
 /* 消息提示 */
 .errorMessage {
+  background: linear-gradient(135deg, rgba(239, 68, 68, 0.15) 0%, rgba(220, 38, 38, 0.1) 100%);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  border-radius: 0.75rem;
+  padding: 1rem 1.25rem;
+  color: #fca5a5;
   display: flex;
   align-items: center;
-  justify-content: center;
-  gap: 0.5rem;
-  margin-top: 1rem;
-  padding: 0.75rem 1rem;
-  background: rgba(239, 68, 68, 0.1);
-  border: 1px solid rgba(239, 68, 68, 0.3);
-  border-radius: 0.5rem;
-  color: #fca5a5;
-  font-size: 0.875rem;
+  gap: 0.75rem;
+  margin-bottom: 1.5rem;
+  font-size: 0.9rem;
 }
 
 .errorMessage svg {
@@ -512,17 +179,16 @@
 }
 
 .successMessage {
+  background: linear-gradient(135deg, rgba(34, 197, 94, 0.15) 0%, rgba(22, 163, 74, 0.1) 100%);
+  border: 1px solid rgba(34, 197, 94, 0.3);
+  border-radius: 0.75rem;
+  padding: 1rem 1.25rem;
+  color: #86efac;
   display: flex;
   align-items: center;
-  justify-content: center;
-  gap: 0.5rem;
-  margin-top: 1rem;
-  padding: 0.75rem 1rem;
-  background: rgba(34, 197, 94, 0.1);
-  border: 1px solid rgba(34, 197, 94, 0.3);
-  border-radius: 0.5rem;
-  color: #86efac;
-  font-size: 0.875rem;
+  gap: 0.75rem;
+  margin-bottom: 1.5rem;
+  font-size: 0.9rem;
 }
 
 .successMessage svg {
@@ -531,489 +197,354 @@
   flex-shrink: 0;
 }
 
-/* 名人堂 */
-.hallOfFameSection {
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 1rem;
+/* 状态卡片 */
+.statusCard {
+  background: linear-gradient(145deg, rgba(251, 191, 36, 0.1) 0%, rgba(245, 158, 11, 0.05) 100%);
+  border: 1px solid rgba(251, 191, 36, 0.3);
+  border-radius: 1.25rem;
   padding: 1.5rem;
+  text-align: center;
 }
 
-.sectionTitle {
-  font-size: 1.125rem;
-  font-weight: 600;
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  margin-bottom: 1rem;
-  color: #e4e4e7;
-}
-
-.sectionIcon {
-  width: 1.5rem;
-  height: 1.5rem;
-  color: #fbbf24;
-}
-
-.hallOfFameList {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
-
-.hallOfFameItem {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-  padding: 0.75rem;
-  background: rgba(0, 0, 0, 0.2);
-  border-radius: 0.5rem;
-}
-
-.hallRank {
+.statusCard h3 {
+  font-size: 1.25rem;
   font-weight: 700;
   color: #fbbf24;
-  min-width: 2rem;
+  margin-bottom: 0.5rem;
 }
 
-.hallName {
-  flex: 1;
-  color: #e4e4e7;
+.statusCard p {
+  color: #94a3b8;
+  font-size: 0.95rem;
 }
 
-.hallDuration {
-  color: #71717a;
-  font-size: 0.875rem;
+/* 未登录提示 */
+.loginPrompt {
+  background: linear-gradient(145deg, rgba(139, 92, 246, 0.1) 0%, rgba(109, 40, 217, 0.05) 100%);
+  border: 1px solid rgba(139, 92, 246, 0.3);
+  border-radius: 1.25rem;
+  padding: 2rem;
+  text-align: center;
 }
 
-/* 关卡列表 */
-.levelsList {
+.loginPrompt p {
+  color: #c4b5fd;
+  font-size: 1rem;
+}
+
+/* 挑战进行中卡片 */
+.activeCard {
+  background: linear-gradient(145deg, rgba(34, 197, 94, 0.12) 0%, rgba(22, 163, 74, 0.06) 100%);
+  border: 1px solid rgba(34, 197, 94, 0.3);
+  border-radius: 1.5rem;
+  padding: 2rem;
+  position: relative;
+  overflow: hidden;
+}
+
+.activeCard::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, #22c55e 0%, #10b981 50%, #059669 100%);
+}
+
+.activeHeader {
   display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.5rem;
 }
 
-.levelCard {
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+.activeHeader h3 {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #22c55e;
+}
+
+.levelBadge {
+  background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
+  color: white;
+  padding: 0.4rem 1rem;
+  border-radius: 9999px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  box-shadow: 0 4px 12px rgba(34, 197, 94, 0.3);
+}
+
+/* 账户信息 */
+.accountInfo {
+  background: rgba(0, 0, 0, 0.3);
+  padding: 1rem 1.25rem;
   border-radius: 0.75rem;
-  padding: 1rem;
-  transition: all 0.3s ease;
-}
-
-.levelCard:hover {
-  background: rgba(255, 255, 255, 0.05);
-}
-
-.levelCard.completed {
-  background: rgba(34, 197, 94, 0.1);
-  border-color: rgba(34, 197, 94, 0.3);
-}
-
-.levelCard.current {
-  background: rgba(251, 191, 36, 0.1);
-  border-color: rgba(251, 191, 36, 0.5);
-  box-shadow: 0 0 20px rgba(251, 191, 36, 0.1);
-}
-
-.levelCard.locked {
-  opacity: 0.5;
-}
-
-.levelHeader {
+  margin-bottom: 1.5rem;
   display: flex;
   align-items: center;
-  gap: 0.75rem;
-  margin-bottom: 0.5rem;
+  justify-content: space-between;
+  border: 1px solid rgba(255, 255, 255, 0.05);
 }
 
-.levelNumber {
-  background: rgba(255, 255, 255, 0.1);
-  padding: 0.25rem 0.5rem;
-  border-radius: 0.25rem;
-  font-size: 0.75rem;
-  font-weight: 600;
-}
-
-.levelName {
-  flex: 1;
-  font-weight: 600;
-  color: #e4e4e7;
-}
-
-.completedBadge {
-  color: #22c55e;
-  width: 1.25rem;
-  height: 1.25rem;
-}
-
-.completedBadge svg {
-  width: 100%;
-  height: 100%;
-}
-
-.unlockedBadge {
-  color: #71717a;
-  width: 1.25rem;
-  height: 1.25rem;
-}
-
-.unlockedBadge svg {
-  width: 100%;
-  height: 100%;
-}
-
-.lockedBadge {
-  color: #52525b;
-  width: 1.25rem;
-  height: 1.25rem;
-}
-
-.lockedBadge svg {
-  width: 100%;
-  height: 100%;
-}
-
-.levelDescription {
-  font-size: 0.875rem;
-  color: #71717a;
-  margin-bottom: 0.5rem;
-}
-
-.levelStats {
+.accountInfo span {
+  color: #e2e8f0;
+  font-size: 0.95rem;
   display: flex;
-  gap: 1rem;
-  font-size: 0.75rem;
-  color: #a1a1aa;
-}
-
-.levelReward {
-  color: #fbbf24;
-}
-
-/* 参赛者排行榜样式 */
-.participantCount {
-  font-size: 0.75rem;
-  color: #a1a1aa;
-  margin-left: 0.5rem;
-  font-weight: normal;
-}
-
-.participantsList {
-  display: flex;
-  flex-direction: column;
+  align-items: center;
   gap: 0.5rem;
 }
 
-.participantItem {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  padding: 0.75rem;
-  background: rgba(255, 255, 255, 0.02);
+/* 净值显示 */
+.balanceDisplay {
+  text-align: center;
+  padding: 2rem;
+  background: linear-gradient(145deg, rgba(0, 0, 0, 0.4) 0%, rgba(0, 0, 0, 0.2) 100%);
+  border-radius: 1rem;
+  margin-bottom: 1.5rem;
   border: 1px solid rgba(255, 255, 255, 0.05);
-  border-radius: 0.5rem;
-  cursor: pointer;
-  transition: all 0.2s ease;
 }
 
-.participantItem:hover {
-  background: rgba(255, 255, 255, 0.05);
-  border-color: rgba(139, 92, 246, 0.3);
-}
-
-.participantItem.selected {
-  background: rgba(139, 92, 246, 0.1);
-  border-color: rgba(139, 92, 246, 0.5);
-}
-
-.participantRank {
-  font-weight: 600;
-  color: #71717a;
-  min-width: 2rem;
-}
-
-.participantRank.topRank {
-  color: #fbbf24;
-}
-
-.participantInfo {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
-}
-
-.participantLevel {
-  font-size: 0.75rem;
-  color: #a1a1aa;
-}
-
-.levelProgress {
-  display: flex;
-  gap: 3px;
-}
-
-.progressDot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: rgba(255, 255, 255, 0.1);
-}
-
-.progressDot.completedDot {
-  background: #22c55e;
-}
-
-.progressDot.currentDot {
-  background: #8b5cf6;
-  box-shadow: 0 0 6px rgba(139, 92, 246, 0.5);
-}
-
-.participantEquity {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 2px;
-}
-
-.equityValue {
+.balanceLabel {
+  display: block;
   font-size: 0.875rem;
-  font-weight: 600;
-  color: #e4e4e7;
-}
-
-.equityValue.profit {
-  color: #22c55e;
-}
-
-.equityValue.loss {
-  color: #ef4444;
-}
-
-.profitValue {
-  font-size: 0.75rem;
-}
-
-.profitValue.profitText {
-  color: #22c55e;
-}
-
-.profitValue.lossText {
-  color: #ef4444;
-}
-
-/* 净值曲线图表 */
-.equityChartCard {
-  margin-top: 1rem;
-  padding: 1rem;
-  background: rgba(0, 0, 0, 0.2);
-  border: 1px solid rgba(139, 92, 246, 0.3);
-  border-radius: 0.75rem;
-}
-
-.chartTitle {
-  font-size: 0.875rem;
-  font-weight: 600;
-  color: #e4e4e7;
+  color: #64748b;
   margin-bottom: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
 }
 
-.chartContainer {
-  margin: 0 -0.5rem;
+.balanceValue {
+  display: block;
+  font-size: 3rem;
+  font-weight: 800;
+  font-family: 'SF Mono', 'Fira Code', 'JetBrains Mono', monospace;
+  background: linear-gradient(135deg, #22c55e 0%, #10b981 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
 }
 
-.closeChartBtn {
-  margin-top: 0.75rem;
-  padding: 0.375rem 1rem;
+/* 关卡进度 */
+.progressSection {
+  text-align: center;
+}
+
+.progressSection > p {
+  color: #94a3b8;
+  font-size: 0.9rem;
+  margin-bottom: 1rem;
+}
+
+.levelDots {
+  display: flex;
+  justify-content: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.levelDot {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
   background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 0.375rem;
-  color: #a1a1aa;
-  font-size: 0.75rem;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.closeChartBtn:hover {
-  background: rgba(255, 255, 255, 0.1);
-  color: #e4e4e7;
-}
-
-.loadingText {
-  text-align: center;
-  color: #71717a;
-  padding: 1rem;
-}
-
-/* 响应式 */
-@media (max-width: 768px) {
-  .main {
-    padding: 1rem;
-  }
-
-  .title {
-    font-size: 1.75rem;
-  }
-
-  .layoutContainer {
-    gap: 1rem;
-  }
-
-  .balanceValue {
-    font-size: 2rem;
-  }
-
-  .levelStats {
-    flex-wrap: wrap;
-    gap: 0.5rem;
-  }
-
-  .participantsList {
-    gap: 0.375rem;
-  }
-
-  .participantItem {
-    padding: 0.5rem;
-    gap: 0.5rem;
-  }
-
-  .progressDot {
-    width: 6px;
-    height: 6px;
-  }
-}
-
-/* 失败操作区域 */
-.failActions {
-  margin-top: 1rem;
-  padding: 1rem;
-  background: rgba(239, 68, 68, 0.1);
-  border-radius: 12px;
-  text-align: center;
-}
-
-.failMessage {
-  color: #ef4444;
-  font-size: 0.875rem;
-  margin: 0 0 0.75rem 0;
-}
-
-.reapplyButton {
-  padding: 0.5rem 1.5rem;
-  background: linear-gradient(135deg, #f97316 0%, #ea580c 100%);
-  color: white;
-  border: none;
-  border-radius: 8px;
-  font-size: 0.875rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.reapplyButton:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(249, 115, 22, 0.3);
-}
-
-.reapplyButton:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-  transform: none;
-}
-
-/* 通关操作区域 */
-.passedActions {
-  margin-top: 1rem;
-  padding: 1rem;
-  background: linear-gradient(135deg, rgba(34, 197, 94, 0.1) 0%, rgba(22, 163, 74, 0.1) 100%);
-  border: 1px solid rgba(34, 197, 94, 0.3);
-  border-radius: 12px;
-  text-align: center;
-}
-
-.passedMessage {
+  border: 2px solid rgba(255, 255, 255, 0.1);
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 0.5rem;
-  color: #22c55e;
-  font-size: 1rem;
-  font-weight: 600;
-  margin: 0;
-}
-
-.passedIcon {
-  width: 1.25rem;
-  height: 1.25rem;
-}
-
-.passedHint {
-  color: #86efac;
   font-size: 0.75rem;
-  margin: 0.5rem 0 0 0;
+  font-weight: 600;
+  color: #64748b;
+  transition: all 0.3s ease;
+  cursor: pointer;
 }
 
-/* 公告栏样式 */
-.announcementBanner {
-  background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
-  border: 1px solid #fbbf24;
-  border-radius: 12px;
-  padding: 1rem 1.25rem;
-  margin-bottom: 1rem;
+.levelDot:hover {
+  transform: scale(1.1);
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+.completedDot {
+  background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
+  border-color: #22c55e;
+  color: white;
+  box-shadow: 0 0 15px rgba(34, 197, 94, 0.4);
+}
+
+.currentDot {
+  background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%);
+  border-color: #fbbf24;
+  color: white;
+  box-shadow: 0 0 20px rgba(251, 191, 36, 0.5);
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { 
+    transform: scale(1);
+    box-shadow: 0 0 20px rgba(251, 191, 36, 0.5);
+  }
+  50% { 
+    transform: scale(1.1);
+    box-shadow: 0 0 30px rgba(251, 191, 36, 0.7);
+  }
+}
+
+/* 开始挑战卡片 */
+.startChallengeCard {
+  background: linear-gradient(145deg, rgba(139, 92, 246, 0.12) 0%, rgba(109, 40, 217, 0.06) 100%);
+  border: 1px solid rgba(139, 92, 246, 0.3);
+  border-radius: 1.5rem;
+  padding: 2rem;
+  text-align: center;
+  position: relative;
+  overflow: hidden;
+}
+
+.startChallengeCard::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, #8b5cf6 0%, #a855f7 50%, #c084fc 100%);
+}
+
+.startChallengeCard h3 {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #f1f5f9;
+  margin-bottom: 0.75rem;
+}
+
+.startChallengeCard p {
+  color: #94a3b8;
+  font-size: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.startButton {
+  background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
+  color: white;
+  border: none;
+  padding: 1rem 2.5rem;
+  border-radius: 9999px;
+  font-size: 1.1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 15px rgba(139, 92, 246, 0.4);
+}
+
+.startButton:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(139, 92, 246, 0.5);
+}
+
+.startButton:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.feeNote {
+  display: block;
+  margin-top: 1rem;
+  color: #64748b;
+  font-size: 0.875rem;
+}
+
+/* 规则列表 */
+.rulesSection {
+  margin-top: 1.5rem;
+}
+
+.sectionTitle {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #f1f5f9;
+  margin-bottom: 1.5rem;
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   gap: 0.75rem;
 }
 
-.announcementIcon {
-  width: 24px;
-  height: 24px;
-  color: #f59e0b;
+.rulesList {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.ruleItem {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem 1.25rem;
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 0.75rem;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  transition: all 0.3s ease;
+}
+
+.ruleItem:hover {
+  background: rgba(0, 0, 0, 0.3);
+  border-color: rgba(139, 92, 246, 0.2);
+}
+
+.ruleNum {
+  width: 2rem;
+  height: 2rem;
+  background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
+  color: white;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 0.875rem;
   flex-shrink: 0;
-  margin-top: 2px;
 }
 
-.announcementContent {
-  flex: 1;
+.ruleText {
+  color: #e2e8f0;
+  font-size: 0.95rem;
 }
 
-.announcementTitle {
-  font-weight: 600;
-  color: #92400e;
-  margin: 0 0 0.25rem 0;
-  font-size: 0.875rem;
-}
-
-.announcementText {
-  color: #78350f;
-  font-size: 0.875rem;
-  line-height: 1.5;
-  margin: 0;
-  white-space: pre-wrap;
-  word-break: break-word;
-}
-
-.announcementEmpty {
-  color: #a16207;
-  font-size: 0.875rem;
-}
-
-/* 报名横幅样式 */
-.registrationBanner {
-  margin-bottom: 2rem;
-}
-
-.registrationContent {
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 16px;
+/* 奖励卡片 */
+.rewardCard {
+  background: linear-gradient(145deg, rgba(251, 191, 36, 0.1) 0%, rgba(245, 158, 11, 0.05) 100%);
+  border: 1px solid rgba(251, 191, 36, 0.3);
+  border-radius: 1.25rem;
   padding: 1.5rem;
+  margin-top: 1.5rem;
 }
 
-/* 响应式调整 */
-@media (max-width: 1024px) {
-  .layoutContainer {
-    grid-template-columns: 1fr;
-  }
+.rewardCard h4 {
+  color: #fbbf24;
+  font-size: 1rem;
+  font-weight: 600;
+  margin-bottom: 1rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.rewardItem {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem 0;
+  color: #e2e8f0;
+  font-size: 0.9rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.rewardItem:last-child {
+  border-bottom: none;
+}
+
+.rewardItem svg {
+  width: 1rem;
+  height: 1rem;
+  color: #22c55e;
 }
