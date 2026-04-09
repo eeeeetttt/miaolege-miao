@@ -326,7 +326,7 @@ export default function ChallengeAdminPage() {
                   </div>
                   <div>
                     <span className="text-gray-500">已通关关卡：</span>
-                    <span>{item.registration.completedLevels ? JSON.parse(item.registration.completedLevels).length : 0}关</span>
+                    <span>{Array.isArray(item.registration.completedLevels) ? item.registration.completedLevels.length : 0}关</span>
                   </div>
                   <div>
                     <span className="text-gray-500">申请时间：</span>
