@@ -97,9 +97,16 @@ export async function GET() {
       const failBalance = 100;
       const currentStatus = activeChallenge.status;
       const currentLevel = activeChallenge.current_level;
-      const completedLevels = activeChallenge.completed_levels 
-        ? JSON.parse(activeChallenge.completed_levels) 
-        : [];
+      let completedLevels: number[] = [];
+      try {
+        completedLevels = activeChallenge.completed_levels 
+          ? (typeof activeChallenge.completed_levels === 'string' 
+              ? JSON.parse(activeChallenge.completed_levels) 
+              : activeChallenge.completed_levels)
+          : [];
+      } catch (e) {
+        completedLevels = [];
+      }
       
       // 只有在active状态下才检测
       if (currentStatus === 'active') {
@@ -130,11 +137,16 @@ export async function GET() {
       hasActiveChallenge: true,
       challengeId: activeChallenge.id,
       currentLevel: activeChallenge.current_level,
-      completedLevels: activeChallenge.completed_levels 
-        ? (typeof activeChallenge.completed_levels === 'string' 
-            ? JSON.parse(activeChallenge.completed_levels) 
-            : activeChallenge.completed_levels)
-        : [],
+      completedLevels: (() => {
+        const raw = activeChallenge.completed_levels;
+        if (!raw) return [];
+        if (typeof raw === 'string') {
+          try { return JSON.parse(raw); } 
+          catch { return []; }
+        }
+        if (Array.isArray(raw)) return raw;
+        return [];
+      })(),
       account: {
         serverName: activeChallenge.server_name,
         accountNumber: tradingAccount,

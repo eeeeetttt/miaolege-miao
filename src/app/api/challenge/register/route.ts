@@ -136,9 +136,16 @@ export async function GET() {
         id: latestRegistration.id,
         status: latestRegistration.status,
         currentLevel: latestRegistration.current_level,
-        completedLevels: latestRegistration.completed_levels 
-          ? JSON.parse(latestRegistration.completed_levels) 
-          : [],
+        completedLevels: (() => {
+          const raw = latestRegistration.completed_levels;
+          if (!raw) return [];
+          if (typeof raw === 'string') {
+            try { return JSON.parse(raw); } 
+            catch { return []; }
+          }
+          if (Array.isArray(raw)) return raw;
+          return [];
+        })(),
         startedAt: latestRegistration.started_at,
         serverName: latestRegistration.server_name,
         tradingAccount: latestRegistration.trading_account,

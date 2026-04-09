@@ -1,19 +1,44 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
-import { 
-  AreaChart,
-  Area,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-  ReferenceLine,
-} from 'recharts';
+import dynamic from 'next/dynamic';
 import styles from './page.module.css';
+
+// 动态导入 recharts 组件以避免 SSR 问题
+const AreaChart = dynamic(
+  () => import('recharts').then((mod) => mod.AreaChart),
+  { ssr: false, loading: () => <div className="h-48 flex items-center justify-center text-gray-400">加载图表...</div> }
+);
+const Area = dynamic(
+  () => import('recharts').then((mod) => mod.Area),
+  { ssr: false }
+);
+const XAxis = dynamic(
+  () => import('recharts').then((mod) => mod.XAxis),
+  { ssr: false }
+);
+const YAxis = dynamic(
+  () => import('recharts').then((mod) => mod.YAxis),
+  { ssr: false }
+);
+const CartesianGrid = dynamic(
+  () => import('recharts').then((mod) => mod.CartesianGrid),
+  { ssr: false }
+);
+const Tooltip = dynamic(
+  () => import('recharts').then((mod) => mod.Tooltip),
+  { ssr: false }
+);
+const ResponsiveContainer = dynamic(
+  () => import('recharts').then((mod) => mod.ResponsiveContainer),
+  { ssr: false }
+);
+const ReferenceLine = dynamic(
+  () => import('recharts').then((mod) => mod.ReferenceLine),
+  { ssr: false }
+);
 
 interface LevelConfig {
   level: number;
@@ -130,15 +155,6 @@ export default function ChallengePage() {
     fetchAnnouncement();
   }, [status]);
 
-  // 定期刷新余额
-  useEffect(() => {
-    if (challengeData?.hasActiveChallenge) {
-      fetchAccountBalance();
-      const interval = setInterval(fetchAccountBalance, 30000); // 每30秒刷新
-      return () => clearInterval(interval);
-    }
-  }, [challengeData?.hasActiveChallenge]);
-
   const fetchChallengeData = async () => {
     try {
       const res = await fetch('/api/challenge/register');
@@ -164,7 +180,7 @@ export default function ChallengePage() {
     }
   };
 
-  const fetchAccountBalance = async () => {
+  const fetchAccountBalance = useCallback(async () => {
     if (!challengeData?.hasActiveChallenge) return;
     
     setBalanceLoading(true);
@@ -179,7 +195,16 @@ export default function ChallengePage() {
     } finally {
       setBalanceLoading(false);
     }
-  };
+  }, [challengeData?.hasActiveChallenge]);
+
+  // 定期刷新余额
+  useEffect(() => {
+    if (challengeData?.hasActiveChallenge) {
+      fetchAccountBalance();
+      const interval = setInterval(fetchAccountBalance, 30000); // 每30秒刷新
+      return () => clearInterval(interval);
+    }
+  }, [challengeData?.hasActiveChallenge, fetchAccountBalance]);
 
   const fetchHallOfFame = async () => {
     try {
