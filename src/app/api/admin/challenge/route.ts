@@ -395,6 +395,72 @@ export async function POST(request: Request) {
 
       return NextResponse.json({ success: true, message: '关卡配置已初始化' });
 
+    } else if (action === 'advanceLevel') {
+      // 开启下一关（审核通过后，用户的当前关卡完成，进入下一关）
+      const currentLevel = registration.current_level;
+      const completedLevels = registration.completed_levels 
+        ? JSON.parse(registration.completed_levels) 
+        : [];
+      
+      // 如果当前关卡不在已完成列表中，添加到已完成
+      if (!completedLevels.includes(currentLevel)) {
+        completedLevels.push(currentLevel);
+      }
+      
+      const nextLevel = currentLevel + 1;
+      
+      // 如果已经通关第10关，标记为完成
+      if (nextLevel > 10) {
+        const { error: updateError } = await supabase
+          .from('challenge_registrations')
+          .update({
+            status: 'completed',
+            completed_levels: JSON.stringify(completedLevels),
+            completed_at: new Date().toISOString(),
+          })
+          .eq('id', registrationId);
+
+        if (updateError) {
+          console.error('Update error:', updateError);
+          return NextResponse.json({ error: '更新失败' }, { status: 500 });
+        }
+
+        return NextResponse.json({ success: true, message: '恭喜！已完成全部关卡！' });
+      }
+      
+      // 否则进入下一关
+      const { error: updateError } = await supabase
+        .from('challenge_registrations')
+        .update({
+          status: 'active',
+          current_level: nextLevel,
+          completed_levels: JSON.stringify(completedLevels),
+        })
+        .eq('id', registrationId);
+
+      if (updateError) {
+        console.error('Update error:', updateError);
+        return NextResponse.json({ error: '更新失败' }, { status: 500 });
+      }
+
+      return NextResponse.json({ success: true, message: `已开启第${nextLevel}关` });
+
+    } else if (action === 'rejectLevel') {
+      // 拒绝通过当前关卡（需要用户继续当前关卡）
+      const { error: updateError } = await supabase
+        .from('challenge_registrations')
+        .update({
+          status: 'active',
+        })
+        .eq('id', registrationId);
+
+      if (updateError) {
+        console.error('Update error:', updateError);
+        return NextResponse.json({ error: '更新失败' }, { status: 500 });
+      }
+
+      return NextResponse.json({ success: true, message: '已拒绝，当前关卡继续' });
+
     } else {
       return NextResponse.json({ error: '未知操作' }, { status: 400 });
     }

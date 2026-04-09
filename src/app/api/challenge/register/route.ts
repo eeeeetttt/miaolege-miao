@@ -119,7 +119,7 @@ export async function GET() {
     }
 
     // 判断状态
-    const isActive = latestRegistration.status === 'active';
+    const isActive = latestRegistration.status === 'active' || latestRegistration.status === 'level_passed';
     const isPending = latestRegistration.status === 'pending';
     const isApproved = latestRegistration.status === 'approved';
     const isCompleted = latestRegistration.status === 'completed';
@@ -246,7 +246,7 @@ export async function POST() {
       .from('challenge_registrations')
       .select('id, status')
       .eq('user_id', userId)
-      .in('status', ['active', 'approved'])
+      .in('status', ['active', 'approved', 'level_passed'])
       .limit(1);
 
     if (existingActive && existingActive.length > 0) {
@@ -254,6 +254,10 @@ export async function POST() {
       if (status === 'active') {
         return NextResponse.json({ 
           error: '您已有正在进行的挑战' 
+        }, { status: 400 });
+      } else if (status === 'level_passed') {
+        return NextResponse.json({ 
+          error: '您的当前关卡已通过，等待管理员审核开启下一关' 
         }, { status: 400 });
       } else {
         return NextResponse.json({ 
@@ -308,6 +312,7 @@ function getStatusMessage(status: string): string {
     pending: '您的申请正在审核中，请耐心等待...',
     approved: '您的申请已通过！账户信息已分配，等待管理员激活...',
     active: '挑战进行中，祝您通关顺利！',
+    level_passed: '恭喜通过当前关卡！等待管理员审核后开启下一关...',
     completed: '恭喜通关！您已完成全部10关挑战',
     failed: '挑战失败，但您可以重新申请',
     rejected: '申请被拒绝，您可以重新申请',

@@ -91,6 +91,39 @@ export async function GET() {
       }
       
       equitySource = 'database';
+      
+      // 自动检测净值，判断是否通过当前关卡或失败
+      const targetBalance = 2000;
+      const failBalance = 100;
+      const currentStatus = activeChallenge.status;
+      const currentLevel = activeChallenge.current_level;
+      const completedLevels = activeChallenge.completed_levels 
+        ? JSON.parse(activeChallenge.completed_levels) 
+        : [];
+      
+      // 只有在active状态下才检测
+      if (currentStatus === 'active') {
+        // 检查当前关卡是否已完成
+        if (!completedLevels.includes(currentLevel)) {
+          // 净值>=2000，标记为通过当前关卡
+          if (equity >= targetBalance) {
+            await supabase
+              .from('challenge_registrations')
+              .update({ status: 'level_passed' })
+              .eq('id', activeChallenge.id);
+          }
+          // 净值<100，标记为失败
+          else if (equity < failBalance) {
+            await supabase
+              .from('challenge_registrations')
+              .update({ 
+                status: 'failed',
+                failed_at: new Date().toISOString(),
+              })
+              .eq('id', activeChallenge.id);
+          }
+        }
+      }
     }
 
     return NextResponse.json({

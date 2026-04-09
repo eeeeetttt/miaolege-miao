@@ -231,7 +231,8 @@ export default function ChallengeAdminPage() {
       pending: { color: 'bg-yellow-500', label: '待审核' },
       approved: { color: 'bg-blue-500', label: '待激活' },
       active: { color: 'bg-green-500', label: '挑战中' },
-      completed: { color: 'bg-purple-500', label: '已通关' },
+      level_passed: { color: 'bg-purple-500', label: '待开启下一关' },
+      completed: { color: 'bg-purple-600', label: '已通关' },
       failed: { color: 'bg-red-500', label: '已失败' },
       rejected: { color: 'bg-gray-500', label: '已拒绝' },
     };
@@ -259,7 +260,7 @@ export default function ChallengeAdminPage() {
       </div>
 
       {/* 统计卡片 */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+      <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-6">
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-gray-500">待审核</CardTitle>
@@ -277,6 +278,16 @@ export default function ChallengeAdminPage() {
           <CardContent>
             <div className="text-2xl font-bold">
               {list.filter((i) => i.registration.status === 'active').length}
+            </div>
+          </CardContent>
+        </Card>
+        <Card className="bg-purple-50 dark:bg-purple-900/20 border-purple-200 dark:border-purple-800">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-purple-600 dark:text-purple-400">待开启下一关</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-purple-600 dark:text-purple-400">
+              {list.filter((i) => i.registration.status === 'level_passed').length}
             </div>
           </CardContent>
         </Card>
@@ -305,7 +316,7 @@ export default function ChallengeAdminPage() {
       {/* 筛选 */}
       <div className="flex gap-4 mb-4">
         <Select value={statusFilter} onValueChange={setStatusFilter}>
-          <SelectTrigger className="w-40">
+          <SelectTrigger className="w-48">
             <SelectValue placeholder="筛选状态" />
           </SelectTrigger>
           <SelectContent>
@@ -313,6 +324,7 @@ export default function ChallengeAdminPage() {
             <SelectItem value="pending">待审核</SelectItem>
             <SelectItem value="approved">待激活</SelectItem>
             <SelectItem value="active">挑战中</SelectItem>
+            <SelectItem value="level_passed">待开启下一关</SelectItem>
             <SelectItem value="completed">已通关</SelectItem>
             <SelectItem value="failed">已失败</SelectItem>
             <SelectItem value="rejected">已拒绝</SelectItem>
@@ -366,11 +378,15 @@ export default function ChallengeAdminPage() {
                   </div>
                   <div>
                     <span className="text-gray-500">当前关卡：</span>
-                    <span>第{item.registration.currentLevel}关</span>
+                    <span className="font-medium text-purple-600 dark:text-purple-400">
+                      第{item.registration.currentLevel}关
+                    </span>
                   </div>
                   <div>
                     <span className="text-gray-500">已通关关卡：</span>
-                    <span>{Array.isArray(item.registration.completedLevels) ? item.registration.completedLevels.length : 0}关</span>
+                    <span className="text-green-600 dark:text-green-400">
+                      {Array.isArray(item.registration.completedLevels) ? item.registration.completedLevels.length : 0}关
+                    </span>
                   </div>
                   <div>
                     <span className="text-gray-500">申请时间：</span>
@@ -392,6 +408,13 @@ export default function ChallengeAdminPage() {
                     <div>
                       <span className="text-gray-500">开始时间：</span>
                       <span>{new Date(item.registration.startedAt).toLocaleString()}</span>
+                    </div>
+                  )}
+                  {item.registration.status === 'level_passed' && (
+                    <div className="col-span-2 bg-purple-50 dark:bg-purple-900/30 p-2 rounded-lg">
+                      <span className="text-purple-600 dark:text-purple-400 font-medium">
+                        该用户已通过第{item.registration.currentLevel}关，等待开启第{item.registration.currentLevel + 1}关
+                      </span>
                     </div>
                   )}
                 </div>
@@ -452,6 +475,28 @@ export default function ChallengeAdminPage() {
                       >
                         <RefreshCw className="w-4 h-4 mr-1" />
                         重置挑战
+                      </Button>
+                    </>
+                  )}
+                  {item.registration.status === 'level_passed' && (
+                    <>
+                      <Button
+                        size="sm"
+                        className="bg-purple-600 hover:bg-purple-700"
+                        onClick={() => handleAction('advanceLevel', item.registration.id)}
+                        disabled={actionLoading === item.registration.id}
+                      >
+                        <Check className="w-4 h-4 mr-1" />
+                        开启下一关
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => handleAction('rejectLevel', item.registration.id)}
+                        disabled={actionLoading === item.registration.id}
+                      >
+                        <X className="w-4 h-4 mr-1" />
+                        驳回
                       </Button>
                     </>
                   )}

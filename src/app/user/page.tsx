@@ -149,7 +149,19 @@ interface SearchedUser {
 }
 
 function SocialTab({ userId, coinBalance }: { userId?: string; coinBalance?: number }) {
-  const [activeSection, setActiveSection] = useState<'messages' | 'transfer' | 'search'>('messages');
+  // 从URL参数获取默认section
+  const getInitialSection = (): 'messages' | 'transfer' | 'search' | 'follow' => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const tab = params.get('tab');
+      if (tab === 'messages') return 'messages';
+      if (tab === 'transfer') return 'transfer';
+      if (tab === 'follow') return 'follow';
+    }
+    return 'messages';
+  };
+  
+  const [activeSection, setActiveSection] = useState<'messages' | 'transfer' | 'search' | 'follow'>(getInitialSection);
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [selectedConversation, setSelectedConversation] = useState<Conversation | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -170,6 +182,11 @@ function SocialTab({ userId, coinBalance }: { userId?: string; coinBalance?: num
   const [searchResults, setSearchResults] = useState<SearchedUser[]>([]);
   const [searchLoading, setSearchLoading] = useState(false);
   const [followingIds, setFollowingIds] = useState<Set<string>>(new Set());
+  
+  // 关注列表相关状态
+  const [followList, setFollowList] = useState<SearchedUser[]>([]);
+  const [followListType, setFollowListType] = useState<'following' | 'followers'>('following');
+  const [followLoading, setFollowLoading] = useState(false);
 
   // 加载会话列表
   const loadConversations = async () => {
@@ -356,8 +373,43 @@ function SocialTab({ userId, coinBalance }: { userId?: string; coinBalance?: num
     if (userId) {
       loadConversations();
       loadTransfers();
+      loadFollowList('following');
     }
   }, [userId]);
+
+  // 加载关注/粉丝列表
+  const loadFollowList = async (type: 'following' | 'followers') => {
+    setFollowLoading(true);
+    try {
+      const res = await fetch(`/api/user/follow/list?type=${type}`);
+      const data = await res.json();
+      if (data.success) {
+        setFollowList(data.data || []);
+      }
+    } catch (err) {
+      console.error('Failed to load follow list:', err);
+    } finally {
+      setFollowLoading(false);
+    }
+  };
+
+  // 取消关注
+  const handleUnfollow = async (targetUserId: string) => {
+    try {
+      const res = await fetch('/api/user/follow', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ targetUserId, action: 'unfollow' }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        loadFollowList('following');
+        loadFollowList('followers');
+      }
+    } catch (err) {
+      console.error('Failed to unfollow:', err);
+    }
+  };
 
   // 选中会话时加载消息
   useEffect(() => {
@@ -385,6 +437,15 @@ function SocialTab({ userId, coinBalance }: { userId?: string; coinBalance?: num
           >
             <MessageSquare className="w-5 h-5" />
             <span>私信</span>
+          </button>
+          <button
+            onClick={() => { setActiveSection('follow'); setSelectedConversation(null); }}
+            className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
+              activeSection === 'follow' ? 'bg-purple-100 dark:bg-purple-900/30' : 'hover:bg-gray-100 dark:hover:bg-gray-800'
+            }`}
+          >
+            <UserPlus className="w-5 h-5" />
+            <span>关注列表</span>
           </button>
           <button
             onClick={() => { setActiveSection('transfer'); setSelectedConversation(null); }}
@@ -729,6 +790,109 @@ function SocialTab({ userId, coinBalance }: { userId?: string; coinBalance?: num
                         >
                           <MessageSquare className="w-4 h-4" />
                         </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
+
+        {/* 关注列表 */}
+        {activeSection === 'follow' && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <UserPlus className="w-5 h-5" />
+                关注列表
+              </CardTitle>
+              <CardDescription>管理您的关注和粉丝</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex gap-2">
+                <Button 
+                  variant={followListType === 'following' ? 'default' : 'outline'}
+                  onClick={() => setFollowListType('following')}
+                  className={followListType === 'following' ? 'bg-purple-600' : ''}
+                >
+                  <UserCheck className="w-4 h-4 mr-1" />
+                  我的关注 ({followList.length})
+                </Button>
+                <Button 
+                  variant={followListType === 'followers' ? 'default' : 'outline'}
+                  onClick={() => {
+                    setFollowListType('followers');
+                    loadFollowList('followers');
+                  }}
+                  className={followListType === 'followers' ? 'bg-purple-600' : ''}
+                >
+                  <UserX className="w-4 h-4 mr-1" />
+                  我的粉丝
+                </Button>
+              </div>
+              
+              {followLoading ? (
+                <div className="space-y-4">
+                  {[1, 2, 3].map(i => (
+                    <div key={i} className="animate-pulse flex items-center gap-4 p-4 bg-gray-100 dark:bg-gray-800 rounded-lg">
+                      <div className="w-12 h-12 bg-gray-300 dark:bg-gray-700 rounded-full" />
+                      <div className="flex-1">
+                        <div className="h-4 bg-gray-300 dark:bg-gray-700 rounded w-1/3 mb-2" />
+                        <div className="h-3 bg-gray-200 dark:bg-gray-600 rounded w-1/4" />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : followList.length === 0 ? (
+                <div className="text-center py-8 text-gray-500">
+                  <UserIcon className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                  <p>{followListType === 'following' ? '暂无关注' : '暂无粉丝'}</p>
+                  <p className="text-sm mt-2">在搜索用户中关注感兴趣的人吧</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {followList.map(item => (
+                    <div key={item.userId} className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                      <div className="flex items-center gap-3">
+                        <Avatar className="w-12 h-12">
+                          <AvatarFallback className="bg-gradient-to-br from-purple-500 to-blue-500 text-white">
+                            {item.name.slice(0, 1)}
+                          </AvatarFallback>
+                          {item.avatar && <AvatarImage src={item.avatar} />}
+                        </Avatar>
+                        <div>
+                          <p className="font-medium">{item.name}</p>
+                          {item.email && <p className="text-xs text-gray-500">{item.email}</p>}
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            setActiveSection('messages');
+                            setSelectedConversation({
+                              userId: item.userId,
+                              userName: item.name,
+                              userAvatar: item.avatar,
+                              lastMessage: { id: 0, content: '', senderId: '', createdAt: '' },
+                              unreadCount: 0,
+                            });
+                          }}
+                        >
+                          <MessageSquare className="w-4 h-4 mr-1" />
+                          发私信
+                        </Button>
+                        {followListType === 'following' && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleUnfollow(item.userId)}
+                          >
+                            取消关注
+                          </Button>
+                        )}
                       </div>
                     </div>
                   ))}

@@ -14,7 +14,7 @@ import {
   DropdownMenuTrigger 
 } from '@/components/ui/dropdown-menu';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { User, LogOut, Globe, Settings, Download, Home, Shield, FileText, Trophy, MessageCircle } from 'lucide-react';
+import { User, LogOut, Globe, Settings, Download, Home, Shield, FileText, Trophy, MessageCircle, UserCircle, Wallet } from 'lucide-react';
 
 export function Header() {
   const { data: session } = useSession();
@@ -59,10 +59,6 @@ export function Header() {
                   <Download className="w-4 h-4" />
                   软件下载
                 </Link>
-                <Link href="/user" className="text-gray-600 hover:text-purple-600 dark:text-gray-300 dark:hover:text-purple-400 transition-colors flex items-center gap-1">
-                  <MessageCircle className="w-4 h-4" />
-                  社交
-                </Link>
               </>
             )}
           </nav>
@@ -82,13 +78,38 @@ export function Header() {
                     </Avatar>
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent className="w-56" align="end" forceMount>
+                <DropdownMenuContent className="w-64" align="end" forceMount>
                   <DropdownMenuLabel className="font-normal">
                     <div className="flex flex-col space-y-1">
                       <p className="text-sm font-medium leading-none">{session.user?.name}</p>
                       <p className="text-xs leading-none text-muted-foreground">{session.user?.email}</p>
                     </div>
                   </DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem asChild>
+                    <Link href="/user" className="cursor-pointer">
+                      <UserCircle className="mr-2 h-4 w-4" />
+                      个人中心
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <Link href="/user?tab=messages" className="cursor-pointer">
+                      <MessageCircle className="mr-2 h-4 w-4" />
+                      社交 / 私信
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <Link href="/user?tab=follow" className="cursor-pointer">
+                      <User className="mr-2 h-4 w-4" />
+                      关注列表
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <Link href="/user?tab=transfer" className="cursor-pointer">
+                      <Wallet className="mr-2 h-4 w-4" />
+                      转账
+                    </Link>
+                  </DropdownMenuItem>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem asChild>
                     <Link href="/planet/my" className="cursor-pointer">
@@ -103,12 +124,15 @@ export function Header() {
                     </Link>
                   </DropdownMenuItem>
                   {session.user?.role === 'admin' && (
-                    <DropdownMenuItem asChild>
-                      <Link href="/admin" className="cursor-pointer">
-                        <Shield className="mr-2 h-4 w-4" />
-                        后台管理
-                      </Link>
-                    </DropdownMenuItem>
+                    <>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem asChild>
+                        <Link href="/admin" className="cursor-pointer">
+                          <Shield className="mr-2 h-4 w-4" />
+                          后台管理
+                        </Link>
+                      </DropdownMenuItem>
+                    </>
                   )}
                   <DropdownMenuSeparator />
                   <DropdownMenuItem 
