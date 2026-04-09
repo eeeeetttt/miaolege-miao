@@ -922,6 +922,38 @@
   transform: none;
 }
 
+/* 通关操作区域 */
+.passedActions {
+  margin-top: 1rem;
+  padding: 1rem;
+  background: linear-gradient(135deg, rgba(34, 197, 94, 0.1) 0%, rgba(22, 163, 74, 0.1) 100%);
+  border: 1px solid rgba(34, 197, 94, 0.3);
+  border-radius: 12px;
+  text-align: center;
+}
+
+.passedMessage {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  color: #22c55e;
+  font-size: 1rem;
+  font-weight: 600;
+  margin: 0;
+}
+
+.passedIcon {
+  width: 1.25rem;
+  height: 1.25rem;
+}
+
+.passedHint {
+  color: #86efac;
+  font-size: 0.75rem;
+  margin: 0.5rem 0 0 0;
+}
+
 /* 公告栏样式 */
 .announcementBanner {
   background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);

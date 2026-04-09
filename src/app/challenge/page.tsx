@@ -636,9 +636,10 @@ export default function ChallengePage() {
                       <>
                         {(() => {
                           const failBalance = parseInt(challengeData?.config?.fail_balance || '100');
-                          const targetBalance = parseInt(challengeData?.config?.target_balance || '2000');
+                          const targetBalance = 2000; // 通关目标净值固定为2000
                           const isFailed = accountBalance.equity < failBalance;
                           const isPassed = accountBalance.equity >= targetBalance;
+                          
                           return (
                             <>
                               <span className={`${styles.balanceValue} ${isFailed ? styles.loss : isPassed ? styles.profit : ''}`}>
@@ -647,7 +648,7 @@ export default function ChallengePage() {
                               </span>
                               {isFailed && (
                                 <div className={styles.failActions}>
-                                  <p className={styles.failMessage}>净值低于{challengeData?.config?.fail_balance || 100}，挑战失败</p>
+                                  <p className={styles.failMessage}>净值低于{failBalance}，挑战失败</p>
                                   <button
                                     className={styles.reapplyButton}
                                     onClick={handleApply}
@@ -663,6 +664,17 @@ export default function ChallengePage() {
                                   <span className={(accountBalance.profit || 0) >= 0 ? styles.profitText : styles.lossText}>
                                     {(accountBalance.profit || 0) >= 0 ? '+' : ''}{(accountBalance.profit || 0).toFixed(2)}
                                   </span>
+                                </div>
+                              )}
+                              {isPassed && !completedLevels.includes(currentLevel) && (
+                                <div className={styles.passedActions}>
+                                  <p className={styles.passedMessage}>
+                                    <svg viewBox="0 0 24 24" fill="currentColor" className={styles.passedIcon}>
+                                      <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/>
+                                    </svg>
+                                    第{currentLevel}关已完成！等待下一关开启
+                                  </p>
+                                  <p className={styles.passedHint}>管理员审核通过后，将正式开启下一关</p>
                                 </div>
                               )}
                             </>
