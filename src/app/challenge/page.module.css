@@ -966,3 +966,22 @@
   color: #a16207;
   font-size: 0.875rem;
 }
+
+/* 报名横幅样式 */
+.registrationBanner {
+  margin-bottom: 2rem;
+}
+
+.registrationContent {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 16px;
+  padding: 1.5rem;
+}
+
+/* 响应式调整 */
+@media (max-width: 1024px) {
+  .layoutContainer {
+    grid-template-columns: 1fr;
+  }
+}

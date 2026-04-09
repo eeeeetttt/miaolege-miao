@@ -339,9 +339,109 @@ export default function ChallengePage() {
           <p className={styles.subtitle}>踏上交易巅峰之路，10关挑战等你来战</p>
         </header>
 
+        {/* 报名卡片 - 标题下方 */}
+        {session?.user && !challengeData?.hasActiveChallenge && (
+          <section className={styles.registrationBanner}>
+            <div className={styles.registrationContent}>
+              {/* 无申请记录 - 显示报名按钮 */}
+              {!challengeData?.registration ? (
+                <div className={styles.startChallengeCard}>
+                  <h3>开始你的K线征途</h3>
+                  <div className={styles.rewards}>
+                    <span className={styles.rewardIcon}>
+                      <svg viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1.41 16.09V20h-2.67v-1.93c-1.71-.36-3.16-1.46-3.27-3.4h1.96c.1 1.05.82 1.87 2.65 1.87 1.96 0 2.4-.98 2.4-1.59 0-.83-.44-1.61-2.67-2.14-2.48-.6-4.18-1.62-4.18-3.67 0-1.72 1.39-2.84 3.11-3.21V4h2.67v1.95c1.86.45 2.79 1.86 2.85 3.39H14.3c-.05-1.11-.64-1.87-2.22-1.87-1.5 0-2.4.68-2.4 1.64 0 .84.65 1.39 2.67 1.91s4.18 1.39 4.18 3.91c-.01 1.83-1.38 2.83-3.12 3.16z"/>
+                      </svg>
+                    </span>
+                    报名费：{challengeData?.registrationFee || 1000} 星球币 | 通关大奖：{parseInt(challengeData?.config?.completion_reward || '100000').toLocaleString()}人民币
+                  </div>
+                  <div className={styles.rules}>
+                    <div className={styles.ruleItem}>
+                      <span className={styles.ruleLabel}>通关条件</span>
+                      <span className={styles.ruleText}>每关账户净值达到 {challengeData?.config?.target_balance || 2000}（盈利≥{challengeData?.config?.profit_target || 1000}）</span>
+                    </div>
+                    <div className={styles.ruleItem}>
+                      <span className={styles.ruleLabel}>失败条件</span>
+                      <span className={styles.ruleText}>账户净值低于 {challengeData?.config?.fail_balance || 100}</span>
+                    </div>
+                  </div>
+                  <button 
+                    className={styles.startButton}
+                    onClick={handleApply}
+                    disabled={registering}
+                  >
+                    {registering ? '申请中...' : '立即报名'}
+                  </button>
+                </div>
+              ) : registrationStatus === 'pending' ? (
+                <div className={styles.pendingCard}>
+                  <div className={styles.pendingIcon}>
+                    <svg viewBox="0 0 24 24" fill="currentColor">
+                      <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+                    </svg>
+                  </div>
+                  <h3>申请已提交</h3>
+                  <p>{challengeData?.message}</p>
+                  <div className={styles.pendingHint}>
+                    审核通过后，我们会通过邮件告知您
+                  </div>
+                </div>
+              ) : registrationStatus === 'approved' ? (
+                <div className={styles.pendingCard}>
+                  <div className={styles.pendingIcon}>
+                    <svg viewBox="0 0 24 24" fill="currentColor">
+                      <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+                    </svg>
+                  </div>
+                  <h3>申请已通过</h3>
+                  <p>您的账户已分配，等待管理员激活后即可开始挑战</p>
+                  <div className={styles.accountPreview}>
+                    <span>服务器: {challengeData?.registration?.serverName || '-'}</span>
+                    <span>账号: {challengeData?.registration?.tradingAccount || '-'}</span>
+                  </div>
+                </div>
+              ) : registrationStatus === 'completed' || registrationStatus === 'failed' ? (
+                <div className={styles.startChallengeCard}>
+                  <h3>
+                    {registrationStatus === 'completed' ? '恭喜通关！' : '挑战结束'}
+                  </h3>
+                  <p>{challengeData?.message}</p>
+                  <div className={styles.reapplySection}>
+                    <button 
+                      className={styles.startButton}
+                      onClick={handleApply}
+                      disabled={registering}
+                    >
+                      {registering ? '申请中...' : '再次挑战'}
+                    </button>
+                    <span className={styles.feeNote}>报名费: {challengeData?.registrationFee || 1000} 星球币</span>
+                  </div>
+                </div>
+              ) : null}
+              
+              {errorMessage && (
+                <div className={styles.errorMessage}>
+                  <svg viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/>
+                  </svg>
+                  {errorMessage}
+                </div>
+              )}
+              {successMessage && (
+                <div className={styles.successMessage}>
+                  <svg viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+                  </svg>
+                  {successMessage}
+                </div>
+              )}
+            </div>
+          </section>
+        )}
+
         {/* 左右布局 */}
         <div className={styles.layoutContainer}>
-          {/* 左侧：报名和信息区域 */}
+          {/* 左侧：公告栏和信息区域 */}
           <div className={styles.leftPanel}>
             {/* 公告栏 */}
             {announcement && announcement.content && (
@@ -355,244 +455,8 @@ export default function ChallengePage() {
                 </div>
               </div>
             )}
-            
-            {/* 挑战状态卡片 */}
-            <section className={styles.statusSection}>
-              {session?.user ? (
-                <>
-                  {/* 挑战进行中 */}
-                  {challengeData?.hasActiveChallenge && accountBalance && (
-                    <div className={styles.activeChallengeCard}>
-                      <div className={styles.challengeHeader}>
-                        <h3>挑战进行中</h3>
-                        <span className={styles.levelBadge}>第{currentLevel}关</span>
-                      </div>
-                      
-                      {/* 账户信息 */}
-                      <div className={styles.accountInfo}>
-                        <div className={styles.accountTitle}>
-                          <svg viewBox="0 0 24 24" fill="currentColor" className={styles.accountIcon}>
-                            <path d="M21 18v1c0 1.1-.9 2-2 2H5c-1.11 0-2-.9-2-2V5c0-1.1.89-2 2-2h14c1.1 0 2 .9 2 2v1h-9c-1.11 0-2 .9-2 2v8c0 1.1.89 2 2 2h9zm-9-2h10V8H12v8zm4-2.5c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5z"/>
-                          </svg>
-                          {accountBalance.account.serverName ? `${accountBalance.account.serverName} - ` : ''}{accountBalance.account.accountNumber || '待分配'}
-                        </div>
-                        {accountBalance.equitySource === 'no_data' && (
-                          <span className={styles.simulatedBadge}>数据同步中</span>
-                        )}
-                        {accountBalance.equitySource === 'no_account' && (
-                          <span className={styles.simulatedBadge}>等待分配账户</span>
-                        )}
-                      </div>
 
-                      {/* 净值显示 */}
-                      <div className={styles.balanceDisplay}>
-                        <div className={styles.balanceMain}>
-                          <span className={styles.balanceLabel}>当前净值</span>
-                          {accountBalance.equity !== null ? (
-                            <>
-                              {(() => {
-                                const failBalance = parseInt(challengeData?.config?.fail_balance || '100');
-                                const targetBalance = parseInt(challengeData?.config?.target_balance || '2000');
-                                const isFailed = accountBalance.equity < failBalance;
-                                const isPassed = accountBalance.equity >= targetBalance;
-                                return (
-                                  <>
-                                    <span className={`${styles.balanceValue} ${isFailed ? styles.loss : isPassed ? styles.profit : ''}`}>
-                                      ${accountBalance.equity.toFixed(2)}
-                                      {isFailed && <span className={styles.failedBadge}> 失败</span>}
-                                    </span>
-                                    {isFailed && (
-                                      <div className={styles.failActions}>
-                                        <p className={styles.failMessage}>净值低于{challengeData?.config?.fail_balance || 100}，挑战失败</p>
-                                        <button
-                                          className={styles.reapplyButton}
-                                          onClick={handleApply}
-                                          disabled={registering}
-                                        >
-                                          {registering ? '申请中...' : '重新挑战'}
-                                        </button>
-                                      </div>
-                                    )}
-                                    {!isFailed && (
-                                      <div className={styles.balanceSub}>
-                                        <span>余额: ${(accountBalance.balance || 0).toFixed(2)}</span>
-                                        <span className={(accountBalance.profit || 0) >= 0 ? styles.profitText : styles.lossText}>
-                                          {(accountBalance.profit || 0) >= 0 ? '+' : ''}{(accountBalance.profit || 0).toFixed(2)}
-                                        </span>
-                                      </div>
-                                    )}
-                                  </>
-                                );
-                              })()}
-                            </>
-                          ) : (
-                            <span className={styles.balanceValue}>
-                              {accountBalance.equitySource === 'no_account' ? '待分配' : '加载中...'}
-                            </span>
-                          )}
-                        </div>
-                      </div>
-
-                      {/* 进度 */}
-                      <div className={styles.progressSection}>
-                        <p className={styles.progressText}>已完成 {completedLevels.length}/10 关</p>
-                        <div className={styles.levelDots}>
-                          {levels.map((level) => (
-                            <span
-                              key={level.level}
-                              className={`${styles.levelDot} ${
-                                completedLevels.includes(level.level) ? styles.completed : ''
-                              } ${currentLevel === level.level ? styles.current : ''}`}
-                            />
-                          ))}
-                        </div>
-                      </div>
-
-                      {balanceLoading && (
-                        <div className={styles.refreshing}>数据刷新中...</div>
-                      )}
-                    </div>
-                  )}
-
-                  {/* 待审核状态 */}
-                  {registrationStatus === 'pending' && (
-                    <div className={styles.pendingCard}>
-                      <div className={styles.pendingIcon}>
-                        <svg viewBox="0 0 24 24" fill="currentColor">
-                          <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
-                        </svg>
-                      </div>
-                      <h3>申请已提交</h3>
-                      <p>{challengeData?.message}</p>
-                      <div className={styles.pendingHint}>
-                        审核通过后，我们会通过邮件告知您
-                      </div>
-                    </div>
-                  )}
-
-                  {/* 待激活状态 */}
-                  {registrationStatus === 'approved' && (
-                    <div className={styles.pendingCard}>
-                      <div className={styles.pendingIcon}>
-                        <svg viewBox="0 0 24 24" fill="currentColor">
-                          <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
-                        </svg>
-                      </div>
-                      <h3>申请已通过</h3>
-                      <p>您的账户已分配，等待管理员激活后即可开始挑战</p>
-                      <div className={styles.accountPreview}>
-                        <span>服务器: {challengeData?.registration?.serverName || '-'}</span>
-                        <span>账号: {challengeData?.registration?.tradingAccount || '-'}</span>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* 已完成/失败状态 */}
-                  {(registrationStatus === 'completed' || registrationStatus === 'failed') && (
-                    <div className={styles.startChallengeCard}>
-                      <h3>
-                        {registrationStatus === 'completed' ? '恭喜通关！' : '挑战结束'}
-                      </h3>
-                      <p>{challengeData?.message}</p>
-                      <div className={styles.reapplySection}>
-                        <button 
-                          className={styles.startButton}
-                          onClick={handleApply}
-                          disabled={registering}
-                        >
-                          {registering ? '申请中...' : '再次挑战'}
-                        </button>
-                        <span className={styles.feeNote}>报名费: {challengeData?.registrationFee || 1000} 星球币</span>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* 无申请记录 - 显示报名按钮 */}
-                  {!challengeData?.registration && (
-                    <div className={styles.startChallengeCard}>
-                      <h3>开始你的K线征途</h3>
-                      <p>10关挑战，从启念到得道</p>
-                      <div className={styles.rewards}>
-                        <span className={styles.rewardIcon}>
-                          <svg viewBox="0 0 24 24" fill="currentColor">
-                            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1.41 16.09V20h-2.67v-1.93c-1.71-.36-3.16-1.46-3.27-3.4h1.96c.1 1.05.82 1.87 2.65 1.87 1.96 0 2.4-.98 2.4-1.59 0-.83-.44-1.61-2.67-2.14-2.48-.6-4.18-1.62-4.18-3.67 0-1.72 1.39-2.84 3.11-3.21V4h2.67v1.95c1.86.45 2.79 1.86 2.85 3.39H14.3c-.05-1.11-.64-1.87-2.22-1.87-1.5 0-2.4.68-2.4 1.64 0 .84.65 1.39 2.67 1.91s4.18 1.39 4.18 3.91c-.01 1.83-1.38 2.83-3.12 3.16z"/>
-                          </svg>
-                        </span>
-                        报名费：{challengeData?.registrationFee || 1000} 星球币 | 通关大奖：{parseInt(challengeData?.config?.completion_reward || '100000').toLocaleString()}人民币
-                      </div>
-                      <div className={styles.rules}>
-                        <div className={styles.ruleItem}>
-                          <span className={styles.ruleLabel}>通关条件</span>
-                          <span className={styles.ruleText}>每关账户净值达到 {challengeData?.config?.target_balance || 2000}（盈利≥{challengeData?.config?.profit_target || 1000}）</span>
-                        </div>
-                        <div className={styles.ruleItem}>
-                          <span className={styles.ruleLabel}>失败条件</span>
-                          <span className={styles.ruleText}>账户净值低于 {challengeData?.config?.fail_balance || 100}</span>
-                        </div>
-                      </div>
-                      <button 
-                        className={styles.startButton}
-                        onClick={handleApply}
-                        disabled={registering}
-                      >
-                        {registering ? '申请中...' : '立即报名'}
-                      </button>
-                    </div>
-                  )}
-
-                  {/* 消息提示 */}
-                  {errorMessage && (
-                    <div className={styles.errorMessage}>
-                      <svg viewBox="0 0 24 24" fill="currentColor">
-                        <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/>
-                      </svg>
-                      {errorMessage}
-                    </div>
-                  )}
-                  {successMessage && (
-                    <div className={styles.successMessage}>
-                      <svg viewBox="0 0 24 24" fill="currentColor">
-                        <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
-                      </svg>
-                      {successMessage}
-                    </div>
-                  )}
-                </>
-              ) : (
-                <div className={styles.loginPrompt}>
-                  <p>登录后即可参与挑战</p>
-                  <button 
-                    className={styles.loginButton}
-                    onClick={() => router.push('/login')}
-                  >
-                    前往登录
-                  </button>
-                </div>
-              )}
-            </section>
-
-            {/* 名人堂 */}
-            {hallOfFame.length > 0 && (
-              <section className={styles.hallOfFameSection}>
-                <h2 className={styles.sectionTitle}>
-                  <svg viewBox="0 0 24 24" fill="currentColor" className={styles.sectionIcon}>
-                    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
-                  </svg>
-                  通关名人堂
-                </h2>
-                <div className={styles.hallOfFameList}>
-                  {hallOfFame.map((entry) => (
-                    <div key={entry.rank} className={styles.hallOfFameItem}>
-                      <span className={styles.hallRank}>#{entry.rank}</span>
-                      <span className={styles.hallName}>{entry.displayName}</span>
-                      <span className={styles.hallDuration}>{entry.formattedDuration}</span>
-                    </div>
-                  ))}
-                </div>
-              </section>
-            )}
-
-            {/* 参赛者排行榜 */}
+            {/* 挑战进度榜 */}
             {challengeData?.config?.show_leaderboard !== 'false' && (
               <section className={styles.hallOfFameSection}>
                 <h2 className={styles.sectionTitle}>
@@ -600,7 +464,6 @@ export default function ChallengePage() {
                     <path d="M16 6l2.29 2.29-4.88 4.88-4-4L2 16.59 3.41 18l6-6 4 4 6.3-6.29L22 12V6z"/>
                   </svg>
                   挑战进度榜
-                  <span className={styles.participantCount}>{participants.length}人参与</span>
                 </h2>
                 
                 {participantsLoading && participants.length === 0 ? (
@@ -717,10 +580,138 @@ export default function ChallengePage() {
               </section>
             )}
 
+            {/* 名人堂 */}
+            {hallOfFame.length > 0 && (
+              <section className={styles.hallOfFameSection}>
+                <h2 className={styles.sectionTitle}>
+                  <svg viewBox="0 0 24 24" fill="currentColor" className={styles.sectionIcon}>
+                    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+                  </svg>
+                  通关名人堂
+                </h2>
+                <div className={styles.hallOfFameList}>
+                  {hallOfFame.map((entry) => (
+                    <div key={entry.rank} className={styles.hallOfFameItem}>
+                      <span className={styles.hallRank}>#{entry.rank}</span>
+                      <span className={styles.hallName}>{entry.displayName}</span>
+                      <span className={styles.hallDuration}>{entry.formattedDuration}</span>
+                    </div>
+                  ))}
+                </div>
+              </section>
+            )}
           </div>
 
           {/* 右侧：关卡列表 */}
           <div className={styles.rightPanel}>
+            {/* 挑战状态卡片 - 进行中 */}
+            {session?.user && challengeData?.hasActiveChallenge && accountBalance && (
+              <div className={styles.activeChallengeCard}>
+                <div className={styles.challengeHeader}>
+                  <h3>挑战进行中</h3>
+                  <span className={styles.levelBadge}>第{currentLevel}关</span>
+                </div>
+                
+                {/* 账户信息 */}
+                <div className={styles.accountInfo}>
+                  <div className={styles.accountTitle}>
+                    <svg viewBox="0 0 24 24" fill="currentColor" className={styles.accountIcon}>
+                      <path d="M21 18v1c0 1.1-.9 2-2 2H5c-1.11 0-2-.9-2-2V5c0-1.1.89-2 2-2h14c1.1 0 2 .9 2 2v1h-9c-1.11 0-2 .9-2 2v8c0 1.1.89 2 2 2h9zm-9-2h10V8H12v8zm4-2.5c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5z"/>
+                    </svg>
+                    {accountBalance.account.serverName ? `${accountBalance.account.serverName} - ` : ''}{accountBalance.account.accountNumber || '待分配'}
+                  </div>
+                  {accountBalance.equitySource === 'no_data' && (
+                    <span className={styles.simulatedBadge}>数据同步中</span>
+                  )}
+                  {accountBalance.equitySource === 'no_account' && (
+                    <span className={styles.simulatedBadge}>等待分配账户</span>
+                  )}
+                </div>
+
+                {/* 净值显示 */}
+                <div className={styles.balanceDisplay}>
+                  <div className={styles.balanceMain}>
+                    <span className={styles.balanceLabel}>当前净值</span>
+                    {accountBalance.equity !== null ? (
+                      <>
+                        {(() => {
+                          const failBalance = parseInt(challengeData?.config?.fail_balance || '100');
+                          const targetBalance = parseInt(challengeData?.config?.target_balance || '2000');
+                          const isFailed = accountBalance.equity < failBalance;
+                          const isPassed = accountBalance.equity >= targetBalance;
+                          return (
+                            <>
+                              <span className={`${styles.balanceValue} ${isFailed ? styles.loss : isPassed ? styles.profit : ''}`}>
+                                ${accountBalance.equity.toFixed(2)}
+                                {isFailed && <span className={styles.failedBadge}> 失败</span>}
+                              </span>
+                              {isFailed && (
+                                <div className={styles.failActions}>
+                                  <p className={styles.failMessage}>净值低于{challengeData?.config?.fail_balance || 100}，挑战失败</p>
+                                  <button
+                                    className={styles.reapplyButton}
+                                    onClick={handleApply}
+                                    disabled={registering}
+                                  >
+                                    {registering ? '申请中...' : '重新挑战'}
+                                  </button>
+                                </div>
+                              )}
+                              {!isFailed && (
+                                <div className={styles.balanceSub}>
+                                  <span>余额: ${(accountBalance.balance || 0).toFixed(2)}</span>
+                                  <span className={(accountBalance.profit || 0) >= 0 ? styles.profitText : styles.lossText}>
+                                    {(accountBalance.profit || 0) >= 0 ? '+' : ''}{(accountBalance.profit || 0).toFixed(2)}
+                                  </span>
+                                </div>
+                              )}
+                            </>
+                          );
+                        })()}
+                      </>
+                    ) : (
+                      <span className={styles.balanceValue}>
+                        {accountBalance.equitySource === 'no_account' ? '待分配' : '加载中...'}
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                {/* 进度 */}
+                <div className={styles.progressSection}>
+                  <p className={styles.progressText}>已完成 {completedLevels.length}/10 关</p>
+                  <div className={styles.levelDots}>
+                    {levels.map((level) => (
+                      <span
+                        key={level.level}
+                        className={`${styles.levelDot} ${
+                          completedLevels.includes(level.level) ? styles.completed : ''
+                        } ${currentLevel === level.level ? styles.current : ''}`}
+                      />
+                    ))}
+                  </div>
+                </div>
+
+                {balanceLoading && (
+                  <div className={styles.refreshing}>数据刷新中...</div>
+                )}
+              </div>
+            )}
+
+            {/* 未登录提示 */}
+            {(!session?.user) && (
+              <div className={styles.loginPrompt}>
+                <p>登录后即可参与挑战</p>
+                <button 
+                  className={styles.loginButton}
+                  onClick={() => router.push('/login')}
+                >
+                  前往登录
+                </button>
+              </div>
+            )}
+
+            {/* 关卡列表 */}
             <h2 className={styles.sectionTitle}>
               <svg viewBox="0 0 24 24" fill="currentColor" className={styles.sectionIcon}>
                 <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-5 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z"/>

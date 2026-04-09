@@ -14,7 +14,7 @@ import {
   DropdownMenuTrigger 
 } from '@/components/ui/dropdown-menu';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { User, LogOut, Globe, Settings, Download, Home, Shield, FileText, Trophy } from 'lucide-react';
+import { User, LogOut, Globe, Settings, Download, Home, Shield, FileText, Trophy, MessageCircle } from 'lucide-react';
 
 export function Header() {
   const { data: session } = useSession();
@@ -51,23 +51,17 @@ export function Header() {
             </Link>
             {session && (
               <>
-                <Link href="/planet/my" className="text-gray-600 hover:text-purple-600 dark:text-gray-300 dark:hover:text-purple-400 transition-colors">
-                  我的星球
-                </Link>
                 <Link href="/challenge" className="text-amber-600 hover:text-amber-500 dark:text-amber-400 dark:hover:text-amber-300 transition-colors flex items-center gap-1 font-semibold">
                   <Trophy className="w-4 h-4" />
                   K线征途
-                </Link>
-                <Link href="/docs" className="text-gray-600 hover:text-purple-600 dark:text-gray-300 dark:hover:text-purple-400 transition-colors flex items-center gap-1">
-                  <FileText className="w-4 h-4" />
-                  文档中心
                 </Link>
                 <Link href="/download" className="text-gray-600 hover:text-purple-600 dark:text-gray-300 dark:hover:text-purple-400 transition-colors flex items-center gap-1">
                   <Download className="w-4 h-4" />
                   软件下载
                 </Link>
-                <Link href="/user" className="text-gray-600 hover:text-purple-600 dark:text-gray-300 dark:hover:text-purple-400 transition-colors">
-                  个人中心
+                <Link href="/user" className="text-gray-600 hover:text-purple-600 dark:text-gray-300 dark:hover:text-purple-400 transition-colors flex items-center gap-1">
+                  <MessageCircle className="w-4 h-4" />
+                  社交
                 </Link>
               </>
             )}

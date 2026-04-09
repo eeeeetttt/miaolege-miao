@@ -210,6 +210,23 @@ export async function POST() {
     // 暂时使用默认余额1000，实际生产环境需要从用户系统获取
     const currentBalance = 1000; // 假设默认余额足够
 
+    // 检查是否有已完成或失败的挑战记录，如果有则删除旧记录允许重新报名
+    // 这个检查优先处理，因为可能出现净值已跌破底线但状态还未更新的情况
+    const { data: oldRecords } = await supabase
+      .from('challenge_registrations')
+      .select('id')
+      .eq('user_id', userId)
+      .in('status', ['completed', 'failed', 'rejected'])
+      .limit(1);
+
+    // 如果有旧的完成/失败记录，先删除它们以允许重新报名
+    if (oldRecords && oldRecords.length > 0) {
+      await supabase
+        .from('challenge_registrations')
+        .delete()
+        .eq('id', oldRecords[0].id);
+    }
+
     // 检查是否已有未处理的申请
     const { data: existingPending } = await supabase
       .from('challenge_registrations')
@@ -229,7 +246,7 @@ export async function POST() {
       .from('challenge_registrations')
       .select('id, status')
       .eq('user_id', userId)
-      .in('status', ['active', 'approved', 'pending'])
+      .in('status', ['active', 'approved'])
       .limit(1);
 
     if (existingActive && existingActive.length > 0) {
@@ -238,31 +255,11 @@ export async function POST() {
         return NextResponse.json({ 
           error: '您已有正在进行的挑战' 
         }, { status: 400 });
-      } else if (status === 'approved') {
+      } else {
         return NextResponse.json({ 
           error: '您的申请已通过，请等待激活' 
         }, { status: 400 });
-      } else {
-        return NextResponse.json({ 
-          error: '您已提交过申请，请等待审核' 
-        }, { status: 400 });
       }
-    }
-
-    // 检查是否有已完成或失败的挑战记录，如果有则允许重新报名（删除旧记录）
-    const { data: oldRecords } = await supabase
-      .from('challenge_registrations')
-      .select('id')
-      .eq('user_id', userId)
-      .in('status', ['completed', 'failed', 'rejected'])
-      .limit(1);
-
-    // 如果有旧的完成/失败记录，先删除它们以允许重新报名
-    if (oldRecords && oldRecords.length > 0) {
-      await supabase
-        .from('challenge_registrations')
-        .delete()
-        .eq('id', oldRecords[0].id);
     }
 
     // 检查星球币余额（使用配置中的报名费）
