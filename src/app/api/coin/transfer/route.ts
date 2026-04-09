@@ -3,7 +3,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { getSupabaseClient } from '@/storage/database/supabase-client';
 import { db } from '@/lib/db';
-import { users, coinTransfers } from '@/lib/schema';
+import { users } from '@/lib/schema';
 import { eq } from 'drizzle-orm';
 
 const supabase = getSupabaseClient();
