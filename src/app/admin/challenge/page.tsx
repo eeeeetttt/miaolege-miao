@@ -28,7 +28,7 @@ interface ChallengeRegistration {
   registration: {
     id: number;
     userId: string;
-    status: 'pending' | 'approved' | 'rejected' | 'active' | 'completed' | 'failed';
+    status: 'pending' | 'approved' | 'rejected' | 'active' | 'completed' | 'failed' | 'level_passed';
     currentLevel: number;
     completedLevels: string | null;
     startedAt: Date | null;
