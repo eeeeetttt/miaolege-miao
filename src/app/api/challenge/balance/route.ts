@@ -1,9 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
-import { db } from '@/lib/db';
-import { challengeRegistrations, mtAccounts } from '@/lib/schema';
-import { eq, and } from 'drizzle-orm';
+import { getSupabaseClient } from '@/storage/database/supabase-client';
 
 // 获取当前挑战账户的净值
 export async function GET() {
@@ -15,16 +13,17 @@ export async function GET() {
     }
 
     const userId = session.user.id;
+    const supabase = getSupabaseClient();
 
-    // 获取用户进行中的挑战
-    const activeChallenge = await db.query.challengeRegistrations.findFirst({
-      where: and(
-        eq(challengeRegistrations.userId, userId),
-        eq(challengeRegistrations.status, 'active')
-      ),
-    });
+    // 从Supabase获取用户进行中的挑战
+    const { data: activeChallenge, error: getError } = await supabase
+      .from('challenge_registrations')
+      .select('*')
+      .eq('user_id', userId)
+      .eq('status', 'active')
+      .single();
 
-    if (!activeChallenge) {
+    if (getError || !activeChallenge) {
       return NextResponse.json({ 
         hasActiveChallenge: false,
         balance: null,
@@ -39,8 +38,8 @@ export async function GET() {
     let profit = 0;
 
     // 模拟：根据当前关卡和开始时间，模拟净值变化
-    if (activeChallenge.startedAt) {
-      const startTime = new Date(activeChallenge.startedAt).getTime();
+    if (activeChallenge.started_at) {
+      const startTime = new Date(activeChallenge.started_at).getTime();
       const now = Date.now();
       const hoursPassed = (now - startTime) / (1000 * 60 * 60);
       
@@ -53,55 +52,21 @@ export async function GET() {
       profit = balance - 1000;
     }
 
-    // 如果有MT账户ID，查询账户信息
-    if (activeChallenge.mtAccountId) {
-      const mtAccount = await db.query.mtAccounts.findFirst({
-        where: eq(mtAccounts.id, activeChallenge.mtAccountId),
-      });
-      
-      if (mtAccount) {
-        // TODO: 实际应该调用MT平台的API获取真实数据
-        // const realData = await fetchMTAccountData(mtAccount);
-        return NextResponse.json({
-          hasActiveChallenge: true,
-          challengeId: activeChallenge.id,
-          currentLevel: activeChallenge.currentLevel,
-          completedLevels: activeChallenge.completedLevels 
-            ? JSON.parse(activeChallenge.completedLevels) 
-            : [],
-          account: {
-            serverName: activeChallenge.serverName,
-            accountNumber: activeChallenge.tradingAccount,
-            platform: mtAccount.platform,
-            broker: mtAccount.broker,
-          },
-          balance,
-          equity,
-          profit,
-          startedAt: activeChallenge.startedAt,
-          // 如果有真实API，应该返回：
-          // balance: realData.balance,
-          // equity: realData.equity,
-          // profit: realData.profit,
-        });
-      }
-    }
-
     return NextResponse.json({
       hasActiveChallenge: true,
       challengeId: activeChallenge.id,
-      currentLevel: activeChallenge.currentLevel,
-      completedLevels: activeChallenge.completedLevels 
-        ? JSON.parse(activeChallenge.completedLevels) 
+      currentLevel: activeChallenge.current_level,
+      completedLevels: activeChallenge.completed_levels 
+        ? JSON.parse(activeChallenge.completed_levels) 
         : [],
       account: {
-        serverName: activeChallenge.serverName,
-        accountNumber: activeChallenge.tradingAccount,
+        serverName: activeChallenge.server_name,
+        accountNumber: activeChallenge.trading_account,
       },
       balance,
       equity,
       profit,
-      startedAt: activeChallenge.startedAt,
+      startedAt: activeChallenge.started_at,
       simulated: true, // 标记为模拟数据
     });
   } catch (error) {
