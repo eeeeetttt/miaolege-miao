@@ -26,17 +26,19 @@ export async function GET(request: NextRequest) {
     const offset = (page - 1) * pageSize;
     const searchPattern = `%${keyword.trim()}%`;
 
-    // 搜索用户（按昵称搜索）
+    // 搜索用户（按昵称、邮箱、用户ID搜索）
     const searchResults = await db
       .select({
         userId: users.userId,
         name: users.name,
+        email: users.email,
         avatar: users.avatar,
       })
       .from(users)
       .where(
         or(
           like(users.name, searchPattern),
+          like(users.email, searchPattern),
           like(users.userId, searchPattern)
         )
       )
@@ -51,6 +53,7 @@ export async function GET(request: NextRequest) {
       data: filteredResults.map(u => ({
         userId: u.userId,
         name: u.name || '未设置昵称',
+        email: u.email || null,
         avatar: u.avatar || null,
       })),
       page,

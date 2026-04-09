@@ -3,6 +3,16 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
+import { 
+  AreaChart,
+  Area,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  ReferenceLine,
+} from 'recharts';
 import styles from './page.module.css';
 
 interface LevelConfig {
@@ -48,11 +58,12 @@ interface AccountBalance {
     platform?: string;
     broker?: string;
   };
-  balance: number;
-  equity: number;
-  profit: number;
+  balance: number | null;
+  equity: number | null;
+  profit: number | null;
   startedAt: string | null;
-  simulated?: boolean;
+  equitySource?: 'database' | 'no_data' | 'no_account';
+  message?: string;
 }
 
 interface HallOfFameEntry {
@@ -61,6 +72,25 @@ interface HallOfFameEntry {
   avatar: string | null;
   completedAt: string;
   formattedDuration: string;
+}
+
+interface Participant {
+  userId: string;
+  rank: number;
+  status: string;
+  startedAt: string | null;
+  currentLevel: number;
+  completedLevels: number[];
+  equity: number | null;
+  profit: number | null;
+  lastUpdate: string | null;
+}
+
+interface EquityChartData {
+  date: string;
+  time: string;
+  equity: number;
+  profit: number;
 }
 
 export default function ChallengePage() {
@@ -74,6 +104,13 @@ export default function ChallengePage() {
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [registering, setRegistering] = useState(false);
   const [balanceLoading, setBalanceLoading] = useState(false);
+  
+  // 参赛者数据
+  const [participants, setParticipants] = useState<Participant[]>([]);
+  const [participantsLoading, setParticipantsLoading] = useState(false);
+  const [selectedParticipant, setSelectedParticipant] = useState<Participant | null>(null);
+  const [equityHistory, setEquityHistory] = useState<EquityChartData[]>([]);
+  const [equityHistoryLoading, setEquityHistoryLoading] = useState(false);
 
   useEffect(() => {
     if (status === 'authenticated') {
@@ -144,6 +181,53 @@ export default function ChallengePage() {
       console.error('获取名人堂失败:', error);
     }
   };
+
+  // 获取所有参赛者数据
+  const fetchParticipants = async () => {
+    setParticipantsLoading(true);
+    try {
+      const res = await fetch('/api/challenge/participants');
+      const data = await res.json();
+      if (res.ok && data.participants) {
+        setParticipants(data.participants);
+      }
+    } catch (error) {
+      console.error('获取参赛者失败:', error);
+    } finally {
+      setParticipantsLoading(false);
+    }
+  };
+
+  // 获取指定参赛者的净值历史
+  const fetchEquityHistory = async (accountNumber: string) => {
+    setEquityHistoryLoading(true);
+    try {
+      const res = await fetch(`/api/challenge/equity-history?account=${encodeURIComponent(accountNumber)}&limit=50`);
+      const data = await res.json();
+      if (res.ok && data.history) {
+        setEquityHistory(data.history);
+      }
+    } catch (error) {
+      console.error('获取净值历史失败:', error);
+    } finally {
+      setEquityHistoryLoading(false);
+    }
+  };
+
+  // 查看参赛者详情
+  const handleViewParticipant = (participant: Participant) => {
+    setSelectedParticipant(participant);
+    if (accountBalance?.account?.accountNumber) {
+      fetchEquityHistory(accountBalance.account.accountNumber);
+    }
+  };
+
+  // 初始化时获取参赛者数据
+  useEffect(() => {
+    fetchParticipants();
+    const interval = setInterval(fetchParticipants, 60000); // 每分钟刷新
+    return () => clearInterval(interval);
+  }, []);
 
   const handleApply = async () => {
     setRegistering(true);
@@ -255,10 +339,13 @@ export default function ChallengePage() {
                           <svg viewBox="0 0 24 24" fill="currentColor" className={styles.accountIcon}>
                             <path d="M21 18v1c0 1.1-.9 2-2 2H5c-1.11 0-2-.9-2-2V5c0-1.1.89-2 2-2h14c1.1 0 2 .9 2 2v1h-9c-1.11 0-2 .9-2 2v8c0 1.1.89 2 2 2h9zm-9-2h10V8H12v8zm4-2.5c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5z"/>
                           </svg>
-                          {accountBalance.account.serverName} - {accountBalance.account.accountNumber}
+                          {accountBalance.account.serverName ? `${accountBalance.account.serverName} - ` : ''}{accountBalance.account.accountNumber || '待分配'}
                         </div>
-                        {accountBalance.simulated && (
-                          <span className={styles.simulatedBadge}>模拟数据</span>
+                        {accountBalance.equitySource === 'no_data' && (
+                          <span className={styles.simulatedBadge}>数据同步中</span>
+                        )}
+                        {accountBalance.equitySource === 'no_account' && (
+                          <span className={styles.simulatedBadge}>等待分配账户</span>
                         )}
                       </div>
 
@@ -266,15 +353,23 @@ export default function ChallengePage() {
                       <div className={styles.balanceDisplay}>
                         <div className={styles.balanceMain}>
                           <span className={styles.balanceLabel}>当前净值</span>
-                          <span className={`${styles.balanceValue} ${accountBalance.profit >= 0 ? styles.profit : styles.loss}`}>
-                            ${accountBalance.balance.toFixed(2)}
-                          </span>
-                        </div>
-                        <div className={styles.balanceSub}>
-                          <span>余额: ${accountBalance.balance.toFixed(2)}</span>
-                          <span className={accountBalance.profit >= 0 ? styles.profitText : styles.lossText}>
-                            {accountBalance.profit >= 0 ? '+' : ''}{accountBalance.profit.toFixed(2)}
-                          </span>
+                          {accountBalance.equity !== null ? (
+                            <>
+                              <span className={`${styles.balanceValue} ${(accountBalance.profit || 0) >= 0 ? styles.profit : styles.loss}`}>
+                                ${accountBalance.equity.toFixed(2)}
+                              </span>
+                              <div className={styles.balanceSub}>
+                                <span>余额: ${(accountBalance.balance || 0).toFixed(2)}</span>
+                                <span className={(accountBalance.profit || 0) >= 0 ? styles.profitText : styles.lossText}>
+                                  {(accountBalance.profit || 0) >= 0 ? '+' : ''}{(accountBalance.profit || 0).toFixed(2)}
+                                </span>
+                              </div>
+                            </>
+                          ) : (
+                            <span className={styles.balanceValue}>
+                              {accountBalance.equitySource === 'no_account' ? '待分配' : '加载中...'}
+                            </span>
+                          )}
                         </div>
                       </div>
 
@@ -436,6 +531,129 @@ export default function ChallengePage() {
                 </div>
               </section>
             )}
+
+            {/* 参赛者排行榜 */}
+            <section className={styles.hallOfFameSection}>
+              <h2 className={styles.sectionTitle}>
+                <svg viewBox="0 0 24 24" fill="currentColor" className={styles.sectionIcon}>
+                  <path d="M16 6l2.29 2.29-4.88 4.88-4-4L2 16.59 3.41 18l6-6 4 4 6.3-6.29L22 12V6z"/>
+                </svg>
+                挑战进度榜
+                <span className={styles.participantCount}>{participants.length}人参与</span>
+              </h2>
+              
+              {participantsLoading && participants.length === 0 ? (
+                <div className={styles.loadingText}>加载中...</div>
+              ) : participants.length === 0 ? (
+                <div className={styles.loadingText}>暂无参赛者</div>
+              ) : (
+                <>
+                  <div className={styles.participantsList}>
+                    {participants.slice(0, 10).map((p) => (
+                      <div 
+                        key={p.userId} 
+                        className={`${styles.participantItem} ${selectedParticipant?.userId === p.userId ? styles.selected : ''}`}
+                        onClick={() => handleViewParticipant(p)}
+                      >
+                        <span className={`${styles.participantRank} ${p.rank <= 3 ? styles.topRank : ''}`}>
+                          #{p.rank}
+                        </span>
+                        <div className={styles.participantInfo}>
+                          <span className={styles.participantLevel}>第{p.currentLevel}关</span>
+                          <div className={styles.levelProgress}>
+                            {Array.from({ length: 10 }, (_, i) => (
+                              <span 
+                                key={i} 
+                                className={`${styles.progressDot} ${p.completedLevels.includes(i + 1) ? styles.completedDot : ''} ${p.currentLevel === i + 1 ? styles.currentDot : ''}`}
+                              />
+                            ))}
+                          </div>
+                        </div>
+                        <div className={styles.participantEquity}>
+                          {p.equity !== null ? (
+                            <>
+                              <span className={`${styles.equityValue} ${(p.profit || 0) >= 0 ? styles.profit : styles.loss}`}>
+                                ${p.equity.toFixed(2)}
+                              </span>
+                              <span className={`${styles.profitValue} ${(p.profit || 0) >= 0 ? styles.profitText : styles.lossText}`}>
+                                {(p.profit || 0) >= 0 ? '+' : ''}{(p.profit || 0).toFixed(2)}
+                              </span>
+                            </>
+                          ) : (
+                            <span className={styles.equityValue}>--</span>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  
+                  {/* 选中参赛者的净值曲线 */}
+                  {selectedParticipant && equityHistory.length > 0 && (
+                    <div className={styles.equityChartCard}>
+                      <h3 className={styles.chartTitle}>
+                        #{selectedParticipant.rank} 第{selectedParticipant.currentLevel}关 净值曲线
+                      </h3>
+                      {equityHistoryLoading ? (
+                        <div className={styles.loadingText}>加载中...</div>
+                      ) : (
+                        <div className={styles.chartContainer}>
+                          <ResponsiveContainer width="100%" height={200}>
+                            <AreaChart data={equityHistory}>
+                              <defs>
+                                <linearGradient id="colorEquity" x1="0" y1="0" x2="0" y2="1">
+                                  <stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.3} />
+                                  <stop offset="95%" stopColor="#8b5cf6" stopOpacity={0} />
+                                </linearGradient>
+                              </defs>
+                              <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" vertical={false} />
+                              <XAxis 
+                                dataKey="date" 
+                                tick={{ fontSize: 10, fill: '#9ca3af' }}
+                                tickLine={false}
+                                axisLine={false}
+                                interval="preserveStartEnd"
+                              />
+                              <YAxis 
+                                tick={{ fontSize: 10, fill: '#9ca3af' }}
+                                tickLine={false}
+                                axisLine={false}
+                                tickFormatter={(value) => `$${value}`}
+                                domain={['auto', 'auto']}
+                              />
+                              <Tooltip 
+                                contentStyle={{
+                                  backgroundColor: 'rgba(255, 255, 255, 0.95)',
+                                  border: 'none',
+                                  borderRadius: '8px',
+                                  boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
+                                }}
+                                formatter={(value: number) => [`$${value.toFixed(2)}`, '净值']}
+                                labelFormatter={(label) => `日期: ${label}`}
+                              />
+                              <ReferenceLine y={1000} stroke="#9ca3af" strokeDasharray="3 3" label="起始净值" />
+                              <Area
+                                type="monotone"
+                                dataKey="equity"
+                                stroke="#8b5cf6"
+                                strokeWidth={2}
+                                fillOpacity={1}
+                                fill="url(#colorEquity)"
+                              />
+                            </AreaChart>
+                          </ResponsiveContainer>
+                        </div>
+                      )}
+                      <button 
+                        className={styles.closeChartBtn}
+                        onClick={() => setSelectedParticipant(null)}
+                      >
+                        关闭
+                      </button>
+                    </div>
+                  )}
+                </>
+              )}
+            </section>
           </div>
 
           {/* 右侧：关卡列表 */}

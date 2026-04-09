@@ -4,7 +4,7 @@ import { authOptions } from '@/lib/auth';
 import { getSupabaseClient } from '@/storage/database/supabase-client';
 import { db } from '@/lib/db';
 import { users } from '@/lib/schema';
-import { eq } from 'drizzle-orm';
+import { eq, or } from 'drizzle-orm';
 
 // 转账
 export async function POST(request: NextRequest) {
@@ -20,24 +20,21 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: '请先登录' }, { status: 401 });
     }
 
-    const { toUserId, amount, remark } = await request.json();
+    const { toEmail, amount, remark } = await request.json();
 
-    if (!toUserId || !amount) {
+    if (!toEmail || !amount) {
       return NextResponse.json({ error: '参数不完整' }, { status: 400 });
     }
 
-    if (toUserId === session.user.id) {
-      return NextResponse.json({ error: '不能给自己转账' }, { status: 400 });
-    }
-
-    const transferAmount = parseInt(amount);
-    if (isNaN(transferAmount) || transferAmount <= 0) {
-      return NextResponse.json({ error: '转账金额必须大于0' }, { status: 400 });
+    // 验证邮箱格式
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(toEmail)) {
+      return NextResponse.json({ error: '请输入正确的邮箱格式' }, { status: 400 });
     }
 
     // 获取转账人信息
     const [fromUser] = await db
-      .select({ name: users.name, coinBalance: users.coinBalance })
+      .select({ userId: users.userId, name: users.name, email: users.email, coinBalance: users.coinBalance })
       .from(users)
       .where(eq(users.userId, session.user.id))
       .limit(1);
@@ -46,21 +43,31 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: '用户不存在' }, { status: 404 });
     }
 
+    // 检查是否给自己转账
+    if (fromUser.email === toEmail) {
+      return NextResponse.json({ error: '不能给自己转账' }, { status: 400 });
+    }
+
+    const transferAmount = parseInt(amount);
+    if (isNaN(transferAmount) || transferAmount <= 0) {
+      return NextResponse.json({ error: '转账金额必须大于0' }, { status: 400 });
+    }
+
     if ((fromUser.coinBalance || 0) < transferAmount) {
       return NextResponse.json({ 
         error: `余额不足，当前余额: ${fromUser.coinBalance || 0} 星球币` 
       }, { status: 400 });
     }
 
-    // 获取收款人信息
+    // 通过邮箱查找收款人
     const [toUser] = await db
-      .select({ userId: users.userId, name: users.name, coinBalance: users.coinBalance })
+      .select({ userId: users.userId, name: users.name, email: users.email, coinBalance: users.coinBalance })
       .from(users)
-      .where(eq(users.userId, toUserId))
+      .where(eq(users.email, toEmail.toLowerCase()))
       .limit(1);
 
     if (!toUser) {
-      return NextResponse.json({ error: '收款用户不存在' }, { status: 404 });
+      return NextResponse.json({ error: '收款用户不存在，请确认邮箱是否正确' }, { status: 404 });
     }
 
     // 创建转账记录
@@ -68,7 +75,7 @@ export async function POST(request: NextRequest) {
       .from('coin_transfers')
       .insert({
         from_user_id: session.user.id,
-        to_user_id: toUserId,
+        to_user_id: toUser.userId,
         amount: transferAmount,
         remark: remark || null,
         status: 'completed',
@@ -89,7 +96,7 @@ export async function POST(request: NextRequest) {
     await db
       .update(users)
       .set({ coinBalance: (toUser.coinBalance || 0) + transferAmount })
-      .where(eq(users.userId, toUserId));
+      .where(eq(users.userId, toUser.userId));
 
     return NextResponse.json({
       success: true,

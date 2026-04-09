@@ -144,6 +144,7 @@ interface TransferRecord {
 interface SearchedUser {
   userId: string;
   name: string;
+  email: string | null;
   avatar: string | null;
 }
 
@@ -160,7 +161,7 @@ function SocialTab({ userId, coinBalance }: { userId?: string; coinBalance?: num
   // 转账相关状态
   const [transfers, setTransfers] = useState<TransferRecord[]>([]);
   const [transferLoading, setTransferLoading] = useState(false);
-  const [transferForm, setTransferForm] = useState({ toUserId: '', amount: '', remark: '' });
+  const [transferForm, setTransferForm] = useState({ toEmail: '', amount: '', remark: '' });
   const [transferSuccess, setTransferSuccess] = useState('');
   const [transferError, setTransferError] = useState('');
   
@@ -247,7 +248,7 @@ function SocialTab({ userId, coinBalance }: { userId?: string; coinBalance?: num
 
   // 执行转账
   const handleTransfer = async () => {
-    if (!transferForm.toUserId || !transferForm.amount) return;
+    if (!transferForm.toEmail || !transferForm.amount) return;
     
     setTransferError('');
     setTransferSuccess('');
@@ -269,7 +270,7 @@ function SocialTab({ userId, coinBalance }: { userId?: string; coinBalance?: num
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          toUserId: transferForm.toUserId,
+          toEmail: transferForm.toEmail,
           amount,
           remark: transferForm.remark,
         }),
@@ -277,7 +278,7 @@ function SocialTab({ userId, coinBalance }: { userId?: string; coinBalance?: num
       const data = await res.json();
       if (data.success) {
         setTransferSuccess(data.message);
-        setTransferForm({ toUserId: '', amount: '', remark: '' });
+        setTransferForm({ toEmail: '', amount: '', remark: '' });
         loadTransfers();
       } else {
         setTransferError(data.error);
@@ -558,11 +559,12 @@ function SocialTab({ userId, coinBalance }: { userId?: string; coinBalance?: num
                 )}
                 <div className="space-y-4">
                   <div className="space-y-2">
-                    <Label>收款方用户ID</Label>
+                    <Label>收款方邮箱</Label>
                     <Input
-                      value={transferForm.toUserId}
-                      onChange={e => setTransferForm({ ...transferForm, toUserId: e.target.value })}
-                      placeholder="输入用户ID"
+                      type="email"
+                      value={transferForm.toEmail}
+                      onChange={e => setTransferForm({ ...transferForm, toEmail: e.target.value })}
+                      placeholder="输入收款方邮箱"
                     />
                   </div>
                   <div className="space-y-2">
@@ -584,7 +586,7 @@ function SocialTab({ userId, coinBalance }: { userId?: string; coinBalance?: num
                   </div>
                   <Button
                     onClick={handleTransfer}
-                    disabled={transferLoading || !transferForm.toUserId || !transferForm.amount}
+                    disabled={transferLoading || !transferForm.toEmail || !transferForm.amount}
                     className="w-full bg-gradient-to-r from-purple-600 to-blue-600"
                   >
                     {transferLoading ? '转账中...' : '确认转账'}
@@ -661,7 +663,7 @@ function SocialTab({ userId, coinBalance }: { userId?: string; coinBalance?: num
                 <Input
                   value={searchKeyword}
                   onChange={e => setSearchKeyword(e.target.value)}
-                  placeholder="输入用户昵称或ID搜索..."
+                  placeholder="输入昵称、邮箱或ID搜索..."
                   onKeyDown={e => e.key === 'Enter' && handleSearch()}
                 />
                 <Button onClick={handleSearch} disabled={searchLoading}>
@@ -689,7 +691,7 @@ function SocialTab({ userId, coinBalance }: { userId?: string; coinBalance?: num
                         </Avatar>
                         <div>
                           <p className="font-medium">{user.name}</p>
-                          <p className="text-xs text-gray-500">ID: {user.userId}</p>
+                          {user.email && <p className="text-xs text-gray-500">{user.email}</p>}
                         </div>
                       </div>
                       <div className="flex items-center gap-2">
