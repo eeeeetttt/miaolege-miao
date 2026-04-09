@@ -46,7 +46,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
-    if (!session?.user?.isAdmin) {
+    if (!session?.user || session?.user?.role !== 'admin') {
       return NextResponse.json({ 
         success: false,
         error: '无权限' 
