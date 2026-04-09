@@ -3,6 +3,52 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { getSupabaseClient } from '@/storage/database/supabase-client';
 
+// 自动初始化默认配置
+async function ensureDefaultConfig(supabase: ReturnType<typeof getSupabaseClient>) {
+  try {
+    // 检查配置是否存在
+    const { data: configRows } = await supabase
+      .from('challenge_config')
+      .select('config_key')
+      .limit(1);
+
+    // 如果没有配置，初始化默认配置
+    if (!configRows || configRows.length === 0) {
+      const defaultConfigs = [
+        { config_key: 'registration_fee', config_value: '1000', description: '报名费（星球币）' },
+        { config_key: 'email_notification', config_value: 'true', description: '是否启用邮件通知' },
+        { config_key: 'challenge_enabled', config_value: 'true', description: '挑战赛是否启用' },
+      ];
+      await supabase.from('challenge_config').insert(defaultConfigs);
+    }
+
+    // 检查关卡配置是否存在
+    const { data: levelRows } = await supabase
+      .from('challenge_level_config')
+      .select('level')
+      .limit(1);
+
+    // 如果没有关卡配置，初始化默认关卡
+    if (!levelRows || levelRows.length === 0) {
+      const defaultLevels = [
+        { level: 1, name: '启念', description: '开始你的交易之旅', target_balance: 2000, initial_balance: 1000, fail_balance: 100, reward: '继续挑战', is_active: true },
+        { level: 2, name: '立规', description: '建立交易规则', target_balance: 2000, initial_balance: 1000, fail_balance: 100, reward: '继续挑战', is_active: true },
+        { level: 3, name: '守戒', description: '遵守交易纪律', target_balance: 2000, initial_balance: 1000, fail_balance: 100, reward: '继续挑战', is_active: true },
+        { level: 4, name: '忍痛', description: '学会止损止盈', target_balance: 2000, initial_balance: 1000, fail_balance: 100, reward: '继续挑战', is_active: true },
+        { level: 5, name: '止喜', description: '控制情绪波动', target_balance: 2000, initial_balance: 1000, fail_balance: 100, reward: '继续挑战', is_active: true },
+        { level: 6, name: '观己', description: '认识自我弱点', target_balance: 2000, initial_balance: 1000, fail_balance: 100, reward: '继续挑战', is_active: true },
+        { level: 7, name: '破执', description: '突破固有思维', target_balance: 2000, initial_balance: 1000, fail_balance: 100, reward: '继续挑战', is_active: true },
+        { level: 8, name: '随势', description: '顺势而为', target_balance: 2000, initial_balance: 1000, fail_balance: 100, reward: '继续挑战', is_active: true },
+        { level: 9, name: '忘我', description: '达到交易境界', target_balance: 2000, initial_balance: 1000, fail_balance: 100, reward: '继续挑战', is_active: true },
+        { level: 10, name: '得道', description: '完成终极挑战', target_balance: 2000, initial_balance: 1000, fail_balance: 100, reward: '通关大奖', is_active: true },
+      ];
+      await supabase.from('challenge_level_config').insert(defaultLevels);
+    }
+  } catch (error) {
+    console.error('初始化默认配置失败:', error);
+  }
+}
+
 // 获取挑战赛申请列表
 export async function GET(request: Request) {
   try {
@@ -12,11 +58,11 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: '请先登录' }, { status: 401 });
     }
 
-    // 检查是否为管理员（需要从Supabase或其他用户系统获取）
-    // 简化处理：暂时允许所有登录用户访问
-    // TODO: 实际生产环境中需要检查用户角色
-
     const supabase = getSupabaseClient();
+
+    // 自动初始化默认配置
+    await ensureDefaultConfig(supabase);
+
     const { searchParams } = new URL(request.url);
     const status = searchParams.get('status'); // pending, approved, active, completed, failed, rejected
     const limit = parseInt(searchParams.get('limit') || '50');
@@ -74,23 +120,26 @@ export async function GET(request: Request) {
       isActive: row.is_active,
     })) || [];
 
-    // 格式化返回数据
+    // 格式化返回数据 - 匹配前端期望的嵌套结构
     const formattedList = registrations?.map(reg => ({
-      id: reg.id,
-      userId: reg.user_id,
-      status: reg.status,
-      currentLevel: reg.current_level,
-      completedLevels: reg.completed_levels ? JSON.parse(reg.completed_levels) : [],
-      startedAt: reg.started_at,
-      completedAt: reg.completed_at,
-      failedAt: reg.failed_at,
-      failedLevel: reg.failed_level,
-      totalDuration: reg.total_duration,
-      serverName: reg.server_name,
-      tradingAccount: reg.trading_account,
-      tradingPassword: reg.trading_password,
-      mtAccountId: reg.mt_account_id,
-      createdAt: reg.created_at,
+      registration: {
+        id: reg.id,
+        userId: reg.user_id,
+        status: reg.status,
+        currentLevel: reg.current_level,
+        completedLevels: reg.completed_levels ? JSON.parse(reg.completed_levels) : [],
+        startedAt: reg.started_at,
+        completedAt: reg.completed_at,
+        failedAt: reg.failed_at,
+        failedLevel: reg.failed_level,
+        totalDuration: reg.total_duration,
+        serverName: reg.server_name,
+        tradingAccount: reg.trading_account,
+        tradingPassword: reg.trading_password,
+        mtAccountId: reg.mt_account_id,
+        createdAt: reg.created_at,
+      },
+      user: null // 用户信息需要单独查询，目前为空
     })) || [];
 
     return NextResponse.json({
