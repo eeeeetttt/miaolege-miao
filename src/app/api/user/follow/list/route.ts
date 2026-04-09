@@ -6,11 +6,14 @@ import { db } from '@/lib/db';
 import { users } from '@/lib/schema';
 import { eq } from 'drizzle-orm';
 
-const supabase = getSupabaseClient();
-
 // 获取我的关注列表或粉丝列表
 export async function GET(request: NextRequest) {
   try {
+    const supabase = getSupabaseClient();
+    if (!supabase) {
+      return NextResponse.json({ error: '数据库连接不可用' }, { status: 503 });
+    }
+    
     const session = await getServerSession(authOptions);
     
     if (!session?.user?.id) {

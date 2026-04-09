@@ -67,17 +67,19 @@ except Exception as e:
   }
 }
 
-function getSupabaseCredentials(): SupabaseCredentials {
+function getSupabaseCredentials(): SupabaseCredentials | null {
   loadEnv();
 
   const url = process.env.COZE_SUPABASE_URL;
   const anonKey = process.env.COZE_SUPABASE_ANON_KEY;
 
-  if (!url) {
-    throw new Error('COZE_SUPABASE_URL is not set');
-  }
-  if (!anonKey) {
-    throw new Error('COZE_SUPABASE_ANON_KEY is not set');
+  // 在构建时不抛出错误，返回 null 让调用方处理
+  if (!url || !anonKey) {
+    // 检查是否在构建环境
+    if (process.env.NODE_ENV === 'production' && process.env.NEXT_PHASE === 'phase-production-build') {
+      return null;
+    }
+    throw new Error('COZE_SUPABASE_URL or COZE_SUPABASE_ANON_KEY is not set');
   }
 
   return { url, anonKey };
@@ -88,8 +90,15 @@ function getSupabaseServiceRoleKey(): string | undefined {
   return process.env.COZE_SUPABASE_SERVICE_ROLE_KEY;
 }
 
-function getSupabaseClient(token?: string): SupabaseClient {
-  const { url, anonKey } = getSupabaseCredentials();
+function getSupabaseClient(token?: string): SupabaseClient | null {
+  const credentials = getSupabaseCredentials();
+  
+  // 在构建时返回 null
+  if (!credentials) {
+    return null;
+  }
+  
+  const { url, anonKey } = credentials;
 
   let key: string;
   if (token) {

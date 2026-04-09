@@ -21,6 +21,10 @@ export async function POST(request: NextRequest) {
     }
 
     const supabase = getSupabaseClient();
+    
+    if (!supabase) {
+      return NextResponse.json({ error: '数据库连接不可用' }, { status: 503 });
+    }
 
     // 插入净值记录
     const { data, error } = await supabase
@@ -74,6 +78,11 @@ export async function PUT(request: NextRequest) {
     }
 
     const supabase = getSupabaseClient();
+    
+    if (!supabase) {
+      return NextResponse.json({ error: '数据库连接不可用' }, { status: 503 });
+    }
+    
     const now = new Date().toISOString();
 
     // 批量插入净值记录

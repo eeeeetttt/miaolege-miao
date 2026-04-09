@@ -3,11 +3,14 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { getSupabaseClient } from '@/storage/database/supabase-client';
 
-const supabase = getSupabaseClient();
-
 // 发送私信
 export async function POST(request: NextRequest) {
   try {
+    const supabase = getSupabaseClient();
+    if (!supabase) {
+      return NextResponse.json({ error: '数据库连接不可用' }, { status: 503 });
+    }
+    
     const session = await getServerSession(authOptions);
     
     if (!session?.user?.id) {
@@ -61,6 +64,11 @@ export async function POST(request: NextRequest) {
 // 获取与某用户的私信会话
 export async function GET(request: NextRequest) {
   try {
+    const supabase = getSupabaseClient();
+    if (!supabase) {
+      return NextResponse.json({ error: '数据库连接不可用' }, { status: 503 });
+    }
+    
     const session = await getServerSession(authOptions);
     
     if (!session?.user?.id) {

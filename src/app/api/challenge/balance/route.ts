@@ -14,6 +14,14 @@ export async function GET() {
 
     const userId = session.user.id;
     const supabase = getSupabaseClient();
+    
+    if (!supabase) {
+      return NextResponse.json({ 
+        hasActiveChallenge: false,
+        balance: null,
+        error: '数据库连接不可用',
+      });
+    }
 
     // 从Supabase获取用户进行中的挑战
     const { data: activeChallenge, error: getError } = await supabase

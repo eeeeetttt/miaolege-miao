@@ -42,6 +42,12 @@ export async function GET() {
 
     const userId = session.user.id;
     const supabase = getSupabaseClient();
+    
+    if (!supabase) {
+      return NextResponse.json({ 
+        error: '数据库连接不可用' 
+      }, { status: 503 });
+    }
 
     // 从Supabase获取用户的挑战申请记录
     const { data: registrations, error: regError } = await supabase
@@ -164,6 +170,13 @@ export async function POST() {
 
     const userId = session.user.id;
     const supabase = getSupabaseClient();
+    
+    if (!supabase) {
+      return NextResponse.json({ 
+        error: '数据库连接不可用',
+        errorCode: 'DB_UNAVAILABLE'
+      }, { status: 503 });
+    }
 
     // 从Supabase获取挑战配置
     const { data: configRows, error: configError } = await supabase

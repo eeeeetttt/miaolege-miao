@@ -2,9 +2,10 @@ import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { getSupabaseClient } from '@/storage/database/supabase-client';
+import type { SupabaseClient } from '@supabase/supabase-js';
 
 // 自动初始化默认配置
-async function ensureDefaultConfig(supabase: ReturnType<typeof getSupabaseClient>) {
+async function ensureDefaultConfig(supabase: NonNullable<ReturnType<typeof getSupabaseClient>>) {
   try {
     // 检查配置是否存在
     const { data: configRows } = await supabase
@@ -59,6 +60,10 @@ export async function GET(request: Request) {
     }
 
     const supabase = getSupabaseClient();
+
+    if (!supabase) {
+      return NextResponse.json({ error: '数据库连接不可用' }, { status: 503 });
+    }
 
     // 自动初始化默认配置
     await ensureDefaultConfig(supabase);
@@ -170,6 +175,10 @@ export async function POST(request: Request) {
     // TODO: 实际生产环境中需要检查用户角色
 
     const supabase = getSupabaseClient();
+    if (!supabase) {
+      return NextResponse.json({ error: '数据库连接不可用' }, { status: 503 });
+    }
+    
     const body = await request.json();
     const { action, registrationId, serverName, tradingAccount, tradingPassword } = body;
 
