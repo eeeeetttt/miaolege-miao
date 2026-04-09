@@ -1,15 +1,6 @@
 'use client';
 
-import { 
-  AreaChart as RechartsAreaChart,
-  Area,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-  ReferenceLine,
-} from 'recharts';
+import { useState, useEffect } from 'react';
 
 interface EquityChartProps {
   data: Array<{
@@ -22,50 +13,41 @@ interface EquityChartProps {
 }
 
 export default function EquityChart({ data, height = 200 }: EquityChartProps) {
-  return (
-    <ResponsiveContainer width="100%" height={height}>
-      <RechartsAreaChart data={data}>
-        <defs>
-          <linearGradient id="colorEquity" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.3} />
-            <stop offset="95%" stopColor="#8b5cf6" stopOpacity={0} />
-          </linearGradient>
-        </defs>
-        <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" vertical={false} />
-        <XAxis 
-          dataKey="date" 
-          tick={{ fontSize: 10, fill: '#9ca3af' }}
-          tickLine={false}
-          axisLine={false}
-          interval="preserveStartEnd"
-        />
-        <YAxis 
-          tick={{ fontSize: 10, fill: '#9ca3af' }}
-          tickLine={false}
-          axisLine={false}
-          tickFormatter={(value) => `$${value}`}
-          domain={['auto', 'auto']}
-        />
-        <Tooltip 
-          contentStyle={{
-            backgroundColor: 'rgba(255, 255, 255, 0.95)',
-            border: 'none',
-            borderRadius: '8px',
-            boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
-          }}
-          formatter={(value: number) => [`$${value.toFixed(2)}`, '净值']}
-          labelFormatter={(label) => `日期: ${label}`}
-        />
-        <ReferenceLine y={1000} stroke="#9ca3af" strokeDasharray="3 3" label="起始净值" />
-        <Area
-          type="monotone"
-          dataKey="equity"
-          stroke="#8b5cf6"
-          strokeWidth={2}
-          fillOpacity={1}
-          fill="url(#colorEquity)"
-        />
-      </RechartsAreaChart>
-    </ResponsiveContainer>
-  );
+  const [isClient, setIsClient] = useState(false);
+  const [ChartComponent, setChartComponent] = useState<React.ComponentType<{
+    data: typeof data;
+    height?: number;
+  }> | null>(null);
+
+  useEffect(() => {
+    setIsClient(true);
+    // 动态导入 recharts 组件
+    import('./equity-chart-inner').then((mod) => {
+      setChartComponent(() => mod.EquityChartInner);
+    });
+  }, []);
+
+  if (!isClient) {
+    return (
+      <div 
+        className="h-48 flex items-center justify-center text-gray-400"
+        style={{ height }}
+      >
+        加载图表...
+      </div>
+    );
+  }
+
+  if (!ChartComponent) {
+    return (
+      <div 
+        className="h-48 flex items-center justify-center text-gray-400"
+        style={{ height }}
+      >
+        加载图表...
+      </div>
+    );
+  }
+
+  return <ChartComponent data={data} height={height} />;
 }
