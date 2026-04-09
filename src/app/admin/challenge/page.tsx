@@ -722,7 +722,7 @@ export default function ChallengeAdminPage() {
             </div>
             
             <div className="space-y-2">
-              <Label htmlFor="completionReward">通关奖励（星球币）</Label>
+              <Label htmlFor="completionReward">通关奖励（人民币）</Label>
               <div className="flex gap-2">
                 <Input
                   id="completionReward"
@@ -739,7 +739,7 @@ export default function ChallengeAdminPage() {
                   保存
                 </Button>
               </div>
-              <p className="text-xs text-gray-500">通关后发放的奖励星球币数量</p>
+              <p className="text-xs text-gray-500">通关后发放的奖励人民币金额</p>
             </div>
             
             <div className="border-t pt-4 mt-4">

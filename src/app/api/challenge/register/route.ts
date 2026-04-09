@@ -224,32 +224,45 @@ export async function POST() {
       }, { status: 400 });
     }
 
-    // 检查是否已有进行中的挑战
+    // 检查是否有进行中的挑战
     const { data: existingActive } = await supabase
       .from('challenge_registrations')
-      .select('id')
+      .select('id, status')
       .eq('user_id', userId)
-      .eq('status', 'active')
+      .in('status', ['active', 'approved', 'pending'])
       .limit(1);
 
     if (existingActive && existingActive.length > 0) {
-      return NextResponse.json({ 
-        error: '您已有正在进行的挑战' 
-      }, { status: 400 });
+      const status = existingActive[0].status;
+      if (status === 'active') {
+        return NextResponse.json({ 
+          error: '您已有正在进行的挑战' 
+        }, { status: 400 });
+      } else if (status === 'approved') {
+        return NextResponse.json({ 
+          error: '您的申请已通过，请等待激活' 
+        }, { status: 400 });
+      } else {
+        return NextResponse.json({ 
+          error: '您已提交过申请，请等待审核' 
+        }, { status: 400 });
+      }
     }
 
-    // 检查是否有待激活的申请
-    const { data: existingApproved } = await supabase
+    // 检查是否有已完成或失败的挑战记录，如果有则允许重新报名（删除旧记录）
+    const { data: oldRecords } = await supabase
       .from('challenge_registrations')
       .select('id')
       .eq('user_id', userId)
-      .eq('status', 'approved')
+      .in('status', ['completed', 'failed', 'rejected'])
       .limit(1);
 
-    if (existingApproved && existingApproved.length > 0) {
-      return NextResponse.json({ 
-        error: '您的申请已通过，请等待激活' 
-      }, { status: 400 });
+    // 如果有旧的完成/失败记录，先删除它们以允许重新报名
+    if (oldRecords && oldRecords.length > 0) {
+      await supabase
+        .from('challenge_registrations')
+        .delete()
+        .eq('id', oldRecords[0].id);
     }
 
     // 检查星球币余额（使用配置中的报名费）
