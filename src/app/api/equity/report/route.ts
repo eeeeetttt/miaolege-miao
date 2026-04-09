@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseClient } from '@/storage/database/supabase-client';
 
+// 固定的API密钥（与EA代码中的 EquityReportKey 一致）
+const VALID_API_KEY = 'ea_equity_report_secure_key_2024';
+
 // EA净值上报接口
 // 该接口用于EA程序定时上报账户净值数据
 export async function POST(request: NextRequest) {
@@ -8,9 +11,8 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { accountNumber, equity, balance, profit, apiKey } = body;
 
-    // 简单的API密钥验证
-    // 实际生产环境应使用更安全的认证方式
-    if (!apiKey || apiKey !== process.env.EA_REPORT_API_KEY) {
+    // API密钥验证
+    if (!apiKey || apiKey !== VALID_API_KEY) {
       return NextResponse.json({ error: '无效的API密钥' }, { status: 401 });
     }
 
@@ -62,8 +64,8 @@ export async function PUT(request: NextRequest) {
     const body = await request.json();
     const { accounts, apiKey } = body;
 
-    // 简单的API密钥验证
-    if (!apiKey || apiKey !== process.env.EA_REPORT_API_KEY) {
+    // API密钥验证
+    if (!apiKey || apiKey !== VALID_API_KEY) {
       return NextResponse.json({ error: '无效的API密钥' }, { status: 401 });
     }
 
