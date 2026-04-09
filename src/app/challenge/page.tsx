@@ -93,6 +93,13 @@ interface EquityChartData {
   profit: number;
 }
 
+interface Announcement {
+  id: number;
+  title: string;
+  content: string;
+  is_active: number;
+}
+
 export default function ChallengePage() {
   const router = useRouter();
   const { data: session, status } = useSession();
@@ -111,6 +118,7 @@ export default function ChallengePage() {
   const [selectedParticipant, setSelectedParticipant] = useState<Participant | null>(null);
   const [equityHistory, setEquityHistory] = useState<EquityChartData[]>([]);
   const [equityHistoryLoading, setEquityHistoryLoading] = useState(false);
+  const [announcement, setAnnouncement] = useState<Announcement | null>(null);
 
   useEffect(() => {
     if (status === 'authenticated') {
@@ -119,6 +127,7 @@ export default function ChallengePage() {
     } else if (status === 'unauthenticated') {
       setLoading(false);
     }
+    fetchAnnouncement();
   }, [status]);
 
   // 定期刷新余额
@@ -179,6 +188,19 @@ export default function ChallengePage() {
       setHallOfFame(data.list || []);
     } catch (error) {
       console.error('获取名人堂失败:', error);
+    }
+  };
+
+  // 获取公告
+  const fetchAnnouncement = async () => {
+    try {
+      const res = await fetch('/api/challenge/announcement');
+      const data = await res.json();
+      if (res.ok && data.announcement) {
+        setAnnouncement(data.announcement);
+      }
+    } catch (error) {
+      console.error('获取公告失败:', error);
     }
   };
 
@@ -321,6 +343,19 @@ export default function ChallengePage() {
         <div className={styles.layoutContainer}>
           {/* 左侧：报名和信息区域 */}
           <div className={styles.leftPanel}>
+            {/* 公告栏 */}
+            {announcement && announcement.content && (
+              <div className={styles.announcementBanner}>
+                <svg viewBox="0 0 24 24" fill="currentColor" className={styles.announcementIcon}>
+                  <path d="M18 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-6 5c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3zm6 12H6v-1c0-2 4-3.1 6-3.1s6 1.1 6 3.1v1z"/>
+                </svg>
+                <div className={styles.announcementContent}>
+                  <p className={styles.announcementTitle}>{announcement.title || '公告'}</p>
+                  <p className={styles.announcementText}>{announcement.content}</p>
+                </div>
+              </div>
+            )}
+            
             {/* 挑战状态卡片 */}
             <section className={styles.statusSection}>
               {session?.user ? (
@@ -366,12 +401,26 @@ export default function ChallengePage() {
                                       ${accountBalance.equity.toFixed(2)}
                                       {isFailed && <span className={styles.failedBadge}> 失败</span>}
                                     </span>
-                                    <div className={styles.balanceSub}>
-                                      <span>余额: ${(accountBalance.balance || 0).toFixed(2)}</span>
-                                      <span className={(accountBalance.profit || 0) >= 0 ? styles.profitText : styles.lossText}>
-                                        {(accountBalance.profit || 0) >= 0 ? '+' : ''}{(accountBalance.profit || 0).toFixed(2)}
-                                      </span>
-                                    </div>
+                                    {isFailed && (
+                                      <div className={styles.failActions}>
+                                        <p className={styles.failMessage}>净值低于{challengeData?.config?.fail_balance || 100}，挑战失败</p>
+                                        <button
+                                          className={styles.reapplyButton}
+                                          onClick={handleApply}
+                                          disabled={registering}
+                                        >
+                                          {registering ? '申请中...' : '重新挑战'}
+                                        </button>
+                                      </div>
+                                    )}
+                                    {!isFailed && (
+                                      <div className={styles.balanceSub}>
+                                        <span>余额: ${(accountBalance.balance || 0).toFixed(2)}</span>
+                                        <span className={(accountBalance.profit || 0) >= 0 ? styles.profitText : styles.lossText}>
+                                          {(accountBalance.profit || 0) >= 0 ? '+' : ''}{(accountBalance.profit || 0).toFixed(2)}
+                                        </span>
+                                      </div>
+                                    )}
                                   </>
                                 );
                               })()}
@@ -719,7 +768,7 @@ export default function ChallengePage() {
                     <div className={styles.levelStats}>
                       <span>目标: ${level.targetBalance.toLocaleString()}</span>
                       <span>失败线: ${level.failBalance}</span>
-                      {level.reward && <span className={styles.levelReward}>{level.reward}</span>}
+                      {level.reward && <span className={styles.levelReward}>奖励: {level.reward}星球币</span>}
                     </div>
                   </div>
                 );

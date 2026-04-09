@@ -46,58 +46,45 @@ export const challengeRegistrations = pgTable("challenge_registrations", {
 	pgPolicy("challenge_registrations_允许公开读取", { as: "permissive", for: "select", to: ["public"] }),
 ]);
 
-// 私信表
-export const privateMessages = pgTable("private_messages", {
-	id: serial().primaryKey().notNull(),
-	senderId: varchar("sender_id", { length: 255 }).notNull(),
-	receiverId: varchar("receiver_id", { length: 255 }).notNull(),
-	content: varchar("content", { length: 2000 }).notNull(),
-	isRead: integer("is_read").default(0).notNull(),
-	readAt: timestamp("read_at", { withTimezone: true, mode: 'string' }),
-	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
-}, (table) => [
-	index("idx_pm_sender_id").using("btree", table.senderId.asc().nullsLast().op("text_ops")),
-	index("idx_pm_receiver_id").using("btree", table.receiverId.asc().nullsLast().op("text_ops")),
-	index("idx_pm_created_at").using("btree", table.createdAt.desc().nullsFirst().op("timestamp_ops")),
-	index("idx_pm_conversation").using("btree", table.senderId.asc().nullsLast().op("text_ops"), table.receiverId.asc().nullsLast().op("text_ops")),
-	pgPolicy("private_messages_允许公开读取", { as: "permissive", for: "select", to: ["public"], using: sql`true` }),
-	pgPolicy("private_messages_允许公开写入", { as: "permissive", for: "insert", to: ["public"], withCheck: sql`true` }),
-	pgPolicy("private_messages_允许公开更新", { as: "permissive", for: "update", to: ["public"] }),
-	pgPolicy("private_messages_允许公开删除", { as: "permissive", for: "delete", to: ["public"], using: sql`true` }),
-]);
-
-// 星球币转账记录表
 export const coinTransfers = pgTable("coin_transfers", {
 	id: serial().primaryKey().notNull(),
 	fromUserId: varchar("from_user_id", { length: 255 }).notNull(),
 	toUserId: varchar("to_user_id", { length: 255 }).notNull(),
-	amount: integer("amount").notNull(),
-	remark: varchar("remark", { length: 255 }),
-	status: varchar("status", { length: 20 }).default('pending').notNull(),
+	amount: integer().notNull(),
+	remark: varchar({ length: 255 }),
+	status: varchar({ length: 20 }).default('pending').notNull(),
 	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
 	processedAt: timestamp("processed_at", { withTimezone: true, mode: 'string' }),
 }, (table) => [
 	index("idx_ct_from_user_id").using("btree", table.fromUserId.asc().nullsLast().op("text_ops")),
 	index("idx_ct_to_user_id").using("btree", table.toUserId.asc().nullsLast().op("text_ops")),
-	index("idx_ct_created_at").using("btree", table.createdAt.desc().nullsFirst().op("timestamp_ops")),
-	pgPolicy("coin_transfers_允许公开读取", { as: "permissive", for: "select", to: ["public"], using: sql`true` }),
-	pgPolicy("coin_transfers_允许公开写入", { as: "permissive", for: "insert", to: ["public"], withCheck: sql`true` }),
-	pgPolicy("coin_transfers_允许公开更新", { as: "permissive", for: "update", to: ["public"] }),
-	pgPolicy("coin_transfers_允许公开删除", { as: "permissive", for: "delete", to: ["public"], using: sql`true` }),
 ]);
 
-// 用户关注表
+export const privateMessages = pgTable("private_messages", {
+	id: serial().primaryKey().notNull(),
+	senderId: varchar("sender_id", { length: 255 }).notNull(),
+	receiverId: varchar("receiver_id", { length: 255 }).notNull(),
+	content: varchar({ length: 2000 }).notNull(),
+	isRead: integer("is_read").default(0).notNull(),
+	readAt: timestamp("read_at", { withTimezone: true, mode: 'string' }),
+	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
+});
+
 export const userFollows = pgTable("user_follows", {
 	id: serial().primaryKey().notNull(),
 	followerId: varchar("follower_id", { length: 255 }).notNull(),
 	followedId: varchar("followed_id", { length: 255 }).notNull(),
 	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
+});
+
+export const challengeAnnouncement = pgTable("challenge_announcement", {
+	id: serial().primaryKey().notNull(),
+	title: varchar({ length: 200 }).default('公告').notNull(),
+	content: varchar({ length: 2000 }).notNull(),
+	isActive: integer("is_active").default(1).notNull(),
+	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
+	updatedAt: timestamp("updated_at", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
 }, (table) => [
-	index("idx_uf_follower_id").using("btree", table.followerId.asc().nullsLast().op("text_ops")),
-	index("idx_uf_followed_id").using("btree", table.followedId.asc().nullsLast().op("text_ops")),
-	index("idx_uf_unique").using("btree", table.followerId.asc().nullsLast().op("text_ops"), table.followedId.asc().nullsLast().op("text_ops")),
-	pgPolicy("user_follows_允许公开读取", { as: "permissive", for: "select", to: ["public"], using: sql`true` }),
-	pgPolicy("user_follows_允许公开写入", { as: "permissive", for: "insert", to: ["public"], withCheck: sql`true` }),
-	pgPolicy("user_follows_允许公开更新", { as: "permissive", for: "update", to: ["public"] }),
-	pgPolicy("user_follows_允许公开删除", { as: "permissive", for: "delete", to: ["public"], using: sql`true` }),
+	pgPolicy("challenge_announcement_允许公开读取", { as: "permissive", for: "select", to: ["public"] }),
+	pgPolicy("challenge_announcement_允许公开更新", { as: "permissive", for: "update", to: ["public"] }),
 ]);
