@@ -30,26 +30,36 @@ export async function GET() {
       });
     }
 
-    // 如果有绑定的MT账户，尝试获取真实净值
-    // TODO: 这里应该调用MT平台的API获取真实净值
-    // 目前模拟返回账户信息
     let balance = 1000; // 默认初始净值
     let equity = 1000;
     let profit = 0;
+    let equitySource: 'database' | 'simulated' = 'simulated';
 
-    // 模拟：根据当前关卡和开始时间，模拟净值变化
-    if (activeChallenge.started_at) {
-      const startTime = new Date(activeChallenge.started_at).getTime();
-      const now = Date.now();
-      const hoursPassed = (now - startTime) / (1000 * 60 * 60);
-      
-      // 模拟每天波动 +/- 2%
-      const dailyVolatility = 0.02;
-      const volatility = (Math.random() - 0.5) * dailyVolatility * (hoursPassed / 24);
-      const simulatedBalance = 1000 * (1 + volatility);
-      balance = Math.round(simulatedBalance * 100) / 100;
-      equity = balance;
-      profit = balance - 1000;
+    // 如果有交易账号，从mt_account_equity表获取真实净值
+    if (activeChallenge.trading_account) {
+      const { data: equityData, error: equityError } = await supabase
+        .from('mt_account_equity')
+        .select('equity, balance, profit')
+        .eq('account_number', activeChallenge.trading_account)
+        .order('recorded_at', { ascending: false })
+        .limit(1)
+        .single();
+
+      if (!equityError && equityData) {
+        // 使用数据库中的真实净值数据
+        equity = parseFloat(String(equityData.equity)) || 1000;
+        balance = parseFloat(String(equityData.balance)) || equity;
+        profit = parseFloat(String(equityData.profit)) || (equity - 1000);
+        equitySource = 'database';
+      }
+    }
+
+    // 如果数据库中没有净值数据，使用模拟值（初始净值）
+    if (equitySource === 'simulated' && activeChallenge.started_at) {
+      // 默认使用初始净值1000
+      balance = 1000;
+      equity = 1000;
+      profit = 0;
     }
 
     return NextResponse.json({
@@ -57,7 +67,9 @@ export async function GET() {
       challengeId: activeChallenge.id,
       currentLevel: activeChallenge.current_level,
       completedLevels: activeChallenge.completed_levels 
-        ? JSON.parse(activeChallenge.completed_levels) 
+        ? (typeof activeChallenge.completed_levels === 'string' 
+            ? JSON.parse(activeChallenge.completed_levels) 
+            : activeChallenge.completed_levels)
         : [],
       account: {
         serverName: activeChallenge.server_name,
@@ -67,7 +79,7 @@ export async function GET() {
       equity,
       profit,
       startedAt: activeChallenge.started_at,
-      simulated: true, // 标记为模拟数据
+      equitySource, // 标记数据来源：database=真实数据，simulated=模拟数据
     });
   } catch (error) {
     console.error('Get challenge balance error:', error);
