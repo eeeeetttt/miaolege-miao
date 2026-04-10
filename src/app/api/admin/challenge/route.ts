@@ -2,7 +2,6 @@ import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { getSupabaseClient } from '@/storage/database/supabase-client';
-import type { SupabaseClient } from '@supabase/supabase-js';
 
 // 自动初始化默认配置
 async function ensureDefaultConfig(supabase: NonNullable<ReturnType<typeof getSupabaseClient>>) {
@@ -12,7 +11,7 @@ async function ensureDefaultConfig(supabase: NonNullable<ReturnType<typeof getSu
       .from('challenge_config')
       .select('config_key')
       .limit(1);
-
+  
     // 如果没有配置，初始化默认配置
     if (!configRows || configRows.length === 0) {
       const defaultConfigs = [
@@ -27,7 +26,7 @@ async function ensureDefaultConfig(supabase: NonNullable<ReturnType<typeof getSu
       ];
       await supabase.from('challenge_config').insert(defaultConfigs);
     }
-
+  
     // 检查关卡配置是否存在
     const { data: levelRows } = await supabase
       .from('challenge_level_config')
@@ -176,9 +175,6 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: '请先登录' }, { status: 401 });
     }
 
-    // 检查是否为管理员
-    // TODO: 实际生产环境中需要检查用户角色
-
     const supabase = getSupabaseClient();
     if (!supabase) {
       return NextResponse.json({ error: '数据库连接不可用' }, { status: 503 });
@@ -187,6 +183,181 @@ export async function POST(request: Request) {
     const body = await request.json();
     const { action, registrationId, serverName, tradingAccount, tradingPassword } = body;
 
+    // 配置操作不需要 registrationId
+    const configActions = ['updateConfig', 'initConfig', 'initLevels', 'updateLevelConfig', 'updateDescription'];
+    
+    if (!configActions.includes(action) && !registrationId) {
+      return NextResponse.json({ error: '缺少申请ID' }, { status: 400 });
+    }
+
+    // updateConfig - 更新配置
+    if (action === 'updateConfig') {
+      const { configKey, configValue } = body;
+      if (!configKey || configValue === undefined) {
+        return NextResponse.json({ error: '缺少配置参数' }, { status: 400 });
+      }
+
+      // 检查配置是否存在
+      const { data: existingConfig } = await supabase
+        .from('challenge_config')
+        .select('config_key')
+        .eq('config_key', configKey)
+        .maybeSingle();
+
+      if (existingConfig) {
+        const { error: updateError } = await supabase
+          .from('challenge_config')
+          .update({ config_value: String(configValue) })
+          .eq('config_key', configKey);
+
+        if (updateError) {
+          console.error('Update config error:', updateError);
+          return NextResponse.json({ error: '配置更新失败' }, { status: 500 });
+        }
+      } else {
+        const { error: insertError } = await supabase
+          .from('challenge_config')
+          .insert({ config_key: configKey, config_value: String(configValue) });
+
+        if (insertError) {
+          console.error('Insert config error:', insertError);
+          return NextResponse.json({ error: '配置保存失败' }, { status: 500 });
+        }
+      }
+
+      return NextResponse.json({ success: true, message: '配置已保存' });
+    }
+
+    // updateLevelConfig - 更新关卡配置
+    if (action === 'updateLevelConfig') {
+      const { level, name, description, targetBalance, initialBalance, failBalance, reward } = body;
+      if (!level) {
+        return NextResponse.json({ error: '缺少关卡参数' }, { status: 400 });
+      }
+
+      const updateData: Record<string, unknown> = {};
+      if (name !== undefined) updateData.name = name;
+      if (description !== undefined) updateData.description = description;
+      if (targetBalance !== undefined) updateData.target_balance = targetBalance;
+      if (initialBalance !== undefined) updateData.initial_balance = initialBalance;
+      if (failBalance !== undefined) updateData.fail_balance = failBalance;
+      if (reward !== undefined) updateData.reward = reward;
+
+      const { error: updateError } = await supabase
+        .from('challenge_level_config')
+        .update(updateData)
+        .eq('level', level);
+
+      if (updateError) {
+        console.error('Update level config error:', updateError);
+        return NextResponse.json({ error: '关卡配置更新失败' }, { status: 500 });
+      }
+
+      return NextResponse.json({ success: true, message: '关卡配置已保存' });
+    }
+
+    // updateDescription - 更新比赛说明
+    if (action === 'updateDescription') {
+      const { description } = body;
+
+      const { data: existingConfig } = await supabase
+        .from('challenge_config')
+        .select('config_key')
+        .eq('config_key', 'description')
+        .maybeSingle();
+
+      if (existingConfig) {
+        const { error: updateError } = await supabase
+          .from('challenge_config')
+          .update({ config_value: description })
+          .eq('config_key', 'description');
+
+        if (updateError) {
+          console.error('Update description error:', updateError);
+          return NextResponse.json({ error: '比赛说明更新失败' }, { status: 500 });
+        }
+      } else {
+        const { error: insertError } = await supabase
+          .from('challenge_config')
+          .insert({ config_key: 'description', config_value: description });
+
+        if (insertError) {
+          console.error('Insert description error:', insertError);
+          return NextResponse.json({ error: '比赛说明保存失败' }, { status: 500 });
+        }
+      }
+
+      return NextResponse.json({ success: true, message: '比赛说明已保存' });
+    }
+
+    // initConfig - 初始化默认配置
+    if (action === 'initConfig') {
+      const defaultConfigs = [
+        { config_key: 'registration_fee', config_value: '1000', description: '报名费（星球币）' },
+        { config_key: 'email_notification', config_value: 'true', description: '是否启用邮件通知' },
+        { config_key: 'challenge_enabled', config_value: 'true', description: '挑战赛是否启用' },
+      ];
+
+      for (const config of defaultConfigs) {
+        const { data: existing } = await supabase
+          .from('challenge_config')
+          .select('config_key')
+          .eq('config_key', config.config_key)
+          .maybeSingle();
+
+        if (existing) {
+          await supabase
+            .from('challenge_config')
+            .update({ config_value: config.config_value })
+            .eq('config_key', config.config_key);
+        } else {
+          await supabase
+            .from('challenge_config')
+            .insert(config);
+        }
+      }
+
+      return NextResponse.json({ success: true, message: '配置已初始化' });
+    }
+
+    // initLevels - 初始化关卡配置
+    if (action === 'initLevels') {
+      const defaultLevels = [
+        { level: 1, name: '启念', description: '开始你的交易之旅', target_balance: 2000, initial_balance: 1000, fail_balance: 100, reward: '继续挑战', is_active: true },
+        { level: 2, name: '立规', description: '建立交易规则', target_balance: 2000, initial_balance: 1000, fail_balance: 100, reward: '继续挑战', is_active: true },
+        { level: 3, name: '守戒', description: '遵守交易纪律', target_balance: 2000, initial_balance: 1000, fail_balance: 100, reward: '继续挑战', is_active: true },
+        { level: 4, name: '忍痛', description: '学会止损止盈', target_balance: 2000, initial_balance: 1000, fail_balance: 100, reward: '继续挑战', is_active: true },
+        { level: 5, name: '止喜', description: '控制情绪波动', target_balance: 2000, initial_balance: 1000, fail_balance: 100, reward: '继续挑战', is_active: true },
+        { level: 6, name: '观己', description: '认识自我弱点', target_balance: 2000, initial_balance: 1000, fail_balance: 100, reward: '继续挑战', is_active: true },
+        { level: 7, name: '破执', description: '突破固有思维', target_balance: 2000, initial_balance: 1000, fail_balance: 100, reward: '继续挑战', is_active: true },
+        { level: 8, name: '随势', description: '顺势而为', target_balance: 2000, initial_balance: 1000, fail_balance: 100, reward: '继续挑战', is_active: true },
+        { level: 9, name: '忘我', description: '达到交易境界', target_balance: 2000, initial_balance: 1000, fail_balance: 100, reward: '继续挑战', is_active: true },
+        { level: 10, name: '得道', description: '完成终极挑战', target_balance: 2000, initial_balance: 1000, fail_balance: 100, reward: '通关大奖', is_active: true },
+      ];
+
+      for (const level of defaultLevels) {
+        const { data: existing } = await supabase
+          .from('challenge_level_config')
+          .select('level')
+          .eq('level', level.level)
+          .maybeSingle();
+
+        if (existing) {
+          await supabase
+            .from('challenge_level_config')
+            .update(level)
+            .eq('level', level.level);
+        } else {
+          await supabase
+            .from('challenge_level_config')
+            .insert(level);
+        }
+      }
+
+      return NextResponse.json({ success: true, message: '关卡配置已初始化' });
+    }
+
+    // 以下操作需要 registrationId
     if (!registrationId) {
       return NextResponse.json({ error: '缺少申请ID' }, { status: 400 });
     }
@@ -197,7 +368,7 @@ export async function POST(request: Request) {
       .select('*')
       .eq('id', registrationId)
       .single();
-
+  
     if (getError || !registration) {
       return NextResponse.json({ error: '申请记录不存在' }, { status: 404 });
     }
@@ -216,7 +387,7 @@ export async function POST(request: Request) {
           server_name: serverName,
           trading_account: tradingAccount,
           trading_password: tradingPassword,
-          mt_account_id: null, // 可选：关联MT账户
+          mt_account_id: null,
         })
         .eq('id', registrationId);
 
@@ -225,12 +396,7 @@ export async function POST(request: Request) {
         return NextResponse.json({ error: '更新失败' }, { status: 500 });
       }
 
-      // TODO: 发送邮件通知
-
-      return NextResponse.json({ 
-        success: true, 
-        message: '审核已通过' 
-      });
+      return NextResponse.json({ success: true, message: '审核已通过' });
 
     } else if (action === 'reject') {
       // 审核拒绝
@@ -257,7 +423,7 @@ export async function POST(request: Request) {
           started_at: new Date().toISOString(),
         })
         .eq('id', registrationId);
-
+  
       if (updateError) {
         console.error('Update error:', updateError);
         return NextResponse.json({ error: '更新失败' }, { status: 500 });
@@ -326,90 +492,19 @@ export async function POST(request: Request) {
 
       return NextResponse.json({ success: true, message: '挑战已重置' });
 
-    } else if (action === 'updateConfig') {
-      // 更新配置
-      const { configKey, configValue } = body;
-      if (!configKey || configValue === undefined) {
-        return NextResponse.json({ error: '缺少配置参数' }, { status: 400 });
-      }
-
-      // 使用upsert更新配置
-      const { error: upsertError } = await supabase
-        .from('challenge_config')
-        .upsert({
-          config_key: configKey,
-          config_value: String(configValue),
-        }, {
-          onConflict: 'config_key',
-        });
-
-      if (upsertError) {
-        console.error('Upsert error:', upsertError);
-        return NextResponse.json({ error: '配置更新失败' }, { status: 500 });
-      }
-
-      return NextResponse.json({ success: true, message: '配置已更新' });
-
-    } else if (action === 'initConfig') {
-      // 初始化默认配置
-      const defaultConfigs = [
-        { config_key: 'registration_fee', config_value: '1000', description: '报名费（星球币）' },
-        { config_key: 'email_notification', config_value: 'true', description: '是否启用邮件通知' },
-        { config_key: 'challenge_enabled', config_value: 'true', description: '挑战赛是否启用' },
-      ];
-
-      const { error: insertError } = await supabase
-        .from('challenge_config')
-        .upsert(defaultConfigs, { onConflict: 'config_key' });
-
-      if (insertError) {
-        console.error('Init config error:', insertError);
-        return NextResponse.json({ error: '配置初始化失败' }, { status: 500 });
-      }
-
-      return NextResponse.json({ success: true, message: '配置已初始化' });
-
-    } else if (action === 'initLevels') {
-      // 初始化关卡配置
-      const defaultLevels = [
-        { level: 1, name: '启念', description: '开始你的交易之旅', target_balance: 2000, initial_balance: 1000, fail_balance: 100, reward: '继续挑战', is_active: true },
-        { level: 2, name: '立规', description: '建立交易规则', target_balance: 2000, initial_balance: 1000, fail_balance: 100, reward: '继续挑战', is_active: true },
-        { level: 3, name: '守戒', description: '遵守交易纪律', target_balance: 2000, initial_balance: 1000, fail_balance: 100, reward: '继续挑战', is_active: true },
-        { level: 4, name: '忍痛', description: '学会止损止盈', target_balance: 2000, initial_balance: 1000, fail_balance: 100, reward: '继续挑战', is_active: true },
-        { level: 5, name: '止喜', description: '控制情绪波动', target_balance: 2000, initial_balance: 1000, fail_balance: 100, reward: '继续挑战', is_active: true },
-        { level: 6, name: '观己', description: '认识自我弱点', target_balance: 2000, initial_balance: 1000, fail_balance: 100, reward: '继续挑战', is_active: true },
-        { level: 7, name: '破执', description: '突破固有思维', target_balance: 2000, initial_balance: 1000, fail_balance: 100, reward: '继续挑战', is_active: true },
-        { level: 8, name: '随势', description: '顺势而为', target_balance: 2000, initial_balance: 1000, fail_balance: 100, reward: '继续挑战', is_active: true },
-        { level: 9, name: '忘我', description: '达到交易境界', target_balance: 2000, initial_balance: 1000, fail_balance: 100, reward: '继续挑战', is_active: true },
-        { level: 10, name: '得道', description: '完成终极挑战', target_balance: 2000, initial_balance: 1000, fail_balance: 100, reward: '通关大奖', is_active: true },
-      ];
-
-      const { error: insertError } = await supabase
-        .from('challenge_level_config')
-        .upsert(defaultLevels, { onConflict: 'level' });
-
-      if (insertError) {
-        console.error('Init levels error:', insertError);
-        return NextResponse.json({ error: '关卡配置初始化失败' }, { status: 500 });
-      }
-
-      return NextResponse.json({ success: true, message: '关卡配置已初始化' });
-
     } else if (action === 'advanceLevel') {
-      // 开启下一关（审核通过后，用户的当前关卡完成，进入下一关）
+      // 开启下一关
       const currentLevel = registration.current_level;
       const completedLevels = registration.completed_levels 
         ? JSON.parse(registration.completed_levels) 
         : [];
       
-      // 如果当前关卡不在已完成列表中，添加到已完成
       if (!completedLevels.includes(currentLevel)) {
         completedLevels.push(currentLevel);
       }
       
       const nextLevel = currentLevel + 1;
       
-      // 如果已经通关第10关，标记为完成
       if (nextLevel > 10) {
         const { error: updateError } = await supabase
           .from('challenge_registrations')
@@ -419,7 +514,7 @@ export async function POST(request: Request) {
             completed_at: new Date().toISOString(),
           })
           .eq('id', registrationId);
-
+  
         if (updateError) {
           console.error('Update error:', updateError);
           return NextResponse.json({ error: '更新失败' }, { status: 500 });
@@ -428,7 +523,6 @@ export async function POST(request: Request) {
         return NextResponse.json({ success: true, message: '恭喜！已完成全部关卡！' });
       }
       
-      // 否则进入下一关
       const { error: updateError } = await supabase
         .from('challenge_registrations')
         .update({
@@ -446,7 +540,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ success: true, message: `已开启第${nextLevel}关` });
 
     } else if (action === 'rejectLevel') {
-      // 拒绝通过当前关卡（需要用户继续当前关卡）
+      // 拒绝通过当前关卡
       const { error: updateError } = await supabase
         .from('challenge_registrations')
         .update({
