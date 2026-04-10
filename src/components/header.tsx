@@ -46,11 +46,12 @@ export function Header() {
               <Home className="w-4 h-4" />
               首页
             </Link>
-            <Link href="/planet" className="text-gray-600 hover:text-purple-600 dark:text-gray-300 dark:hover:text-purple-400 transition-colors">
-              星球列表
-            </Link>
             {session && (
               <>
+                <Link href="/challenge/hall" className="text-gray-600 hover:text-purple-600 dark:text-gray-300 dark:hover:text-purple-400 transition-colors flex items-center gap-1">
+                  <Globe className="w-4 h-4" />
+                  挑战赛大厅
+                </Link>
                 <Link href="/challenge" className="text-amber-600 hover:text-amber-500 dark:text-amber-400 dark:hover:text-amber-300 transition-colors flex items-center gap-1 font-semibold">
                   <Trophy className="w-4 h-4" />
                   K线征途
