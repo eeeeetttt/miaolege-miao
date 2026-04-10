@@ -145,6 +145,7 @@ export default function ChallengePage() {
   const isRegistered = session && registration !== null;
   const isCompleted = registrationStatus === 'completed';
   const isFailed = registrationStatus === 'failed';
+  const isRejected = registrationStatus === 'rejected';
   const isPending = registrationStatus === 'pending';
   const isApproved = registrationStatus === 'approved';
   const completedCount = completedLevels.length;
@@ -258,6 +259,15 @@ export default function ChallengePage() {
               </div>
             )}
 
+            {/* 被拒绝 */}
+            {isRejected && (
+              <div className={styles.statusCard}>
+                <i className="fas fa-ban" style={{fontSize: '2rem', color: '#ef4444', marginBottom: '0.5rem'}}></i>
+                <h3>申请被拒绝</h3>
+                <p>您的报名申请未通过审核，可重新报名</p>
+              </div>
+            )}
+
             {/* 未登录 */}
             {!session && (
               <div className={styles.statusCard}>
@@ -267,8 +277,8 @@ export default function ChallengePage() {
               </div>
             )}
 
-            {/* 未报名可报名 */}
-            {session && !isRegistered && (
+            {/* 未报名或被拒绝可报名 */}
+            {(session && !isRegistered) || isRejected ? (
               <div className={styles.registerSection}>
                 <div className={styles.actionIcon}>
                   <i className="fas fa-fire"></i>
@@ -280,11 +290,11 @@ export default function ChallengePage() {
                   disabled={registering}
                 >
                   <i className="fas fa-pen-fancy"></i>
-                  {registering ? '申请中...' : '立即报名'}
+                  {registering ? '申请中...' : isRejected ? '重新报名' : '立即报名'}
                 </button>
                 <div className={styles.statsBadge}>报名费: {registrationFee} 星球币</div>
               </div>
-            )}
+            ) : null}
 
             {/* 已报名状态 */}
             {isRegistered && !showChallengeActive && (isPending || isApproved) && (
