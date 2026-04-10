@@ -160,196 +160,201 @@ export default function ChallengePage() {
         </h1>
       </div>
 
-      {/* 三列布局 */}
-      <div className={styles.threeColumns}>
-        {/* 左列：比赛说明 */}
-        <div className={styles.descColumn}>
-          <div className={styles.descCard}>
-            <h2>
-              <i className="fas fa-trophy"></i>
-              比赛说明
-            </h2>
-            <div className={styles.descContent}>
-              <p>{descriptionContent}</p>
+      {/* 两列布局 */}
+      <div className={styles.twoColumns}>
+        {/* 左侧列 */}
+        <div className={styles.leftColumn}>
+          {/* 比赛说明 */}
+          <div className={styles.card}>
+            <div className={styles.descCard}>
+              <h2>
+                <i className="fas fa-trophy"></i>
+                比赛说明
+              </h2>
+              <div className={styles.descContent}>
+                <p>{descriptionContent}</p>
+              </div>
+              <ul className={styles.ruleList}>
+                <li><i className="fas fa-check-circle"></i> 点击【立即报名】解锁第1关，开启征途</li>
+                <li><i className="fas fa-unlock-alt"></i> 每完成一关，自动解锁下一关卡</li>
+                <li><i className="fas fa-gem"></i> 关卡挑战：净值达标自动通过</li>
+                <li><i className="fas fa-chart-simple"></i> 全部通关将获得专属奖杯成就</li>
+                <li><i className="fas fa-undo-alt"></i> 可随时重新报名，再次挑战</li>
+              </ul>
             </div>
-            <ul className={styles.ruleList}>
-              <li><i className="fas fa-check-circle"></i> 点击【立即报名】解锁第1关，开启征途</li>
-              <li><i className="fas fa-unlock-alt"></i> 每完成一关，自动解锁下一关卡</li>
-              <li><i className="fas fa-gem"></i> 关卡挑战：净值达标自动通过</li>
-              <li><i className="fas fa-chart-simple"></i> 全部通关将获得专属奖杯成就</li>
-              <li><i className="fas fa-undo-alt"></i> 可随时重新报名，再次挑战</li>
-            </ul>
           </div>
-        </div>
 
-        {/* 中列：报名/状态 */}
-        <div className={styles.actionColumn}>
-          <div className={styles.actionCard}>
-            {/* 挑战进行中 */}
-            {showChallengeActive && (
-              <div className={styles.activeChallenge}>
-                <div className={styles.activeHeader}>
-                  <span className={styles.levelBadge}>第{currentLevel}关</span>
-                  <span className={styles.challengeTitle}>挑战进行中</span>
+          {/* 报名/状态区域 */}
+          <div className={styles.card}>
+            <div className={styles.actionCard}>
+              {/* 挑战进行中 */}
+              {showChallengeActive && (
+                <div className={styles.activeChallenge}>
+                  <div className={styles.activeHeader}>
+                    <span className={styles.levelBadge}>第{currentLevel}关</span>
+                    <span className={styles.challengeTitle}>挑战进行中</span>
+                  </div>
+                  
+                  <div className={styles.accountInfo}>
+                    <span>
+                      <i className="fas fa-server"></i>
+                      {equityData?.serverName ? `${equityData.serverName} - ` : ''}
+                      {equityData?.accountNumber || '待分配'}
+                    </span>
+                  </div>
+
+                  <div className={styles.balanceDisplay}>
+                    <span className={styles.balanceLabel}>当前净值</span>
+                    <span className={styles.balanceValue}>
+                      {equityData?.equity !== null && equityData?.equity !== undefined ? (
+                        `$${equityData.equity.toFixed(2)}`
+                      ) : (
+                        equityData?.equitySource === 'no_account' ? '待分配' : '加载中...'
+                      )}
+                    </span>
+                  </div>
+
+                  <div className={styles.progressInfo}>
+                    <span>已完成 {completedLevels.length}/10 关</span>
+                  </div>
                 </div>
-                
-                <div className={styles.accountInfo}>
-                  <span>
-                    <i className="fas fa-server"></i>
-                    {equityData?.serverName ? `${equityData.serverName} - ` : ''}
-                    {equityData?.accountNumber || '待分配'}
-                  </span>
+              )}
+
+              {/* 待审核 */}
+              {isPending && (
+                <div className={styles.statusCard}>
+                  <i className="fas fa-clock" style={{fontSize: '2.5rem', color: '#D4AF37', marginBottom: '1rem'}}></i>
+                  <h3>申请已提交</h3>
+                  <p>管理员审核中，请耐心等待...</p>
                 </div>
+              )}
 
-                <div className={styles.balanceDisplay}>
-                  <span className={styles.balanceLabel}>当前净值</span>
-                  <span className={styles.balanceValue}>
-                    {equityData?.equity !== null && equityData?.equity !== undefined ? (
-                      `$${equityData.equity.toFixed(2)}`
-                    ) : (
-                      equityData?.equitySource === 'no_account' ? '待分配' : '加载中...'
-                    )}
-                  </span>
+              {/* 已通过待激活 */}
+              {isApproved && (
+                <div className={styles.statusCard}>
+                  <i className="fas fa-check-circle" style={{fontSize: '2.5rem', color: '#4caf50', marginBottom: '1rem'}}></i>
+                  <h3>审核已通过</h3>
+                  <p>等待管理员分配交易账户并激活挑战</p>
                 </div>
+              )}
 
-                <div className={styles.progressInfo}>
-                  <span>已完成 {completedLevels.length}/10 关</span>
+              {/* 挑战结束 */}
+              {(isCompleted || isFailed) && (
+                <div className={styles.statusCard}>
+                  <i className={`fas ${isCompleted ? 'fa-trophy' : 'fa-times-circle'}`} style={{fontSize: '2.5rem', color: isCompleted ? '#D4AF37' : '#ef4444', marginBottom: '1rem'}}></i>
+                  <h3>{isCompleted ? '恭喜通关！' : '挑战结束'}</h3>
+                  <p>{challengeData?.message}</p>
                 </div>
-              </div>
-            )}
+              )}
 
-            {/* 待审核 */}
-            {isPending && (
-              <div className={styles.statusCard}>
-                <i className="fas fa-clock" style={{fontSize: '2.5rem', color: '#D4AF37', marginBottom: '1rem'}}></i>
-                <h3>申请已提交</h3>
-                <p>管理员审核中，请耐心等待...</p>
-              </div>
-            )}
-
-            {/* 已通过待激活 */}
-            {isApproved && (
-              <div className={styles.statusCard}>
-                <i className="fas fa-check-circle" style={{fontSize: '2.5rem', color: '#4caf50', marginBottom: '1rem'}}></i>
-                <h3>审核已通过</h3>
-                <p>等待管理员分配交易账户并激活挑战</p>
-              </div>
-            )}
-
-            {/* 挑战结束 */}
-            {(isCompleted || isFailed) && (
-              <div className={styles.statusCard}>
-                <i className={`fas ${isCompleted ? 'fa-trophy' : 'fa-times-circle'}`} style={{fontSize: '2.5rem', color: isCompleted ? '#D4AF37' : '#ef4444', marginBottom: '1rem'}}></i>
-                <h3>{isCompleted ? '恭喜通关！' : '挑战结束'}</h3>
-                <p>{challengeData?.message}</p>
-              </div>
-            )}
-
-            {/* 未登录 */}
-            {!session && (
-              <div className={styles.statusCard}>
-                <i className="fas fa-user" style={{fontSize: '2.5rem', color: '#8b5cf6', marginBottom: '1rem'}}></i>
-                <h3>登录后参加</h3>
-                <p>登录后即可参加挑战赛</p>
-              </div>
-            )}
-
-            {/* 未报名可报名 */}
-            {session && !isRegistered && (
-              <div className={styles.registerSection}>
-                <div className={styles.registerIcon}>
-                  <i className="fas fa-fire"></i>
+              {/* 未登录 */}
+              {!session && (
+                <div className={styles.statusCard}>
+                  <i className="fas fa-user" style={{fontSize: '2.5rem', color: '#8b5cf6', marginBottom: '1rem'}}></i>
+                  <h3>登录后参加</h3>
+                  <p>登录后即可参加挑战赛</p>
                 </div>
-                <div className={styles.registerText}>征途开启资格</div>
+              )}
+
+              {/* 未报名可报名 */}
+              {session && !isRegistered && (
+                <div className={styles.registerSection}>
+                  <div className={styles.registerIcon}>
+                    <i className="fas fa-fire"></i>
+                  </div>
+                  <div className={styles.registerText}>征途开启资格</div>
+                  <button 
+                    className={styles.registerBtn}
+                    onClick={handleApply}
+                    disabled={registering}
+                  >
+                    <i className="fas fa-pen-fancy"></i>
+                    {registering ? '申请中...' : '立即报名'}
+                  </button>
+                  <div className={styles.registerFee}>报名费: {registrationFee} 星球币</div>
+                </div>
+              )}
+
+              {/* 再次挑战按钮 */}
+              {(isCompleted || isFailed) && session && (
                 <button 
                   className={styles.registerBtn}
                   onClick={handleApply}
                   disabled={registering}
                 >
-                  <i className="fas fa-pen-fancy"></i>
-                  {registering ? '申请中...' : '立即报名'}
+                  <i className="fas fa-sync-alt"></i>
+                  {registering ? '申请中...' : '再次挑战'}
                 </button>
-                <div className={styles.registerFee}>报名费: {registrationFee} 星球币</div>
-              </div>
-            )}
-
-            {/* 再次挑战按钮 */}
-            {(isCompleted || isFailed) && session && (
-              <button 
-                className={styles.registerBtn}
-                onClick={handleApply}
-                disabled={registering}
-              >
-                <i className="fas fa-sync-alt"></i>
-                {registering ? '申请中...' : '再次挑战'}
-              </button>
-            )}
+              )}
+            </div>
           </div>
         </div>
 
-        {/* 右列：关卡显示 */}
-        <div className={styles.levelColumn}>
-          <div className={styles.levelsCard}>
-            <div className={styles.levelsHeader}>
-              <h2>
-                <i className="fas fa-flag-checkered"></i>
-                挑战关卡
-              </h2>
-              <div className={styles.progressBadge}>
-                {isRegistered ? (
-                  <>
-                    <i className="fas fa-fire"></i>
-                    已完成 {completedLevels.length} 关
-                  </>
-                ) : (
-                  <>
-                    <i className="fas fa-star"></i>
-                    报名后开启
-                  </>
-                )}
+        {/* 右侧列 - 关卡 */}
+        <div className={styles.rightColumn}>
+          <div className={styles.card}>
+            <div className={styles.levelsCard}>
+              <div className={styles.levelsHeader}>
+                <h2>
+                  <i className="fas fa-flag-checkered"></i>
+                  挑战关卡
+                </h2>
+                <div className={styles.progressBadge}>
+                  {isRegistered ? (
+                    <>
+                      <i className="fas fa-fire"></i>
+                      已完成 {completedLevels.length} 关
+                    </>
+                  ) : (
+                    <>
+                      <i className="fas fa-star"></i>
+                      报名后开启
+                    </>
+                  )}
+                </div>
               </div>
-            </div>
-            <div className={styles.levelsGrid}>
-              {levels.map((item, idx) => {
-                const levelNum = idx + 1;
-                const isCompletedLevel = completedLevels.includes(levelNum);
-                const isCurrentLevel = showChallengeActive && levelNum === currentLevel;
-                const isUnlocked = isRegistered && (isCompletedLevel || isCurrentLevel || levelNum < currentLevel);
-                
-                let statusClass = styles.lockedLevel;
-                let statusIcon = 'fa-lock';
-                let statusText = '未解锁';
-                
-                if (isCompletedLevel) {
-                  statusClass = styles.completedLevel;
-                  statusIcon = 'fa-check-circle';
-                  statusText = '已通关';
-                } else if (isCurrentLevel) {
-                  statusClass = styles.currentLevel;
-                  statusIcon = 'fa-unlock-alt';
-                  statusText = '进行中';
-                } else if (isUnlocked) {
-                  statusClass = styles.unlockedLevel;
-                  statusIcon = 'fa-unlock-alt';
-                  statusText = '可挑战';
-                }
-                
-                const levelConfig = challengeData?.levelConfigs?.find(l => l.level === levelNum);
-                
-                return (
-                  <div 
-                    key={levelNum} 
-                    className={`${styles.levelCard} ${statusClass}`}
-                  >
-                    <div className={styles.levelNumber}>{levelNum}</div>
-                    <div className={styles.levelName}>{levelConfig?.name || `第${levelNum}关`}</div>
-                    <div className={styles.levelStatus}>
-                      <i className={`fas ${statusIcon}`}></i>
-                      <span>{statusText}</span>
+              <div className={styles.levelsGrid}>
+                {levels.map((item, idx) => {
+                  const levelNum = idx + 1;
+                  const isCompletedLevel = completedLevels.includes(levelNum);
+                  const isCurrentLevel = showChallengeActive && levelNum === currentLevel;
+                  const isUnlocked = isRegistered && (isCompletedLevel || isCurrentLevel || levelNum < currentLevel);
+                  
+                  let statusClass = styles.lockedLevel;
+                  let statusIcon = 'fa-lock';
+                  let statusText = '未解锁';
+                  
+                  if (isCompletedLevel) {
+                    statusClass = styles.completedLevel;
+                    statusIcon = 'fa-check-circle';
+                    statusText = '已通关';
+                  } else if (isCurrentLevel) {
+                    statusClass = styles.currentLevel;
+                    statusIcon = 'fa-unlock-alt';
+                    statusText = '进行中';
+                  } else if (isUnlocked) {
+                    statusClass = styles.unlockedLevel;
+                    statusIcon = 'fa-unlock-alt';
+                    statusText = '可挑战';
+                  }
+                  
+                  const levelConfig = challengeData?.levelConfigs?.find(l => l.level === levelNum);
+                  
+                  return (
+                    <div 
+                      key={levelNum} 
+                      className={`${styles.levelCard} ${statusClass}`}
+                    >
+                      <div className={styles.levelNumber}>{levelNum}</div>
+                      <div className={styles.levelName}>{levelConfig?.name || `第${levelNum}关`}</div>
+                      <div className={styles.levelStatus}>
+                        <i className={`fas ${statusIcon}`}></i>
+                        <span>{statusText}</span>
+                      </div>
                     </div>
-                  </div>
-                );
-              })}
+                  );
+                })}
+              </div>
             </div>
           </div>
         </div>

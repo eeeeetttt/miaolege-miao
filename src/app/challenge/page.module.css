@@ -1,4 +1,4 @@
-/* K线征途挑战赛页面样式 - 三列布局 */
+/* K线征途挑战赛页面样式 - 左右两列布局 */
 
 /* 主容器 */
 .pageContainer {
@@ -58,41 +58,40 @@
   font-size: 2.2rem;
 }
 
-/* 三列布局容器 */
-.threeColumns {
+/* 两列布局容器 */
+.twoColumns {
   max-width: 1400px;
   margin: 0 auto;
   display: grid;
-  grid-template-columns: 1fr 320px 1fr;
-  gap: 1.5rem;
+  grid-template-columns: 1fr 1fr;
+  gap: 2rem;
   align-items: start;
 }
 
 /* 统一卡片样式 */
-.descCard,
-.actionCard,
-.levelsCard {
+.card {
   background: rgba(18, 22, 35, 0.75);
   backdrop-filter: blur(10px);
   border-radius: 28px;
   border: 1px solid rgba(212, 175, 55, 0.3);
   box-shadow: 0 20px 35px -12px rgba(0,0,0,0.5);
-  padding: 1.5rem;
-  height: 100%;
+  padding: 1.75rem;
 }
 
-/* 左列：比赛说明 */
-.descColumn {
+/* 左侧列 */
+.leftColumn {
   display: flex;
   flex-direction: column;
+  gap: 1.5rem;
 }
 
+/* 比赛说明卡片 */
 .descCard {
   border-left: 4px solid #D4AF37;
 }
 
 .descCard h2 {
-  font-size: 1.3rem;
+  font-size: 1.2rem;
   font-weight: 700;
   margin-bottom: 1rem;
   display: flex;
@@ -138,12 +137,7 @@
   font-size: 0.9rem;
 }
 
-/* 中列：报名/状态 */
-.actionColumn {
-  display: flex;
-  flex-direction: column;
-}
-
+/* 报名/状态卡片 */
 .actionCard {
   background: linear-gradient(145deg, #11161f, #0a0e16);
   border-color: rgba(212, 175, 55, 0.4);
@@ -152,7 +146,7 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  min-height: 400px;
+  min-height: 280px;
 }
 
 /* 挑战进行中 */
@@ -305,10 +299,10 @@
   margin-top: 0.5rem;
 }
 
-/* 右列：关卡 */
-.levelColumn {
-  display: flex;
-  flex-direction: column;
+/* 右侧列 - 关卡 */
+.rightColumn {
+  position: sticky;
+  top: 2rem;
 }
 
 .levelsCard {
@@ -463,9 +457,18 @@
 
 /* 响应式布局 */
 @media (max-width: 1100px) {
-  .threeColumns {
-    grid-template-columns: 1fr 280px 1fr;
-    gap: 1rem;
+  .twoColumns {
+    grid-template-columns: 1fr;
+    gap: 1.5rem;
+  }
+
+  .rightColumn {
+    position: static;
+  }
+
+  .actionCard {
+    min-height: auto;
+    padding: 2rem 1.5rem;
   }
 }
 
@@ -481,33 +484,8 @@
   .hero h1 i {
     font-size: 1.6rem;
   }
-  
-  .threeColumns {
-    grid-template-columns: 1fr;
-    gap: 1.5rem;
-  }
-  
-  .actionCard {
-    min-height: auto;
-    padding: 2rem 1.5rem;
-  }
-  
-  .levelsGrid {
-    grid-template-columns: repeat(2, 1fr);
-  }
-}
 
-@media (max-width: 500px) {
   .levelsGrid {
     grid-template-columns: repeat(2, 1fr);
-    gap: 0.75rem;
-  }
-  
-  .levelCard {
-    padding: 0.875rem 0.5rem;
-  }
-  
-  .balanceValue {
-    font-size: 2rem;
   }
 }
