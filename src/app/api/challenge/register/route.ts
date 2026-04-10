@@ -205,18 +205,6 @@ export async function POST() {
       configMap.challenge_enabled = 'true';
     }
 
-    // 检查挑战赛是否启用
-    if (configMap.challenge_enabled !== 'true') {
-      return NextResponse.json({ 
-        error: '挑战赛已关闭，请耐心等待下次开启' 
-      }, { status: 400 });
-    }
-
-    // 从Supabase获取用户信息（需要从users表）
-    // 注意: users表可能在MySQL，我们使用coin_balance字段
-    // 暂时使用默认余额1000，实际生产环境需要从用户系统获取
-    const currentBalance = 1000; // 假设默认余额足够
-
     // 检查是否有已完成或失败的挑战记录，如果有则删除旧记录允许重新报名
     // 这个检查优先处理，因为可能出现净值已跌破底线但状态还未更新的情况
     const { data: oldRecords } = await supabase
@@ -226,7 +214,7 @@ export async function POST() {
       .in('status', ['completed', 'failed', 'rejected'])
       .limit(1);
 
-    // 如果有旧的完成/失败记录，先删除它们以允许重新报名
+    // 如果有旧的完成/失败/拒绝记录，先删除它们以允许重新报名
     if (oldRecords && oldRecords.length > 0) {
       await supabase
         .from('challenge_registrations')
@@ -234,21 +222,7 @@ export async function POST() {
         .eq('id', oldRecords[0].id);
     }
 
-    // 检查是否已有未处理的申请
-    const { data: existingPending } = await supabase
-      .from('challenge_registrations')
-      .select('id')
-      .eq('user_id', userId)
-      .eq('status', 'pending')
-      .limit(1);
-
-    if (existingPending && existingPending.length > 0) {
-      return NextResponse.json({ 
-        error: '您已提交过申请，请等待审核' 
-      }, { status: 400 });
-    }
-
-    // 检查是否有进行中的挑战
+    // 检查是否有进行中的挑战（包括 approved 待激活状态）
     const { data: existingActive } = await supabase
       .from('challenge_registrations')
       .select('id, status')
@@ -257,6 +231,13 @@ export async function POST() {
       .limit(1);
 
     if (existingActive && existingActive.length > 0) {
+      // 只有在有进行中挑战时，才检查挑战赛是否启用
+      if (configMap.challenge_enabled !== 'true') {
+        return NextResponse.json({ 
+          error: '挑战赛已关闭，请耐心等待下次开启' 
+        }, { status: 400 });
+      }
+      
       const status = existingActive[0].status;
       if (status === 'active') {
         return NextResponse.json({ 
@@ -271,6 +252,20 @@ export async function POST() {
           error: '您的申请已通过，请等待激活' 
         }, { status: 400 });
       }
+    }
+
+    // 检查是否已有待审核的申请
+    const { data: existingPending } = await supabase
+      .from('challenge_registrations')
+      .select('id')
+      .eq('user_id', userId)
+      .eq('status', 'pending')
+      .limit(1);
+
+    if (existingPending && existingPending.length > 0) {
+      return NextResponse.json({ 
+        error: '您已提交过申请，请等待审核' 
+      }, { status: 400 });
     }
 
     // 检查星球币余额（使用配置中的报名费）
