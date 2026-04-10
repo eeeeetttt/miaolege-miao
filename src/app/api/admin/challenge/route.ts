@@ -260,31 +260,26 @@ export async function POST(request: Request) {
     if (action === 'updateDescription') {
       const { description } = body;
 
-      const { data: existingConfig } = await supabase
+      // 先尝试更新
+      const { data: updateData, error: updateError } = await supabase
         .from('challenge_config')
-        .select('config_key')
+        .update({ config_value: description })
         .eq('config_key', 'description')
-        .maybeSingle();
+        .select();
 
-      if (existingConfig) {
-        const { error: updateError } = await supabase
-          .from('challenge_config')
-          .update({ config_value: description })
-          .eq('config_key', 'description');
-
-        if (updateError) {
-          console.error('Update description error:', updateError);
-          return NextResponse.json({ error: '比赛说明更新失败' }, { status: 500 });
-        }
-      } else {
+      // 如果没有找到记录，则插入
+      if (updateError || !updateData || updateData.length === 0) {
         const { error: insertError } = await supabase
           .from('challenge_config')
           .insert({ config_key: 'description', config_value: description });
 
         if (insertError) {
-          console.error('Insert description error:', insertError);
+          console.error('Save description error:', insertError);
           return NextResponse.json({ error: '比赛说明保存失败' }, { status: 500 });
         }
+      } else if (updateError) {
+        console.error('Update description error:', updateError);
+        return NextResponse.json({ error: '比赛说明保存失败' }, { status: 500 });
       }
 
       return NextResponse.json({ success: true, message: '比赛说明已保存' });
