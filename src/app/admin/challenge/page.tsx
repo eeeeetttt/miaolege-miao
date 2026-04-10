@@ -22,7 +22,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Spinner } from '@/components/ui/spinner';
-import { Check, X, Eye, RefreshCw, Settings, AlertCircle } from 'lucide-react';
+import { Check, X, RefreshCw, Settings, AlertCircle } from 'lucide-react';
 
 interface ChallengeRegistration {
   registration: {
@@ -78,54 +78,17 @@ export default function ChallengeAdminPage() {
 
   // 配置对话框
   const [configDialogOpen, setConfigDialogOpen] = useState(false);
-
-  // 公告相关状态
-  const [announcement, setAnnouncement] = useState<{ title: string; content: string; is_active: number } | null>(null);
-  const [announcementForm, setAnnouncementForm] = useState({ title: '', content: '', is_active: 1 });
+  const [descriptionForm, setDescriptionForm] = useState('');
 
   useEffect(() => {
     fetchList();
-    fetchAnnouncement();
   }, [statusFilter]);
 
-  // 获取公告
-  const fetchAnnouncement = async () => {
-    try {
-      const res = await fetch('/api/admin/announcement');
-      const data = await res.json();
-      if (res.ok && data.announcement) {
-        setAnnouncement(data.announcement);
-        setAnnouncementForm({
-          title: data.announcement.title || '',
-          content: data.announcement.content || '',
-          is_active: data.announcement.is_active || 1
-        });
-      }
-    } catch (error) {
-      console.error('获取公告失败:', error);
+  useEffect(() => {
+    if (configDialogOpen && config.description) {
+      setDescriptionForm(config.description);
     }
-  };
-
-  // 保存公告
-  const handleSaveAnnouncement = async () => {
-    try {
-      const res = await fetch('/api/admin/announcement', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(announcementForm),
-      });
-      
-      const data = await res.json();
-      if (res.ok && data.success) {
-        setAnnouncement(data.announcement);
-        alert('公告已保存');
-      } else {
-        alert(data.error || '保存失败');
-      }
-    } catch (error) {
-      alert('保存失败');
-    }
-  };
+  }, [configDialogOpen, config.description]);
 
   const fetchList = async () => {
     setLoading(true);
@@ -218,6 +181,26 @@ export default function ChallengeAdminPage() {
       if (res.ok && data.success) {
         setConfig((prev) => ({ ...prev, [configKey]: value }));
         alert('配置已更新');
+      } else {
+        alert(data.error || '更新失败');
+      }
+    } catch (error) {
+      alert('更新失败');
+    }
+  };
+
+  const handleUpdateDescription = async () => {
+    try {
+      const res = await fetch('/api/admin/challenge', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'updateDescription', description: descriptionForm }),
+      });
+      
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setConfig((prev) => ({ ...prev, description: descriptionForm }));
+        alert('比赛说明已更新');
       } else {
         alert(data.error || '更新失败');
       }
@@ -577,58 +560,34 @@ export default function ChallengeAdminPage() {
 
       {/* 配置对话框 */}
       <Dialog open={configDialogOpen} onOpenChange={setConfigDialogOpen}>
-        <DialogContent className="sm:max-w-lg">
+        <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>挑战赛配置</DialogTitle>
             <DialogDescription>
-              设置挑战赛的基本参数
+              设置挑战赛的基本参数和比赛说明
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
-            {/* 公告管理 */}
-            <div className="border rounded-lg p-4 bg-yellow-50">
+            {/* 比赛说明 */}
+            <div className="border rounded-lg p-4 bg-gradient-to-r from-amber-50 to-yellow-50 border-amber-200">
               <h4 className="font-medium mb-3 flex items-center gap-2">
-                <span className="text-yellow-600">公告设置</span>
+                <span className="text-amber-600">比赛说明</span>
+                <Badge variant="outline" className="text-xs">前端页面展示</Badge>
               </h4>
               <div className="space-y-3">
                 <div className="space-y-2">
-                  <Label htmlFor="announcementTitle">公告标题</Label>
-                  <Input
-                    id="announcementTitle"
-                    value={announcementForm.title}
-                    onChange={(e) => setAnnouncementForm({ ...announcementForm, title: e.target.value })}
-                    placeholder="例如：重要通知"
-                    className="bg-white"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="announcementContent">公告内容</Label>
+                  <Label htmlFor="descriptionContent">说明内容</Label>
                   <textarea
-                    id="announcementContent"
-                    value={announcementForm.content}
-                    onChange={(e) => setAnnouncementForm({ ...announcementForm, content: e.target.value })}
-                    placeholder="输入公告内容..."
-                    rows={3}
+                    id="descriptionContent"
+                    value={descriptionForm}
+                    onChange={(e) => setDescriptionForm(e.target.value)}
+                    placeholder="输入比赛说明内容，支持换行..."
+                    rows={4}
                     className="w-full px-3 py-2 border rounded-md bg-white resize-none"
                   />
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="announcementActive">显示状态</Label>
-                  <Select
-                    value={String(announcementForm.is_active)}
-                    onValueChange={(value) => setAnnouncementForm({ ...announcementForm, is_active: parseInt(value) })}
-                  >
-                    <SelectTrigger className="bg-white">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="1">显示</SelectItem>
-                      <SelectItem value="0">隐藏</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <Button onClick={handleSaveAnnouncement} className="w-full bg-yellow-600 hover:bg-yellow-700">
-                  保存公告
+                <Button onClick={handleUpdateDescription} className="w-full bg-amber-600 hover:bg-amber-700">
+                  保存比赛说明
                 </Button>
               </div>
             </div>
