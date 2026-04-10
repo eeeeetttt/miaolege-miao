@@ -1,4 +1,4 @@
-import { pgTable, serial, timestamp, index, varchar, numeric, pgPolicy, integer, jsonb } from "drizzle-orm/pg-core"
+import { pgTable, serial, timestamp, index, varchar, numeric, pgPolicy, integer, jsonb, unique } from "drizzle-orm/pg-core"
 import { sql } from "drizzle-orm"
 
 
@@ -46,6 +46,25 @@ export const challengeRegistrations = pgTable("challenge_registrations", {
 	pgPolicy("challenge_registrations_允许公开读取", { as: "permissive", for: "select", to: ["public"] }),
 ]);
 
+export const userFollows = pgTable("user_follows", {
+	id: serial().primaryKey().notNull(),
+	followerId: varchar("follower_id", { length: 255 }).notNull(),
+	followedId: varchar("followed_id", { length: 255 }).notNull(),
+	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
+});
+
+export const challengeAnnouncement = pgTable("challenge_announcement", {
+	id: serial().primaryKey().notNull(),
+	title: varchar({ length: 200 }).default('公告').notNull(),
+	content: varchar({ length: 2000 }).notNull(),
+	isActive: integer("is_active").default(1).notNull(),
+	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
+	updatedAt: timestamp("updated_at", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
+}, (table) => [
+	pgPolicy("challenge_announcement_允许公开更新", { as: "permissive", for: "update", to: ["public"] }),
+	pgPolicy("challenge_announcement_允许公开读取", { as: "permissive", for: "select", to: ["public"] }),
+]);
+
 export const coinTransfers = pgTable("coin_transfers", {
 	id: serial().primaryKey().notNull(),
 	fromUserId: varchar("from_user_id", { length: 255 }).notNull(),
@@ -70,21 +89,37 @@ export const privateMessages = pgTable("private_messages", {
 	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
 });
 
-export const userFollows = pgTable("user_follows", {
+export const challengeConfig = pgTable("challenge_config", {
 	id: serial().primaryKey().notNull(),
-	followerId: varchar("follower_id", { length: 255 }).notNull(),
-	followedId: varchar("followed_id", { length: 255 }).notNull(),
+	configKey: varchar("config_key", { length: 100 }).notNull(),
+	configValue: varchar("config_value", { length: 2000 }),
+	description: varchar({ length: 500 }),
 	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
-});
+	updatedAt: timestamp("updated_at", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
+}, (table) => [
+	index("idx_challenge_config_key").using("btree", table.configKey.asc().nullsLast().op("text_ops")),
+	unique("challenge_config_config_key_unique").on(table.configKey),
+	pgPolicy("challenge_config_允许公开插入", { as: "permissive", for: "insert", to: ["public"] }),
+	pgPolicy("challenge_config_允许公开更新", { as: "permissive", for: "update", to: ["public"] }),
+	pgPolicy("challenge_config_允许公开读取", { as: "permissive", for: "select", to: ["public"] }),
+]);
 
-export const challengeAnnouncement = pgTable("challenge_announcement", {
+export const challengeLevelConfig = pgTable("challenge_level_config", {
 	id: serial().primaryKey().notNull(),
-	title: varchar({ length: 200 }).default('公告').notNull(),
-	content: varchar({ length: 2000 }).notNull(),
+	level: integer().notNull(),
+	name: varchar({ length: 50 }).notNull(),
+	description: varchar({ length: 500 }),
+	targetBalance: numeric("target_balance", { precision: 15, scale:  2 }).default('2000').notNull(),
+	initialBalance: numeric("initial_balance", { precision: 15, scale:  2 }).default('1000').notNull(),
+	failBalance: numeric("fail_balance", { precision: 15, scale:  2 }).default('100').notNull(),
+	reward: varchar({ length: 200 }),
 	isActive: integer("is_active").default(1).notNull(),
 	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
 	updatedAt: timestamp("updated_at", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
 }, (table) => [
-	pgPolicy("challenge_announcement_允许公开读取", { as: "permissive", for: "select", to: ["public"] }),
-	pgPolicy("challenge_announcement_允许公开更新", { as: "permissive", for: "update", to: ["public"] }),
+	index("idx_challenge_level_num").using("btree", table.level.asc().nullsLast().op("int4_ops")),
+	unique("challenge_level_config_level_unique").on(table.level),
+	pgPolicy("challenge_level_config_允许公开插入", { as: "permissive", for: "insert", to: ["public"] }),
+	pgPolicy("challenge_level_config_允许公开更新", { as: "permissive", for: "update", to: ["public"] }),
+	pgPolicy("challenge_level_config_允许公开读取", { as: "permissive", for: "select", to: ["public"] }),
 ]);
