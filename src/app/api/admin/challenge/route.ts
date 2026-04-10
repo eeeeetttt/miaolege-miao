@@ -190,6 +190,31 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: '缺少申请ID' }, { status: 400 });
     }
 
+    // 通用保存函数：先更新，不存在则插入
+    const upsertConfig = async (configKey: string, configValue: string): Promise<{ success: boolean; error?: string }> => {
+      // 先尝试更新
+      const { data: updateData, error: updateErr } = await supabase
+        .from('challenge_config')
+        .update({ config_value: configValue })
+        .eq('config_key', configKey);
+      
+      if (!updateErr && updateData) {
+        return { success: true };
+      }
+      
+      // 如果更新失败（可能是记录不存在），尝试插入
+      const { error: insertErr } = await supabase
+        .from('challenge_config')
+        .insert({ config_key: configKey, config_value: configValue });
+      
+      if (insertErr) {
+        console.error('Upsert config error:', { updateErr, insertErr });
+        return { success: false, error: insertErr?.message || '保存失败' };
+      }
+      
+      return { success: true };
+    };
+
     // updateConfig - 更新配置
     if (action === 'updateConfig') {
       const { configKey, configValue } = body;
@@ -197,35 +222,24 @@ export async function POST(request: Request) {
         return NextResponse.json({ error: '缺少配置参数' }, { status: 400 });
       }
 
-      // 检查配置是否存在
-      const { data: existingConfig } = await supabase
-        .from('challenge_config')
-        .select('config_key')
-        .eq('config_key', configKey)
-        .maybeSingle();
-
-      if (existingConfig) {
-        const { error: updateError } = await supabase
-          .from('challenge_config')
-          .update({ config_value: String(configValue) })
-          .eq('config_key', configKey);
-
-        if (updateError) {
-          console.error('Update config error:', updateError);
-          return NextResponse.json({ error: '配置更新失败' }, { status: 500 });
-        }
-      } else {
-        const { error: insertError } = await supabase
-          .from('challenge_config')
-          .insert({ config_key: configKey, config_value: String(configValue) });
-
-        if (insertError) {
-          console.error('Insert config error:', insertError);
-          return NextResponse.json({ error: '配置保存失败' }, { status: 500 });
-        }
+      const result = await upsertConfig(configKey, String(configValue));
+      if (!result.success) {
+        return NextResponse.json({ error: result.error || '配置保存失败' }, { status: 500 });
       }
 
       return NextResponse.json({ success: true, message: '配置已保存' });
+    }
+
+    // updateDescription - 更新比赛说明
+    if (action === 'updateDescription') {
+      const { description } = body;
+
+      const result = await upsertConfig('description', description || '');
+      if (!result.success) {
+        return NextResponse.json({ error: result.error || '比赛说明保存失败' }, { status: 500 });
+      }
+
+      return NextResponse.json({ success: true, message: '比赛说明已保存' });
     }
 
     // updateLevelConfig - 更新关卡配置
@@ -256,35 +270,6 @@ export async function POST(request: Request) {
       return NextResponse.json({ success: true, message: '关卡配置已保存' });
     }
 
-    // updateDescription - 更新比赛说明
-    if (action === 'updateDescription') {
-      const { description } = body;
-
-      // 先尝试更新
-      const { data: updateData, error: updateError } = await supabase
-        .from('challenge_config')
-        .update({ config_value: description })
-        .eq('config_key', 'description')
-        .select();
-
-      // 如果没有找到记录，则插入
-      if (updateError || !updateData || updateData.length === 0) {
-        const { error: insertError } = await supabase
-          .from('challenge_config')
-          .insert({ config_key: 'description', config_value: description });
-
-        if (insertError) {
-          console.error('Save description error:', insertError);
-          return NextResponse.json({ error: '比赛说明保存失败' }, { status: 500 });
-        }
-      } else if (updateError) {
-        console.error('Update description error:', updateError);
-        return NextResponse.json({ error: '比赛说明保存失败' }, { status: 500 });
-      }
-
-      return NextResponse.json({ success: true, message: '比赛说明已保存' });
-    }
-
     // initConfig - 初始化默认配置
     if (action === 'initConfig') {
       const defaultConfigs = [
@@ -294,21 +279,9 @@ export async function POST(request: Request) {
       ];
 
       for (const config of defaultConfigs) {
-        const { data: existing } = await supabase
-          .from('challenge_config')
-          .select('config_key')
-          .eq('config_key', config.config_key)
-          .maybeSingle();
-
-        if (existing) {
-          await supabase
-            .from('challenge_config')
-            .update({ config_value: config.config_value })
-            .eq('config_key', config.config_key);
-        } else {
-          await supabase
-            .from('challenge_config')
-            .insert(config);
+        const result = await upsertConfig(config.config_key, config.config_value);
+        if (!result.success) {
+          return NextResponse.json({ error: '配置初始化失败' }, { status: 500 });
         }
       }
 
@@ -331,21 +304,22 @@ export async function POST(request: Request) {
       ];
 
       for (const level of defaultLevels) {
-        const { data: existing } = await supabase
+        // 先尝试更新
+        const { error: updateErr } = await supabase
           .from('challenge_level_config')
-          .select('level')
-          .eq('level', level.level)
-          .maybeSingle();
-
-        if (existing) {
-          await supabase
-            .from('challenge_level_config')
-            .update(level)
-            .eq('level', level.level);
-        } else {
-          await supabase
+          .update(level)
+          .eq('level', level.level);
+        
+        if (updateErr) {
+          // 如果更新失败，尝试插入
+          const { error: insertErr } = await supabase
             .from('challenge_level_config')
             .insert(level);
+          
+          if (insertErr) {
+            console.error('Init level error:', insertErr);
+            return NextResponse.json({ error: '关卡配置初始化失败' }, { status: 500 });
+          }
         }
       }
 
