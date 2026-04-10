@@ -16,7 +16,7 @@ export async function GET() {
     const { data: registrations, error: regError } = await supabase
       .from('challenge_registrations')
       .select('*')
-      .in('status', ['active', 'level_passed', 'approved'])
+      .in('status', ['active', 'level_passed'])
       .order('created_at', { ascending: false });
 
     if (regError) {
@@ -27,49 +27,48 @@ export async function GET() {
       }, { status: 500 });
     }
 
-    // 获取对应的净值数据
-    const { data: equityData } = await supabase
-      .from('challenge_equity')
-      .select('*')
-      .order('recorded_at', { ascending: false });
+    // 收集所有交易账号
+    const accountNumbers = registrations
+      ?.filter(r => r.trading_account)
+      .map(r => r.trading_account) || [];
 
-    // 创建净值Map
-    const equityMap: Record<number, number> = {};
-    if (equityData) {
-      // 只保留每个账户的最新净值
-      const seen = new Set<number>();
-      for (const record of equityData) {
-        if (!seen.has(record.registration_id)) {
-          equityMap[record.registration_id] = record.equity;
-          seen.add(record.registration_id);
+    // 获取净值数据
+    let equityMap: Record<string, number> = {};
+    if (accountNumbers.length > 0) {
+      const { data: equityData } = await supabase
+        .from('mt_account_equity')
+        .select('account_number, equity')
+        .in('account_number', accountNumbers);
+
+      if (equityData) {
+        for (const record of equityData) {
+          if (!equityMap[record.account_number]) {
+            equityMap[record.account_number] = parseFloat(String(record.equity));
+          }
         }
       }
     }
 
     // 构建大厅数据
     const participants = (registrations || []).map(reg => {
-      const equity = equityMap[reg.id] || 1000;
-      const initialBalance = 1000;
-      const profit = equity - initialBalance;
-      const profitRate = ((profit / initialBalance) * 100).toFixed(2);
+      const equity = equityMap[reg.trading_account || ''] || 1000;
+      const currentLevel = reg.current_level || 1;
       
       // 获取当前关卡目标
       let targetBalance = 1200;
-      if (reg.current_level >= 2) targetBalance = 1500;
-      if (reg.current_level >= 3) targetBalance = 1800;
-      if (reg.current_level >= 4) targetBalance = 2000;
+      if (currentLevel >= 2) targetBalance = 1500;
+      if (currentLevel >= 3) targetBalance = 1800;
+      if (currentLevel >= 4) targetBalance = 2000;
       
-      const progress = Math.min(100, Math.max(0, ((equity - initialBalance) / (targetBalance - initialBalance)) * 100));
+      const progress = Math.min(100, Math.max(0, ((equity - 1000) / (targetBalance - 1000)) * 100));
 
       return {
         id: reg.id,
         userId: reg.user_id,
-        userName: reg.user_id.substring(0, 8) + '...', // 脱敏处理
+        userName: reg.user_name || reg.user_id.substring(0, 8), // 使用昵称或脱敏ID
         status: reg.status,
-        currentLevel: reg.current_level || 1,
+        currentLevel,
         equity,
-        profit: parseFloat(profit.toFixed(2)),
-        profitRate: parseFloat(profitRate),
         progress: parseFloat(progress.toFixed(1)),
         targetBalance,
         startedAt: reg.started_at,
@@ -86,19 +85,18 @@ export async function GET() {
       };
     });
 
-    // 按收益率排序
-    participants.sort((a, b) => b.profitRate - a.profitRate);
+    // 按净值排序
+    participants.sort((a, b) => b.equity - a.equity);
 
-    // 添加排名
-    const rankedParticipants = participants.map((p, index) => ({
+    // 只取前10名
+    const top10 = participants.slice(0, 10).map((p, index) => ({
       ...p,
       rank: index + 1,
     }));
 
     return NextResponse.json({
       success: true,
-      data: rankedParticipants,
-      totalParticipants: rankedParticipants.length,
+      data: top10,
     });
   } catch (error) {
     console.error('Get hall data error:', error);
