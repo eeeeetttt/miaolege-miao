@@ -83,6 +83,9 @@ export default function ChallengeAdminPage() {
   const [announcement, setAnnouncement] = useState<{ title: string; content: string; is_active: number } | null>(null);
   const [announcementForm, setAnnouncementForm] = useState({ title: '', content: '', is_active: 1 });
 
+  // 比赛说明相关状态
+  const [descriptionForm, setDescriptionForm] = useState('');
+
   useEffect(() => {
     fetchList();
     fetchAnnouncement();
@@ -127,6 +130,26 @@ export default function ChallengeAdminPage() {
     }
   };
 
+  // 保存比赛说明
+  const handleSaveDescription = async () => {
+    try {
+      const res = await fetch('/api/admin/challenge', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'updateDescription', description: descriptionForm }),
+      });
+      
+      const data = await res.json();
+      if (res.ok && data.success) {
+        alert('比赛说明已保存');
+      } else {
+        alert(data.error || '保存失败');
+      }
+    } catch (error) {
+      alert('保存失败');
+    }
+  };
+
   const fetchList = async () => {
     setLoading(true);
     try {
@@ -143,6 +166,10 @@ export default function ChallengeAdminPage() {
         setTotal(data.total || 0);
         setConfig(data.config || {});
         setLevelConfigs(data.levelConfigs || []);
+        // 设置比赛说明
+        if (data.config?.description) {
+          setDescriptionForm(data.config.description);
+        }
       }
     } catch (error) {
       console.error('获取列表失败:', error);
@@ -629,6 +656,30 @@ export default function ChallengeAdminPage() {
                 </div>
                 <Button onClick={handleSaveAnnouncement} className="w-full bg-yellow-600 hover:bg-yellow-700">
                   保存公告
+                </Button>
+              </div>
+            </div>
+
+            {/* 比赛说明管理 */}
+            <div className="border rounded-lg p-4 bg-amber-50">
+              <h4 className="font-medium mb-3 flex items-center gap-2">
+                <span className="text-amber-600">比赛说明</span>
+              </h4>
+              <div className="space-y-3">
+                <div className="space-y-2">
+                  <Label htmlFor="descriptionContent">说明内容</Label>
+                  <textarea
+                    id="descriptionContent"
+                    value={descriptionForm}
+                    onChange={(e) => setDescriptionForm(e.target.value)}
+                    placeholder="输入比赛说明内容，显示在挑战赛页面..."
+                    rows={4}
+                    className="w-full px-3 py-2 border rounded-md bg-white resize-none"
+                  />
+                  <p className="text-xs text-gray-500">支持多行文本，将显示在挑战赛页面左侧</p>
+                </div>
+                <Button onClick={handleSaveDescription} className="w-full bg-amber-600 hover:bg-amber-700">
+                  保存比赛说明
                 </Button>
               </div>
             </div>
