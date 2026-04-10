@@ -65,7 +65,7 @@
   display: grid;
   grid-template-columns: 1fr 320px 1fr;
   gap: 1.5rem;
-  align-items: stretch;
+  align-items: start;
 }
 
 /* 统一卡片样式 */
