@@ -88,27 +88,15 @@ export function Header() {
                   </DropdownMenuLabel>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem asChild>
+                    <Link href="/social" className="cursor-pointer">
+                      <MessageCircle className="mr-2 h-4 w-4" />
+                      社交中心
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
                     <Link href="/user" className="cursor-pointer">
                       <UserCircle className="mr-2 h-4 w-4" />
                       个人中心
-                    </Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link href="/user?tab=messages" className="cursor-pointer">
-                      <MessageCircle className="mr-2 h-4 w-4" />
-                      社交 / 私信
-                    </Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link href="/user?tab=follow" className="cursor-pointer">
-                      <User className="mr-2 h-4 w-4" />
-                      关注列表
-                    </Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link href="/user?tab=transfer" className="cursor-pointer">
-                      <Wallet className="mr-2 h-4 w-4" />
-                      转账
                     </Link>
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />

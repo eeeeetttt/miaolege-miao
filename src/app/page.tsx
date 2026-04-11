@@ -13,12 +13,8 @@ import {
   Target,
   ArrowRight,
   CheckCircle2,
-  Star,
-  Clock,
-  DollarSign,
   BarChart3,
-  Medal,
-  Crown
+  MessageSquare
 } from 'lucide-react';
 
 export default function HomePage() {
@@ -49,20 +45,6 @@ export default function HomePage() {
       description: '随时查看账户净值和交易数据，透明公开',
       color: 'from-blue-500 to-cyan-600',
     },
-  ];
-
-  const stats = [
-    { label: '挑战选手', value: '200+', icon: Users },
-    { label: '通关人数', value: '45+', icon: Medal },
-    { label: '总奖励发放', value: '450万+', icon: Star },
-    { label: '平均收益率', value: '85%', icon: TrendingUp },
-  ];
-
-  const levels = [
-    { level: 1, name: '初出茅庐', target: 1200, initial: 1000, reward: 5000 },
-    { level: 2, name: '小试牛刀', target: 1500, initial: 1200, reward: 10000 },
-    { level: 3, name: '渐入佳境', target: 1800, initial: 1500, reward: 20000 },
-    { level: 4, name: '炉火纯青', target: 2000, initial: 1800, reward: 65000 },
   ];
 
   const steps = [
@@ -146,66 +128,6 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* Stats Section */}
-      <section className="py-12 px-4 bg-white dark:bg-gray-900 border-b border-amber-200 dark:border-amber-800">
-        <div className="max-w-6xl mx-auto">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
-            {stats.map((stat, idx) => (
-              <div key={idx} className="text-center">
-                <stat.icon className="w-8 h-8 mx-auto mb-2 text-amber-600 dark:text-amber-400" />
-                <p className="text-3xl font-bold text-gray-900 dark:text-white">{stat.value}</p>
-                <p className="text-gray-600 dark:text-gray-400">{stat.label}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* Levels Preview Section */}
-      <section className="py-20 px-4 bg-gray-50 dark:bg-gray-800/50">
-        <div className="max-w-6xl mx-auto">
-          <div className="text-center mb-16">
-            <h2 className="text-3xl md:text-4xl font-bold text-gray-900 dark:text-white mb-4">
-              挑战关卡
-            </h2>
-            <p className="text-xl text-gray-600 dark:text-gray-400 max-w-2xl mx-auto">
-              四个关卡，逐步进阶，最终达成财富目标
-            </p>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            {levels.map((level) => (
-              <Card key={level.level} className="relative overflow-hidden border-0 shadow-lg">
-                <div className={`absolute inset-0 bg-gradient-to-br ${level.level === 4 ? 'from-amber-500 to-orange-600' : level.level === 3 ? 'from-yellow-500 to-amber-500' : level.level === 2 ? 'from-blue-500 to-cyan-500' : 'from-green-500 to-emerald-500'} opacity-90`} />
-                <CardHeader className="relative z-10 text-white">
-                  <div className="flex items-center justify-between mb-2">
-                    <Badge className="bg-white/20 text-white border-0">第{level.level}关</Badge>
-                    {level.level === 4 && <Crown className="w-6 h-6" />}
-                  </div>
-                  <CardTitle className="text-2xl">{level.name}</CardTitle>
-                </CardHeader>
-                <CardContent className="relative z-10 text-white">
-                  <div className="space-y-3">
-                    <div className="flex justify-between">
-                      <span className="opacity-80">初始净值</span>
-                      <span className="font-bold">{level.initial}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="opacity-80">目标净值</span>
-                      <span className="font-bold">{level.target}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="opacity-80">通关奖励</span>
-                      <span className="font-bold">{level.reward.toLocaleString()}</span>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        </div>
-      </section>
-
       {/* Features Section */}
       <section className="py-20 px-4 bg-white dark:bg-gray-900">
         <div className="max-w-6xl mx-auto">
@@ -266,38 +188,6 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* Rules Section */}
-      <section className="py-20 px-4 bg-white dark:bg-gray-900">
-        <div className="max-w-4xl mx-auto">
-          <Card className="border-2 border-amber-200 dark:border-amber-800">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-2xl">
-                <Shield className="w-6 h-6 text-amber-600" />
-                挑战规则
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {[
-                  '报名费：1000星球币（扣除后不可退还）',
-                  '初始净值：1000美元',
-                  '通关条件：净值达到2000美元',
-                  '失败条件：净值低于100美元',
-                  '交易账户由平台统一分配，禁止私自转让',
-                  '禁止对冲、剥头皮等违规交易行为',
-                  '通关奖励：100000星球币',
-                ].map((rule, idx) => (
-                  <div key={idx} className="flex items-start gap-3">
-                    <CheckCircle2 className="w-6 h-6 text-green-500 flex-shrink-0 mt-0.5" />
-                    <span className="text-gray-700 dark:text-gray-300">{rule}</span>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      </section>
-
       {/* CTA Section */}
       <section className="py-20 px-4 bg-gradient-to-r from-amber-600 to-orange-600 text-white">
         <div className="max-w-4xl mx-auto text-center">
@@ -334,14 +224,5 @@ export default function HomePage() {
         </div>
       </section>
     </div>
-  );
-}
-
-// Badge component
-function Badge({ children, className }: { children: React.ReactNode; className?: string }) {
-  return (
-    <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${className}`}>
-      {children}
-    </span>
   );
 }

@@ -1,9 +1,12 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useSession } from 'next-auth/react';
+import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Spinner } from '@/components/ui/spinner';
 import { 
   Smartphone, 
   Bot,
@@ -12,12 +15,18 @@ import {
   Cpu,
   CheckCircle2,
   ArrowRight,
-  ShoppingCart
+  ShoppingCart,
+  AlertCircle
 } from 'lucide-react';
 
 export default function AppDownloadPage() {
+  const { data: session } = useSession();
+  const router = useRouter();
   const [eaProducts, setEaProducts] = useState<any[]>([]);
   const [loadingProducts, setLoadingProducts] = useState(true);
+  const [purchasingId, setPurchasingId] = useState<number | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [purchasedIds, setPurchasedIds] = useState<Set<number>>(new Set());
 
   // 获取EA产品列表
   useEffect(() => {
@@ -36,6 +45,39 @@ export default function AppDownloadPage() {
     };
     fetchProducts();
   }, []);
+
+  // 购买EA产品
+  const handlePurchase = async (productId: number) => {
+    if (!session) {
+      router.push('/login');
+      return;
+    }
+
+    setError(null);
+    setPurchasingId(productId);
+
+    try {
+      const res = await fetch('/api/ea/purchase', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ productId }),
+      });
+      
+      const data = await res.json();
+      
+      if (res.ok && data.success) {
+        // 标记为已购买
+        setPurchasedIds(prev => new Set([...prev, productId]));
+        alert(`购买成功！已消耗 ${data.price} 星球币`);
+      } else {
+        setError(data.error || '购买失败');
+      }
+    } catch (err) {
+      setError('网络错误，请稍后重试');
+    } finally {
+      setPurchasingId(null);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-purple-50 dark:from-gray-900 dark:to-slate-900 py-8 px-4">
@@ -126,10 +168,29 @@ export default function AppDownloadPage() {
                       </p>
                       <p className="text-xs text-gray-500">元/永久授权</p>
                     </div>
-                    <Button className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 gap-2">
-                      <ShoppingCart className="w-4 h-4" />
-                      立即购买
-                    </Button>
+                    {purchasedIds.has(product.id) ? (
+                      <Badge className="bg-green-500 text-white px-4 py-2">
+                        已购买
+                      </Badge>
+                    ) : (
+                      <Button 
+                        className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 gap-2"
+                        onClick={() => handlePurchase(product.id)}
+                        disabled={purchasingId === product.id}
+                      >
+                        {purchasingId === product.id ? (
+                          <>
+                            <Spinner className="w-4 h-4" />
+                            购买中...
+                          </>
+                        ) : (
+                          <>
+                            <ShoppingCart className="w-4 h-4" />
+                            立即购买
+                          </>
+                        )}
+                      </Button>
+                    )}
                   </div>
                 </CardContent>
               </Card>

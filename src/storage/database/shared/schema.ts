@@ -123,3 +123,22 @@ export const challengeLevelConfig = pgTable("challenge_level_config", {
 	pgPolicy("challenge_level_config_允许公开更新", { as: "permissive", for: "update", to: ["public"] }),
 	pgPolicy("challenge_level_config_允许公开读取", { as: "permissive", for: "select", to: ["public"] }),
 ]);
+
+export const rechargeApplications = pgTable("recharge_applications", {
+	id: serial().primaryKey().notNull(),
+	userId: varchar("user_id", { length: 255 }).notNull(),
+	amount: integer().notNull(),
+	currency: varchar({ length: 20 }).default('USDC').notNull(),
+	walletAddress: varchar("wallet_address", { length: 255 }),
+	networkType: varchar("network_type", { length: 20 }).default('TRC20'),
+	screenshotUrl: varchar("screenshot_url", { length: 500 }),
+	status: varchar({ length: 20 }).default('pending').notNull(),
+	adminNote: varchar("admin_note", { length: 500 }),
+	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
+	processedAt: timestamp("processed_at", { withTimezone: true, mode: 'string' }),
+}, (table) => [
+	index("idx_recharge_user_id").using("btree", table.userId.asc().nullsLast().op("text_ops")),
+	index("idx_recharge_status").using("btree", table.status.asc().nullsLast().op("text_ops")),
+	pgPolicy("recharge_applications_允许公开插入", { as: "permissive", for: "insert", to: ["public"] }),
+	pgPolicy("recharge_applications_允许公开读取", { as: "permissive", for: "select", to: ["public"] }),
+]);
