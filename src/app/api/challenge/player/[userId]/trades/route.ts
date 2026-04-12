@@ -1,4 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/auth';
+import { db } from '@/lib/db';
+import { signals } from '@/lib/schema';
+import { eq, desc } from 'drizzle-orm';
 import { getSupabaseClient } from '@/storage/database/supabase-client';
 
 interface RouteParams {
@@ -15,7 +20,6 @@ export async function GET(
     const searchParams = request.nextUrl.searchParams;
     const page = parseInt(searchParams.get('page') || '1');
     const limit = parseInt(searchParams.get('limit') || '50');
-    const level = searchParams.get('level');
 
     const supabase = getSupabaseClient();
     
@@ -48,43 +52,41 @@ export async function GET(
       });
     }
 
-    // 获取交易历史
-    const { data: trades, error: tradesError, count } = await supabase
-      .from('mt_trades')
-      .select('*', { count: 'exact' })
-      .eq('account_number', tradingAccount)
-      .order('open_time', { ascending: false })
-      .range((page - 1) * limit, page * limit - 1);
+    // 从MySQL的signals表获取交易历史
+    const offset = (page - 1) * limit;
+    
+    // 使用Drizzle查询signals表
+    const allSignals = await db
+      .select()
+      .from(signals)
+      .where(eq(signals.senderAccount, tradingAccount))
+      .orderBy(desc(signals.createdAt));
 
-    if (tradesError) {
-      console.error('Get trades error:', tradesError);
-      return NextResponse.json({ error: '获取交易记录失败' }, { status: 500 });
-    }
+    const total = allSignals.length;
+    const paginatedSignals = allSignals.slice(offset, offset + limit);
 
     // 格式化交易数据
-    const formattedTrades = trades?.map(trade => ({
-      id: trade.id,
-      ticket: trade.ticket,
-      symbol: trade.symbol,
-      type: trade.type,
-      volume: trade.volume,
-      openPrice: parseFloat(String(trade.open_price)),
-      closePrice: trade.close_price ? parseFloat(String(trade.close_price)) : null,
-      openTime: trade.open_time,
-      closeTime: trade.close_time,
-      profit: trade.profit ? parseFloat(String(trade.profit)) : null,
-      commission: trade.commission ? parseFloat(String(trade.commission)) : 0,
-      swap: trade.swap ? parseFloat(String(trade.swap)) : 0,
-      magic: trade.magic,
-      comment: trade.comment,
-    })) || [];
+    const formattedTrades = paginatedSignals.map(signal => ({
+      id: signal.id,
+      ticket: signal.ticket,
+      symbol: signal.symbol,
+      type: signal.signalType === 'buy' ? 'buy' : (signal.signalType === 'sell' ? 'sell' : signal.signalType),
+      volume: signal.volume ? parseFloat(String(signal.volume)) : null,
+      openPrice: signal.price ? parseFloat(String(signal.price)) : null,
+      closePrice: signal.dealProfit ? parseFloat(String(signal.dealProfit)) : null,
+      openTime: signal.createdAt,
+      closeTime: signal.dealProfit ? signal.createdAt : null,
+      profit: signal.dealProfit ? parseFloat(String(signal.dealProfit)) : null,
+      comment: signal.comment,
+      orderType: signal.orderType,
+    }));
 
     return NextResponse.json({
       trades: formattedTrades,
-      total: count || 0,
+      total,
       page,
       limit,
-      totalPages: Math.ceil((count || 0) / limit),
+      totalPages: Math.ceil(total / limit),
     });
   } catch (error) {
     console.error('Get player trades error:', error);

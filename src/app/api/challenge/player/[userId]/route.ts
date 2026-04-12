@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseClient } from '@/storage/database/supabase-client';
+import { db } from '@/lib/db';
+import { signals } from '@/lib/schema';
+import { eq, desc, count } from 'drizzle-orm';
 
 interface RouteParams {
   params: Promise<{ userId: string }>;
@@ -40,7 +43,29 @@ export async function GET(
       .eq('is_active', true)
       .order('level');
 
-    // 获取历史净值数据
+    // 获取当前净值数据
+    let currentEquity = null;
+    let currentBalance = null;
+    let currentProfit = null;
+    let latestEquityRecord = null;
+
+    if (tradingAccount) {
+      const { data: equityData } = await supabase
+        .from('mt_account_equity')
+        .select('recorded_at, equity, balance, profit')
+        .eq('account_number', tradingAccount)
+        .order('recorded_at', { ascending: false })
+        .limit(1);
+
+      if (equityData && equityData.length > 0) {
+        latestEquityRecord = equityData[0];
+        currentEquity = parseFloat(String(latestEquityRecord.equity));
+        currentBalance = parseFloat(String(latestEquityRecord.balance));
+        currentProfit = parseFloat(String(latestEquityRecord.profit));
+      }
+    }
+
+    // 获取净值历史数据
     let equityHistory: Array<{
       recorded_at: string;
       equity: number;
@@ -65,20 +90,6 @@ export async function GET(
       }
     }
 
-    // 获取 MT 账户信息（如果有）
-    let mtAccountInfo = null;
-    if (registration.mt_account_id) {
-      const { data: accountData } = await supabase
-        .from('mt_accounts')
-        .select('*')
-        .eq('id', registration.mt_account_id)
-        .single();
-      
-      if (accountData) {
-        mtAccountInfo = accountData;
-      }
-    }
-
     // 计算每关的统计信息
     const completedLevels: number[] = registration.completed_levels
       ? (typeof registration.completed_levels === 'string'
@@ -86,28 +97,29 @@ export async function GET(
           : registration.completed_levels)
       : [];
 
+    const currentLevel = registration.current_level || 1;
+    const totalLevels = levelConfigs?.length || 10;
+
     // 按关卡分组净值数据
-    const levelStats = levelConfigs?.map(level => {
+    const levelStats = levelConfigs?.map((level, index) => {
       const levelInitial = parseFloat(String(level.initial_balance)) || 1000;
       const levelTarget = parseFloat(String(level.target_balance)) || 2000;
       const levelFail = parseFloat(String(level.fail_balance)) || 100;
 
-      // 找到该关卡的净值记录
-      const levelHistory = equityHistory.filter((_, index) => {
-        // 简化处理：平均分配历史记录到各关卡
-        if (completedLevels.includes(level.level)) {
-          // 已完成的关卡，取前N条记录
-          return index < Math.ceil(equityHistory.length / (levelConfigs?.length || 1));
-        }
-        return false;
-      });
-
       // 计算该关卡的统计数据
-      const entryEquity = levelHistory.length > 0 ? levelHistory[0].equity : levelInitial;
-      const exitEquity = levelHistory.length > 0 ? levelHistory[levelHistory.length - 1].equity : levelInitial;
-      const maxEquity = levelHistory.length > 0 ? Math.max(...levelHistory.map(h => h.equity)) : levelInitial;
-      const minEquity = levelHistory.length > 0 ? Math.min(...levelHistory.map(h => h.equity)) : levelInitial;
+      const entryEquity = levelInitial;
+      const exitEquity = level.level === currentLevel && currentEquity !== null 
+        ? currentEquity 
+        : (equityHistory.length > 0 ? equityHistory[equityHistory.length - 1].equity : levelInitial);
+      const maxEquity = equityHistory.length > 0 ? Math.max(...equityHistory.map(h => h.equity)) : levelInitial;
+      const minEquity = equityHistory.length > 0 ? Math.min(...equityHistory.map(h => h.equity)) : levelInitial;
       const profit = exitEquity - entryEquity;
+
+      // 该关卡的净值曲线
+      const levelCurveLength = Math.ceil(equityHistory.length / totalLevels);
+      const levelStartIndex = index * levelCurveLength;
+      const levelEndIndex = Math.min((index + 1) * levelCurveLength, equityHistory.length);
+      const levelEquityCurve = equityHistory.slice(levelStartIndex, levelEndIndex);
 
       return {
         level: level.level,
@@ -124,7 +136,7 @@ export async function GET(
         maxEquity,
         minEquity,
         profit,
-        equityCurve: levelHistory.map(h => ({
+        equityCurve: levelEquityCurve.map(h => ({
           time: h.recorded_at,
           equity: h.equity,
           balance: h.balance,
@@ -147,9 +159,11 @@ export async function GET(
         serverName: registration.server_name,
         tradingAccount: registration.trading_account,
       },
+      currentEquity,
+      currentBalance,
+      currentProfit,
       levelStats,
       equityHistory,
-      mtAccountInfo,
       totalEquityHistory: equityHistory.length,
     });
   } catch (error) {

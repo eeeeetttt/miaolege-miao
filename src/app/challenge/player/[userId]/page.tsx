@@ -16,15 +16,14 @@ interface Trade {
   ticket: number;
   symbol: string;
   type: string;
-  volume: number;
-  openPrice: number;
+  volume: number | null;
+  openPrice: number | null;
   closePrice: number | null;
-  openTime: string;
-  closeTime: string | null;
+  openTime: string | Date;
+  closeTime: string | Date | null;
   profit: number | null;
-  commission: number;
-  swap: number;
-  comment: string;
+  comment: string | null;
+  orderType: string | null;
 }
 
 interface LevelStat {
@@ -59,6 +58,9 @@ interface PlayerData {
     serverName: string | null;
     tradingAccount: string | null;
   };
+  currentEquity: number | null;
+  currentBalance: number | null;
+  currentProfit: number | null;
   levelStats: LevelStat[];
   equityHistory: EquityPoint[];
   totalEquityHistory: number;
@@ -99,7 +101,7 @@ export default function PlayerDetailPage() {
       if (res.ok) {
         setPlayerData(data);
         // 默认选中当前或第一关
-        if (data.levelStats.length > 0) {
+        if (data.levelStats && data.levelStats.length > 0) {
           const currentOrFirst = data.levelStats.find((l: LevelStat) => l.isCurrent) || data.levelStats[0];
           setSelectedLevel(currentOrFirst.level);
         }
@@ -129,8 +131,10 @@ export default function PlayerDetailPage() {
     setTradesLoading(false);
   };
 
-  const formatTime = (time: string): string => {
-    return new Date(time).toLocaleString('zh-CN', {
+  const formatTime = (time: string | Date | null): string => {
+    if (!time) return '-';
+    const date = typeof time === 'string' ? new Date(time) : time;
+    return date.toLocaleString('zh-CN', {
       month: 'short',
       day: 'numeric',
       hour: '2-digit',
@@ -149,7 +153,7 @@ export default function PlayerDetailPage() {
     return profit >= 0 ? styles.profit : styles.loss;
   };
 
-  const selectedLevelData = playerData?.levelStats.find(l => l.level === selectedLevel);
+  const selectedLevelData = playerData?.levelStats?.find(l => l.level === selectedLevel);
 
   if (loading) {
     return (
@@ -210,6 +214,23 @@ export default function PlayerDetailPage() {
               </p>
             </div>
           </div>
+          
+          {/* 当前净值显示 */}
+          {playerData.currentEquity !== null && (
+            <div className={styles.equityDisplay}>
+              <div className={styles.equityItem}>
+                <span className={styles.equityLabel}>当前净值</span>
+                <span className={styles.equityValue}>${playerData.currentEquity.toFixed(2)}</span>
+              </div>
+              {playerData.currentProfit !== null && (
+                <div className={`${styles.equityItem} ${getProfitClass(playerData.currentProfit)}`}>
+                  <span className={styles.equityLabel}>当前盈亏</span>
+                  <span className={styles.equityValue}>{formatProfit(playerData.currentProfit)}</span>
+                </div>
+              )}
+            </div>
+          )}
+          
           <div className={styles.playerStats}>
             <div className={styles.statItem}>
               <span className={styles.statValue}>{playerData.player.completedLevels.length}</span>
@@ -253,7 +274,7 @@ export default function PlayerDetailPage() {
           <>
             {/* 关卡选择器 */}
             <section className={styles.levelSelector}>
-              {playerData.levelStats.map(level => (
+              {playerData.levelStats?.map(level => (
                 <button
                   key={level.level}
                   className={`${styles.levelButton} ${selectedLevel === level.level ? styles.selectedLevel : ''} ${level.isCompleted ? styles.completedLevel : ''}`}
@@ -320,7 +341,7 @@ export default function PlayerDetailPage() {
                     </span>
                   </div>
                   <div className={styles.profitItem}>
-                    <span className={styles.profitLabel}>出场净值</span>
+                    <span className={styles.profitLabel}>当前净值</span>
                     <span className={styles.profitValue}>
                       ${selectedLevelData.exitEquity.toFixed(2)}
                     </span>
@@ -346,65 +367,83 @@ export default function PlayerDetailPage() {
                 </div>
 
                 {/* 收益曲线 */}
-                {selectedLevelData.equityCurve.length > 0 && (
+                {selectedLevelData.equityCurve && selectedLevelData.equityCurve.length > 0 && (
                   <div className={styles.chartSection}>
                     <h4>净值曲线</h4>
                     <div className={styles.chart}>
                       <svg viewBox="0 0 400 150" className={styles.chartSvg}>
-                        {/* 目标线和失败线 */}
-                        <line 
-                          x1="0" 
-                          y1={150 - ((selectedLevelData.targetBalance - selectedLevelData.failBalance) / 
-                            (selectedLevelData.maxEquity - selectedLevelData.failBalance + 1)) * 150} 
-                          x2="400" 
-                          y2={150 - ((selectedLevelData.targetBalance - selectedLevelData.failBalance) / 
-                            (selectedLevelData.maxEquity - selectedLevelData.failBalance + 1)) * 150} 
-                          stroke="#22c55e" 
-                          strokeWidth="1" 
-                          strokeDasharray="4,4"
-                        />
-                        <line 
-                          x1="0" 
-                          y1={150 - ((selectedLevelData.initialBalance - selectedLevelData.failBalance) / 
-                            (selectedLevelData.maxEquity - selectedLevelData.failBalance + 1)) * 150} 
-                          x2="400" 
-                          y2={150 - ((selectedLevelData.initialBalance - selectedLevelData.failBalance) / 
-                            (selectedLevelData.maxEquity - selectedLevelData.failBalance + 1)) * 150} 
-                          stroke="#a1a1aa" 
-                          strokeWidth="1"
-                        />
-                        
-                        {/* 曲线 */}
-                        {selectedLevelData.equityCurve.map((point, index) => {
-                          const x = (index / (selectedLevelData.equityCurve.length - 1 || 1)) * 400;
-                          const y = 150 - ((point.equity - selectedLevelData.failBalance) / 
-                            (selectedLevelData.maxEquity - selectedLevelData.failBalance + 1)) * 150;
+                        {/* 动态计算Y轴范围 */}
+                        {(() => {
+                          const minVal = Math.min(selectedLevelData.failBalance, selectedLevelData.equityCurve.map(p => p.equity).reduce((a, b) => Math.min(a, b), Infinity));
+                          const maxVal = Math.max(selectedLevelData.targetBalance, selectedLevelData.equityCurve.map(p => p.equity).reduce((a, b) => Math.max(a, b), -Infinity));
+                          const range = maxVal - minVal || 1;
+                          
+                          const getY = (val: number) => 150 - ((val - minVal) / range) * 140 - 5;
+                          
                           return (
-                            <circle 
-                              key={index} 
-                              cx={x} 
-                              cy={y} 
-                              r="2" 
-                              fill={point.equity >= selectedLevelData.targetBalance ? '#22c55e' : 
-                                    point.equity < selectedLevelData.failBalance ? '#ef4444' : '#fbbf24'}
-                            />
+                            <>
+                              {/* 目标线 */}
+                              <line 
+                                x1="0" 
+                                y1={getY(selectedLevelData.targetBalance)} 
+                                x2="400" 
+                                y2={getY(selectedLevelData.targetBalance)} 
+                                stroke="#22c55e" 
+                                strokeWidth="1" 
+                                strokeDasharray="4,4"
+                              />
+                              {/* 初始净值线 */}
+                              <line 
+                                x1="0" 
+                                y1={getY(selectedLevelData.initialBalance)} 
+                                x2="400" 
+                                y2={getY(selectedLevelData.initialBalance)} 
+                                stroke="#a1a1aa" 
+                                strokeWidth="1"
+                              />
+                              {/* 失败底线 */}
+                              <line 
+                                x1="0" 
+                                y1={getY(selectedLevelData.failBalance)} 
+                                x2="400" 
+                                y2={getY(selectedLevelData.failBalance)} 
+                                stroke="#ef4444" 
+                                strokeWidth="1" 
+                                strokeDasharray="4,4"
+                              />
+                              
+                              {/* 连接线 */}
+                              {selectedLevelData.equityCurve.length > 1 && (
+                                <polyline
+                                  points={selectedLevelData.equityCurve.map((point, index) => {
+                                    const x = (index / (selectedLevelData.equityCurve.length - 1 || 1)) * 400;
+                                    const y = getY(point.equity);
+                                    return `${x},${y}`;
+                                  }).join(' ')}
+                                  fill="none"
+                                  stroke="#fbbf24"
+                                  strokeWidth="2"
+                                />
+                              )}
+                              
+                              {/* 数据点 */}
+                              {selectedLevelData.equityCurve.map((point, index) => {
+                                const x = (index / (selectedLevelData.equityCurve.length - 1 || 1)) * 400;
+                                const y = getY(point.equity);
+                                return (
+                                  <circle 
+                                    key={index} 
+                                    cx={x} 
+                                    cy={y} 
+                                    r="3" 
+                                    fill={point.equity >= selectedLevelData.targetBalance ? '#22c55e' : 
+                                          point.equity < selectedLevelData.failBalance ? '#ef4444' : '#fbbf24'}
+                                  />
+                                );
+                              })}
+                            </>
                           );
-                        })}
-                        
-                        {/* 连接线 */}
-                        {selectedLevelData.equityCurve.length > 1 && (
-                          <polyline
-                            points={selectedLevelData.equityCurve.map((point, index) => {
-                              const x = (index / (selectedLevelData.equityCurve.length - 1 || 1)) * 400;
-                              const y = 150 - ((point.equity - selectedLevelData.failBalance) / 
-                                (selectedLevelData.maxEquity - selectedLevelData.failBalance + 1)) * 150;
-                              return `${x},${y}`;
-                            }).join(' ')}
-                            fill="none"
-                            stroke="#fbbf24"
-                            strokeWidth="2"
-                          />
-                        )}
+                        })()}
                       </svg>
                       <div className={styles.chartLegend}>
                         <span className={styles.legendItem}>
@@ -416,8 +455,8 @@ export default function PlayerDetailPage() {
                           初始净值
                         </span>
                         <span className={styles.legendItem}>
-                          <span className={styles.legendDot} style={{background: '#fbbf24'}}></span>
-                          净值变化
+                          <span className={styles.legendDot} style={{background: '#ef4444'}}></span>
+                          失败底线
                         </span>
                       </div>
                     </div>
@@ -448,31 +487,34 @@ export default function PlayerDetailPage() {
                   {trades.map(trade => (
                     <div key={trade.id} className={styles.tradeCard}>
                       <div className={styles.tradeHeader}>
-                        <span className={styles.tradeSymbol}>{trade.symbol}</span>
+                        <span className={styles.tradeSymbol}>{trade.symbol || '未知'}</span>
                         <span className={`${styles.tradeType} ${trade.type === 'buy' ? styles.buy : styles.sell}`}>
                           {trade.type === 'buy' ? '多' : '空'}
                         </span>
-                        <span className={styles.tradeVolume}>{trade.volume.toFixed(2)}手</span>
+                        {trade.volume !== null && (
+                          <span className={styles.tradeVolume}>{trade.volume.toFixed(2)}手</span>
+                        )}
+                        {trade.orderType && (
+                          <span className={styles.orderType}>{trade.orderType}</span>
+                        )}
                       </div>
                       <div className={styles.tradePrices}>
                         <div className={styles.priceItem}>
-                          <span className={styles.priceLabel}>开仓</span>
-                          <span className={styles.priceValue}>{trade.openPrice.toFixed(5)}</span>
+                          <span className={styles.priceLabel}>价格</span>
+                          <span className={styles.priceValue}>
+                            {trade.openPrice !== null ? trade.openPrice.toFixed(5) : '-'}
+                          </span>
                         </div>
-                        {trade.closePrice !== null && (
-                          <div className={styles.priceItem}>
-                            <span className={styles.priceLabel}>平仓</span>
-                            <span className={styles.priceValue}>{trade.closePrice.toFixed(5)}</span>
+                        {trade.profit !== null && (
+                          <div className={`${styles.priceItem} ${getProfitClass(trade.profit)}`}>
+                            <span className={styles.priceLabel}>盈亏</span>
+                            <span className={styles.priceValue}>{formatProfit(trade.profit)}</span>
                           </div>
                         )}
-                        <div className={`${styles.priceItem} ${getProfitClass(trade.profit)}`}>
-                          <span className={styles.priceLabel}>盈亏</span>
-                          <span className={styles.priceValue}>{formatProfit(trade.profit)}</span>
-                        </div>
                       </div>
                       <div className={styles.tradeTimes}>
-                        <span>开: {formatTime(trade.openTime)}</span>
-                        {trade.closeTime && <span>平: {formatTime(trade.closeTime)}</span>}
+                        <span>时间: {formatTime(trade.openTime)}</span>
+                        {trade.ticket && <span>票据: #{trade.ticket}</span>}
                       </div>
                       {trade.comment && (
                         <div className={styles.tradeComment}>{trade.comment}</div>
