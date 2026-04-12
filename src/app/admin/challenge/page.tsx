@@ -819,7 +819,7 @@ export default function ChallengeAdminPage() {
 
       {/* 关卡配置对话框（独立窗口） */}
       <Dialog open={levelConfigsDialogOpen} onOpenChange={setLevelConfigsDialogOpen}>
-        <DialogContent className="sm:max-w-lg">
+        <DialogContent className="sm:max-w-lg overflow-visible">
           <DialogHeader>
             <DialogTitle>关卡配置</DialogTitle>
             <DialogDescription>
@@ -829,7 +829,7 @@ export default function ChallengeAdminPage() {
           
           <div className="space-y-4 py-4">
             {/* 关卡选择 */}
-            <div className="space-y-2">
+            <div className="space-y-2 relative z-50">
               <Label htmlFor="selectLevel">选择关卡</Label>
               <Select 
                 value={String(editingLevel?.level || 1)} 
@@ -855,10 +855,10 @@ export default function ChallengeAdminPage() {
                   }
                 }}
               >
-                <SelectTrigger id="selectLevel">
+                <SelectTrigger id="selectLevel" className="z-50">
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className="z-[100]">
                   {levelConfigs.map(level => (
                     <SelectItem key={level.level} value={String(level.level)}>
                       第{level.level}关 - {level.name}
