@@ -83,6 +83,13 @@ export default function ChallengeAdminPage() {
   // 关卡配置对话框（独立窗口）
   const [levelConfigsDialogOpen, setLevelConfigsDialogOpen] = useState(false);
   
+  // 快速编辑状态（用于关卡配置表格）
+  const [editingLevels, setEditingLevels] = useState<Record<number, {
+    initialBalance: number;
+    targetBalance: number;
+    failBalance: number;
+  }>>({});
+  
   // 单关编辑对话框
   const [levelDialogOpen, setLevelDialogOpen] = useState(false);
   const [editingLevel, setEditingLevel] = useState<LevelConfig | null>(null);
@@ -767,69 +774,6 @@ export default function ChallengeAdminPage() {
             </div>
             
             <div className="space-y-2">
-              <Label htmlFor="failBalance">失败底线净值</Label>
-              <div className="flex gap-2">
-                <Input
-                  id="failBalance"
-                  type="number"
-                  defaultValue={config.fail_balance || '100'}
-                  className="flex-1"
-                />
-                <Button
-                  onClick={(e) => {
-                    const value = (e.target as HTMLButtonElement).parentElement?.querySelector('input')?.value;
-                    if (value) handleUpdateConfig('fail_balance', value);
-                  }}
-                >
-                  保存
-                </Button>
-              </div>
-              <p className="text-xs text-gray-500">净值低于此值判定挑战失败</p>
-            </div>
-            
-            <div className="space-y-2">
-              <Label htmlFor="targetBalance">通关目标净值</Label>
-              <div className="flex gap-2">
-                <Input
-                  id="targetBalance"
-                  type="number"
-                  defaultValue={config.target_balance || '2000'}
-                  className="flex-1"
-                />
-                <Button
-                  onClick={(e) => {
-                    const value = (e.target as HTMLButtonElement).parentElement?.querySelector('input')?.value;
-                    if (value) handleUpdateConfig('target_balance', value);
-                  }}
-                >
-                  保存
-                </Button>
-              </div>
-              <p className="text-xs text-gray-500">每关需要达到的净值目标</p>
-            </div>
-            
-            <div className="space-y-2">
-              <Label htmlFor="profitTarget">通关盈利目标</Label>
-              <div className="flex gap-2">
-                <Input
-                  id="profitTarget"
-                  type="number"
-                  defaultValue={config.profit_target || '1000'}
-                  className="flex-1"
-                />
-                <Button
-                  onClick={(e) => {
-                    const value = (e.target as HTMLButtonElement).parentElement?.querySelector('input')?.value;
-                    if (value) handleUpdateConfig('profit_target', value);
-                  }}
-                >
-                  保存
-                </Button>
-              </div>
-              <p className="text-xs text-gray-500">盈利达到此值视为通关（目标净值-初始净值）</p>
-            </div>
-            
-            <div className="space-y-2">
               <Label htmlFor="completionReward">通关奖励（人民币）</Label>
               <div className="flex gap-2">
                 <Input
@@ -859,7 +803,21 @@ export default function ChallengeAdminPage() {
       </Dialog>
 
       {/* 关卡配置对话框（独立窗口） */}
-      <Dialog open={levelConfigsDialogOpen} onOpenChange={setLevelConfigsDialogOpen}>
+      <Dialog open={levelConfigsDialogOpen} onOpenChange={(open) => {
+        setLevelConfigsDialogOpen(open);
+        if (open) {
+          // 打开时初始化编辑状态
+          const initial: Record<number, { initialBalance: number; targetBalance: number; failBalance: number }> = {};
+          levelConfigs.forEach(level => {
+            initial[level.level] = {
+              initialBalance: typeof level.initialBalance === 'number' ? level.initialBalance : parseFloat(String(level.initialBalance)) || 1000,
+              targetBalance: typeof level.targetBalance === 'number' ? level.targetBalance : parseFloat(String(level.targetBalance)) || 2000,
+              failBalance: typeof level.failBalance === 'number' ? level.failBalance : parseFloat(String(level.failBalance)) || 100,
+            };
+          });
+          setEditingLevels(initial);
+        }
+      }}>
         <DialogContent className="sm:max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>关卡配置</DialogTitle>
@@ -894,25 +852,43 @@ export default function ChallengeAdminPage() {
                 <div className="col-span-2">
                   <Input
                     type="number"
-                    defaultValue={typeof level.initialBalance === 'number' ? level.initialBalance : parseFloat(String(level.initialBalance))}
+                    value={editingLevels[level.level]?.initialBalance ?? (typeof level.initialBalance === 'number' ? level.initialBalance : parseFloat(String(level.initialBalance)) || 1000)}
+                    onChange={(e) => setEditingLevels(prev => ({
+                      ...prev,
+                      [level.level]: {
+                        ...prev[level.level],
+                        initialBalance: parseFloat(e.target.value) || 0,
+                      }
+                    }))}
                     className="h-8 text-sm"
-                    id={`initial-${level.level}`}
                   />
                 </div>
                 <div className="col-span-2">
                   <Input
                     type="number"
-                    defaultValue={typeof level.targetBalance === 'number' ? level.targetBalance : parseFloat(String(level.targetBalance))}
+                    value={editingLevels[level.level]?.targetBalance ?? (typeof level.targetBalance === 'number' ? level.targetBalance : parseFloat(String(level.targetBalance)) || 2000)}
+                    onChange={(e) => setEditingLevels(prev => ({
+                      ...prev,
+                      [level.level]: {
+                        ...prev[level.level],
+                        targetBalance: parseFloat(e.target.value) || 0,
+                      }
+                    }))}
                     className="h-8 text-sm"
-                    id={`target-${level.level}`}
                   />
                 </div>
                 <div className="col-span-2">
                   <Input
                     type="number"
-                    defaultValue={typeof level.failBalance === 'number' ? level.failBalance : parseFloat(String(level.failBalance))}
+                    value={editingLevels[level.level]?.failBalance ?? (typeof level.failBalance === 'number' ? level.failBalance : parseFloat(String(level.failBalance)) || 100)}
+                    onChange={(e) => setEditingLevels(prev => ({
+                      ...prev,
+                      [level.level]: {
+                        ...prev[level.level],
+                        failBalance: parseFloat(e.target.value) || 0,
+                      }
+                    }))}
                     className="h-8 text-sm"
-                    id={`fail-${level.level}`}
                   />
                 </div>
                 <div className="col-span-2 text-sm text-gray-600 truncate" title={level.reward || ''}>
@@ -924,12 +900,10 @@ export default function ChallengeAdminPage() {
                     variant="outline"
                     className="h-8"
                     onClick={() => {
-                      const initial = parseFloat((document.getElementById(`initial-${level.level}`) as HTMLInputElement)?.value) || 0;
-                      const target = parseFloat((document.getElementById(`target-${level.level}`) as HTMLInputElement)?.value) || 0;
-                      const fail = parseFloat((document.getElementById(`fail-${level.level}`) as HTMLInputElement)?.value) || 0;
-                      
-                      // 直接保存数值
-                      handleSaveLevelQuick(level.level, initial, target, fail);
+                      const values = editingLevels[level.level];
+                      if (values) {
+                        handleSaveLevelQuick(level.level, values.initialBalance, values.targetBalance, values.failBalance);
+                      }
                     }}
                   >
                     保存
