@@ -80,6 +80,18 @@ export default function ChallengeAdminPage() {
   const [configDialogOpen, setConfigDialogOpen] = useState(false);
   const [descriptionForm, setDescriptionForm] = useState('');
 
+  // 关卡配置对话框
+  const [levelDialogOpen, setLevelDialogOpen] = useState(false);
+  const [editingLevel, setEditingLevel] = useState<LevelConfig | null>(null);
+  const [levelForm, setLevelForm] = useState({
+    name: '',
+    description: '',
+    initialBalance: 1000,
+    targetBalance: 2000,
+    failBalance: 100,
+    reward: '',
+  });
+
   useEffect(() => {
     fetchList();
   }, [statusFilter]);
@@ -206,6 +218,51 @@ export default function ChallengeAdminPage() {
       }
     } catch (error) {
       alert('更新失败');
+    }
+  };
+
+  // 打开关卡配置对话框
+  const handleEditLevel = (level: LevelConfig) => {
+    setEditingLevel(level);
+    setLevelForm({
+      name: level.name,
+      description: level.description || '',
+      initialBalance: typeof level.initialBalance === 'number' ? level.initialBalance : parseFloat(String(level.initialBalance)) || 1000,
+      targetBalance: typeof level.targetBalance === 'number' ? level.targetBalance : parseFloat(String(level.targetBalance)) || 2000,
+      failBalance: typeof level.failBalance === 'number' ? level.failBalance : parseFloat(String(level.failBalance)) || 100,
+      reward: level.reward || '',
+    });
+    setLevelDialogOpen(true);
+  };
+
+  // 保存关卡配置
+  const handleSaveLevel = async () => {
+    if (!editingLevel) return;
+
+    try {
+      const res = await fetch('/api/admin/challenge', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'updateLevelConfig',
+          level: editingLevel.level,
+          ...levelForm,
+        }),
+      });
+
+      const data = await res.json();
+      if (res.ok && data.success) {
+        // 更新本地状态
+        setLevelConfigs(prev => prev.map(l => 
+          l.level === editingLevel.level ? { ...l, ...levelForm } : l
+        ));
+        setLevelDialogOpen(false);
+        alert('关卡配置已保存');
+      } else {
+        alert(data.error || '保存失败');
+      }
+    } catch (error) {
+      alert('保存失败');
     }
   };
 
@@ -747,14 +804,27 @@ export default function ChallengeAdminPage() {
             </div>
             
             <div className="border-t pt-4 mt-4">
-              <h4 className="font-medium mb-3">关卡配置</h4>
-              <div className="space-y-2 max-h-60 overflow-y-auto">
+              <div className="flex items-center justify-between mb-3">
+                <h4 className="font-medium">关卡配置</h4>
+                <span className="text-xs text-gray-500">点击编辑可调整每关的初始值、目标值和失败底线</span>
+              </div>
+              <div className="space-y-2 max-h-80 overflow-y-auto">
                 {levelConfigs.map((level) => (
-                  <div key={level.id} className="flex items-center justify-between p-2 bg-gray-50 rounded">
-                    <span className="font-medium">第{level.level}关 - {level.name}</span>
-                    <span className="text-sm text-gray-500">
-                      目标: {level.targetBalance} | 失败线: {level.failBalance}
-                    </span>
+                  <div key={level.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border hover:bg-gray-100 transition-colors">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2">
+                        <span className="font-medium text-purple-600">第{level.level}关</span>
+                        <span className="font-medium">{level.name}</span>
+                      </div>
+                      <div className="flex items-center gap-4 mt-1 text-sm text-gray-500">
+                        <span>初始: <span className="font-medium text-green-600">${typeof level.initialBalance === 'number' ? level.initialBalance : parseFloat(String(level.initialBalance))}</span></span>
+                        <span>→ 目标: <span className="font-medium text-amber-600">${typeof level.targetBalance === 'number' ? level.targetBalance : parseFloat(String(level.targetBalance))}</span></span>
+                        <span>失败线: <span className="font-medium text-red-500">${typeof level.failBalance === 'number' ? level.failBalance : parseFloat(String(level.failBalance))}</span></span>
+                      </div>
+                    </div>
+                    <Button size="sm" variant="outline" onClick={() => handleEditLevel(level)}>
+                      编辑
+                    </Button>
                   </div>
                 ))}
               </div>
@@ -763,6 +833,104 @@ export default function ChallengeAdminPage() {
           <DialogFooter>
             <Button variant="outline" onClick={() => setConfigDialogOpen(false)}>
               关闭
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* 关卡编辑对话框 */}
+      <Dialog open={levelDialogOpen} onOpenChange={setLevelDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>编辑第{editingLevel?.level}关配置</DialogTitle>
+            <DialogDescription>
+              设置该关卡的净值参数
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="levelName">关卡名称</Label>
+              <Input
+                id="levelName"
+                value={levelForm.name}
+                onChange={(e) => setLevelForm({ ...levelForm, name: e.target.value })}
+                placeholder="例如: 启念"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="levelDesc">关卡描述</Label>
+              <textarea
+                id="levelDesc"
+                value={levelForm.description}
+                onChange={(e) => setLevelForm({ ...levelForm, description: e.target.value })}
+                placeholder="描述该关卡的内容"
+                rows={2}
+                className="w-full px-3 py-2 border rounded-md bg-white resize-none"
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="initialBalance" className="text-green-600">初始净值</Label>
+                <Input
+                  id="initialBalance"
+                  type="number"
+                  value={levelForm.initialBalance}
+                  onChange={(e) => setLevelForm({ ...levelForm, initialBalance: parseFloat(e.target.value) || 0 })}
+                />
+                <p className="text-xs text-gray-500">挑战开始时的账户净值</p>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="targetBalance" className="text-amber-600">目标净值</Label>
+                <Input
+                  id="targetBalance"
+                  type="number"
+                  value={levelForm.targetBalance}
+                  onChange={(e) => setLevelForm({ ...levelForm, targetBalance: parseFloat(e.target.value) || 0 })}
+                />
+                <p className="text-xs text-gray-500">达到此净值视为通关</p>
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="failBalance" className="text-red-500">失败底线</Label>
+              <Input
+                id="failBalance"
+                type="number"
+                value={levelForm.failBalance}
+                onChange={(e) => setLevelForm({ ...levelForm, failBalance: parseFloat(e.target.value) || 0 })}
+              />
+              <p className="text-xs text-gray-500">净值低于此值判定挑战失败</p>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="reward">通关奖励描述</Label>
+              <Input
+                id="reward"
+                value={levelForm.reward}
+                onChange={(e) => setLevelForm({ ...levelForm, reward: e.target.value })}
+                placeholder="例如: 继续挑战、通关大奖"
+              />
+            </div>
+
+            {/* 预览 */}
+            <div className="bg-gradient-to-r from-green-50 via-amber-50 to-red-50 p-3 rounded-lg border">
+              <p className="text-xs text-gray-500 mb-2">参数预览</p>
+              <div className="flex items-center justify-center gap-2 text-sm">
+                <span className="text-green-600 font-medium">${levelForm.initialBalance}</span>
+                <span className="text-gray-400">→</span>
+                <span className="text-amber-600 font-medium">${levelForm.targetBalance}</span>
+                <span className="text-gray-400">→</span>
+                <span className="text-red-500 font-medium">${levelForm.failBalance}</span>
+              </div>
+              <p className="text-xs text-center text-gray-500 mt-1">
+                盈利目标: <span className="font-medium text-green-600">${levelForm.targetBalance - levelForm.initialBalance}</span>
+              </p>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setLevelDialogOpen(false)}>
+              取消
+            </Button>
+            <Button onClick={handleSaveLevel}>
+              保存配置
             </Button>
           </DialogFooter>
         </DialogContent>

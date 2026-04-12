@@ -122,9 +122,9 @@ export async function GET(request: Request) {
       level: row.level,
       name: row.name,
       description: row.description,
-      targetBalance: row.target_balance,
-      initialBalance: row.initial_balance,
-      failBalance: row.fail_balance,
+      targetBalance: parseFloat(String(row.target_balance)) || 2000,
+      initialBalance: parseFloat(String(row.initial_balance)) || 1000,
+      failBalance: parseFloat(String(row.fail_balance)) || 100,
       reward: row.reward,
       isActive: row.is_active,
     })) || [];

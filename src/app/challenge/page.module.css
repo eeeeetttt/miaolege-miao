@@ -437,6 +437,40 @@
   color: #a0a5b5;
 }
 
+.levelTargets {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  margin-top: 8px;
+  padding: 6px 8px;
+  background: rgba(212, 175, 55, 0.1);
+  border-radius: 8px;
+}
+
+.levelTargetItem {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.levelTargetLabel {
+  font-size: 0.6rem;
+  color: #a0a5b5;
+}
+
+.levelTargetValue {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #D4AF37;
+}
+
+.levelTargetArrow {
+  font-size: 0.7rem;
+  color: #D4AF37;
+  margin: 0 2px;
+}
+
 .levelStatus {
   margin-top: 10px;
   font-size: 0.8rem;

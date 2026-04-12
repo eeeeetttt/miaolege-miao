@@ -372,6 +372,8 @@ export default function ChallengePage() {
               const levelConfig = challengeData?.levelConfigs?.find(l => l.level === levelNum);
               const levelName = levelConfig?.name || `第${levelNum}关`;
               const levelDesc = levelConfig?.description || '';
+              const levelInitial = levelConfig?.initialBalance || 1000;
+              const levelTarget = levelConfig?.targetBalance || 2000;
               
               return (
                 <div 
@@ -382,6 +384,17 @@ export default function ChallengePage() {
                   <div className={styles.levelName}>{levelName}</div>
                   <div className={styles.levelDesc}>
                     {levelDesc.substring(0, 20)}{levelDesc.length > 20 ? '...' : ''}
+                  </div>
+                  <div className={styles.levelTargets}>
+                    <div className={styles.levelTargetItem}>
+                      <span className={styles.levelTargetLabel}>初始</span>
+                      <span className={styles.levelTargetValue}>${levelInitial}</span>
+                    </div>
+                    <div className={styles.levelTargetArrow}>→</div>
+                    <div className={styles.levelTargetItem}>
+                      <span className={styles.levelTargetLabel}>目标</span>
+                      <span className={styles.levelTargetValue}>${levelTarget}</span>
+                    </div>
                   </div>
                   <div className={styles.levelStatus}>
                     <i className={`fas ${statusIcon}`}></i>
