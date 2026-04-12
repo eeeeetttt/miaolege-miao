@@ -22,7 +22,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Spinner } from '@/components/ui/spinner';
-import { Check, X, RefreshCw, Settings, AlertCircle } from 'lucide-react';
+import { Check, X, RefreshCw, Settings, AlertCircle, Layers } from 'lucide-react';
 
 interface ChallengeRegistration {
   registration: {
@@ -80,7 +80,10 @@ export default function ChallengeAdminPage() {
   const [configDialogOpen, setConfigDialogOpen] = useState(false);
   const [descriptionForm, setDescriptionForm] = useState('');
 
-  // 关卡配置对话框
+  // 关卡配置对话框（独立窗口）
+  const [levelConfigsDialogOpen, setLevelConfigsDialogOpen] = useState(false);
+  
+  // 单关编辑对话框
   const [levelDialogOpen, setLevelDialogOpen] = useState(false);
   const [editingLevel, setEditingLevel] = useState<LevelConfig | null>(null);
   const [levelForm, setLevelForm] = useState({
@@ -266,6 +269,46 @@ export default function ChallengeAdminPage() {
     }
   };
 
+  // 快速保存关卡数值配置（不修改名称和描述）
+  const handleSaveLevelQuick = async (
+    levelNum: number, 
+    initialBalance: number, 
+    targetBalance: number, 
+    failBalance: number
+  ) => {
+    try {
+      const res = await fetch('/api/admin/challenge', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'updateLevelConfig',
+          level: levelNum,
+          initialBalance,
+          targetBalance,
+          failBalance,
+        }),
+      });
+
+      const data = await res.json();
+      if (res.ok && data.success) {
+        // 更新本地状态
+        setLevelConfigs(prev => prev.map(l => 
+          l.level === levelNum ? { 
+            ...l, 
+            initialBalance, 
+            targetBalance, 
+            failBalance 
+          } : l
+        ));
+        alert(`第${levelNum}关配置已保存`);
+      } else {
+        alert(data.error || '保存失败');
+      }
+    } catch (error) {
+      alert('保存失败');
+    }
+  };
+
   const getStatusBadge = (status: string) => {
     const statusMap: Record<string, { color: string; label: string }> = {
       pending: { color: 'bg-yellow-500', label: '待审核' },
@@ -291,6 +334,10 @@ export default function ChallengeAdminPage() {
           <Button variant="outline" onClick={() => setConfigDialogOpen(true)}>
             <Settings className="w-4 h-4 mr-2" />
             挑战赛配置
+          </Button>
+          <Button variant="outline" onClick={() => setLevelConfigsDialogOpen(true)}>
+            <Layers className="w-4 h-4 mr-2" />
+            关卡配置
           </Button>
           <Button variant="outline" onClick={fetchList}>
             <RefreshCw className="w-4 h-4 mr-2" />
@@ -802,36 +849,112 @@ export default function ChallengeAdminPage() {
               </div>
               <p className="text-xs text-gray-500">通关后发放的奖励人民币金额</p>
             </div>
-            
-            <div className="border-t pt-4 mt-4">
-              <div className="flex items-center justify-between mb-3">
-                <h4 className="font-medium">关卡配置</h4>
-                <span className="text-xs text-gray-500">点击编辑可调整每关的初始值、目标值和失败底线</span>
-              </div>
-              <div className="space-y-2 max-h-80 overflow-y-auto">
-                {levelConfigs.map((level) => (
-                  <div key={level.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border hover:bg-gray-100 transition-colors">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2">
-                        <span className="font-medium text-purple-600">第{level.level}关</span>
-                        <span className="font-medium">{level.name}</span>
-                      </div>
-                      <div className="flex items-center gap-4 mt-1 text-sm text-gray-500">
-                        <span>初始: <span className="font-medium text-green-600">${typeof level.initialBalance === 'number' ? level.initialBalance : parseFloat(String(level.initialBalance))}</span></span>
-                        <span>→ 目标: <span className="font-medium text-amber-600">${typeof level.targetBalance === 'number' ? level.targetBalance : parseFloat(String(level.targetBalance))}</span></span>
-                        <span>失败线: <span className="font-medium text-red-500">${typeof level.failBalance === 'number' ? level.failBalance : parseFloat(String(level.failBalance))}</span></span>
-                      </div>
-                    </div>
-                    <Button size="sm" variant="outline" onClick={() => handleEditLevel(level)}>
-                      编辑
-                    </Button>
-                  </div>
-                ))}
-              </div>
-            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setConfigDialogOpen(false)}>
+              关闭
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* 关卡配置对话框（独立窗口） */}
+      <Dialog open={levelConfigsDialogOpen} onOpenChange={setLevelConfigsDialogOpen}>
+        <DialogContent className="sm:max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>关卡配置</DialogTitle>
+            <DialogDescription>
+              设置每一关的账户初始净值、通关目标净值和失败底线，每一关的值可以不同
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3 py-4">
+            {/* 表头 */}
+            <div className="grid grid-cols-12 gap-3 px-3 py-2 bg-gray-100 rounded-lg font-medium text-sm">
+              <div className="col-span-1">关卡</div>
+              <div className="col-span-2">名称</div>
+              <div className="col-span-2 text-green-600">初始净值</div>
+              <div className="col-span-2 text-amber-600">目标净值</div>
+              <div className="col-span-2 text-red-500">失败底线</div>
+              <div className="col-span-2">奖励描述</div>
+              <div className="col-span-1">操作</div>
+            </div>
+            
+            {/* 关卡列表 */}
+            {levelConfigs.map((level) => (
+              <div 
+                key={level.id} 
+                className="grid grid-cols-12 gap-3 items-center p-3 bg-white rounded-lg border hover:bg-gray-50 transition-colors"
+              >
+                <div className="col-span-1">
+                  <Badge variant="outline" className="bg-purple-50 text-purple-700 border-purple-200">
+                    第{level.level}关
+                  </Badge>
+                </div>
+                <div className="col-span-2 font-medium">{level.name}</div>
+                <div className="col-span-2">
+                  <Input
+                    type="number"
+                    defaultValue={typeof level.initialBalance === 'number' ? level.initialBalance : parseFloat(String(level.initialBalance))}
+                    className="h-8 text-sm"
+                    id={`initial-${level.level}`}
+                  />
+                </div>
+                <div className="col-span-2">
+                  <Input
+                    type="number"
+                    defaultValue={typeof level.targetBalance === 'number' ? level.targetBalance : parseFloat(String(level.targetBalance))}
+                    className="h-8 text-sm"
+                    id={`target-${level.level}`}
+                  />
+                </div>
+                <div className="col-span-2">
+                  <Input
+                    type="number"
+                    defaultValue={typeof level.failBalance === 'number' ? level.failBalance : parseFloat(String(level.failBalance))}
+                    className="h-8 text-sm"
+                    id={`fail-${level.level}`}
+                  />
+                </div>
+                <div className="col-span-2 text-sm text-gray-600 truncate" title={level.reward || ''}>
+                  {level.reward || '-'}
+                </div>
+                <div className="col-span-1">
+                  <Button 
+                    size="sm" 
+                    variant="outline"
+                    className="h-8"
+                    onClick={() => {
+                      const initial = parseFloat((document.getElementById(`initial-${level.level}`) as HTMLInputElement)?.value) || 0;
+                      const target = parseFloat((document.getElementById(`target-${level.level}`) as HTMLInputElement)?.value) || 0;
+                      const fail = parseFloat((document.getElementById(`fail-${level.level}`) as HTMLInputElement)?.value) || 0;
+                      
+                      // 直接保存数值
+                      handleSaveLevelQuick(level.level, initial, target, fail);
+                    }}
+                  >
+                    保存
+                  </Button>
+                </div>
+              </div>
+            ))}
+            
+            {/* 提示信息 */}
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-sm text-blue-800">
+              <p className="font-medium mb-1">配置说明：</p>
+              <ul className="list-disc list-inside space-y-1 text-blue-700">
+                <li><strong>初始净值：</strong>挑战开始时的账户净值</li>
+                <li><strong>目标净值：</strong>达到此净值视为通关</li>
+                <li><strong>失败底线：</strong>净值低于此值判定挑战失败</li>
+              </ul>
+            </div>
+            
+            {/* 批量操作提示 */}
+            <div className="text-xs text-gray-500 text-center">
+              点击每行右侧的"保存"按钮可快速保存该关卡的配置
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setLevelConfigsDialogOpen(false)}>
               关闭
             </Button>
           </DialogFooter>
