@@ -597,7 +597,7 @@ export default function ChallengeAdminPage() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="registrationFee">报名费（星球币）</Label>
+              <Label htmlFor="registrationFee">报名费（U）</Label>
               <div className="flex gap-2">
                 <Input
                   id="registrationFee"

@@ -68,7 +68,7 @@ export default function AppDownloadPage() {
       if (res.ok && data.success) {
         // 标记为已购买
         setPurchasedIds(prev => new Set([...prev, productId]));
-        alert(`购买成功！已消耗 ${data.price} 星球币`);
+        alert(`购买成功！已消耗 ${data.price} U`);
       } else {
         setError(data.error || '购买失败');
       }

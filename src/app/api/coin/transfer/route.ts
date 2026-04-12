@@ -55,7 +55,7 @@ export async function POST(request: NextRequest) {
 
     if ((fromUser.coinBalance || 0) < transferAmount) {
       return NextResponse.json({ 
-        error: `余额不足，当前余额: ${fromUser.coinBalance || 0} 星球币` 
+        error: `余额不足，当前余额: ${fromUser.coinBalance || 0} U` 
       }, { status: 400 });
     }
 
@@ -100,7 +100,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      message: `成功向 ${toUser.name} 转账 ${transferAmount} 星球币`,
+      message: `成功向 ${toUser.name} 转账 ${transferAmount} U`,
       data: {
         transferId: transfer.id,
         amount: transferAmount,

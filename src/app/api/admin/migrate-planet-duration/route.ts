@@ -52,11 +52,11 @@ export async function GET() {
 
     // 4. 初始化星球创建价格配置
     const defaultConfigs = [
-      { key: 'planet_price_7days', value: '0', description: '7天星球创建价格（星球币）' },
-      { key: 'planet_price_1year', value: '1999', description: '1年星球创建价格（星球币）' },
-      { key: 'planet_price_3years', value: '2999', description: '3年星球创建价格（星球币）' },
-      { key: 'planet_price_permanent', value: '4999', description: '永久星球创建价格（星球币）' },
-      { key: 'planet_creation_threshold', value: '2000', description: '创建星球所需最低星球币' },
+      { key: 'planet_price_7days', value: '0', description: '7天星球创建价格（U）' },
+      { key: 'planet_price_1year', value: '1999', description: '1年星球创建价格（U）' },
+      { key: 'planet_price_3years', value: '2999', description: '3年星球创建价格（U）' },
+      { key: 'planet_price_permanent', value: '4999', description: '永久星球创建价格（U）' },
+      { key: 'planet_creation_threshold', value: '2000', description: '创建星球所需最低 U' },
       { key: 'recharge_enabled', value: 'true', description: '是否启用充值' },
       { key: 'default_ticket_price', value: '100', description: '默认门票价格' },
       { key: 'max_publishers', value: '3', description: '最大发布者数量' },

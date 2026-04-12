@@ -103,7 +103,7 @@ export default function PlanetListPage() {
                       <Ticket className="w-4 h-4 text-purple-500" />
                       <span className="text-gray-600 dark:text-gray-400">
                         {planet.ticketPrice > 0 
-                          ? `门票进入：${planet.ticketPrice} 星球币` 
+                          ? `门票进入：${planet.ticketPrice} U` 
                           : '门票进入：免费'}
                       </span>
                     </div>

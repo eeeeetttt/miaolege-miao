@@ -435,7 +435,7 @@ export default function ChallengePlayPage() {
               </div>
             </div>
             <div className={styles.failedNote}>
-              报名费不予退还，重新开始需再次支付1000星球币
+              报名费不予退还，重新开始需再次支付1000 U
             </div>
             <div className={styles.failedButtons}>
               <button 

@@ -15,14 +15,14 @@ async function ensureDefaultConfig(supabase: NonNullable<ReturnType<typeof getSu
     // 如果没有配置，初始化默认配置
     if (!configRows || configRows.length === 0) {
       const defaultConfigs = [
-        { config_key: 'registration_fee', config_value: '1000', description: '报名费（星球币）' },
+        { config_key: 'registration_fee', config_value: '1000', description: '报名费（U）' },
         { config_key: 'email_notification', config_value: 'true', description: '是否启用邮件通知' },
         { config_key: 'challenge_enabled', config_value: 'true', description: '挑战赛是否启用' },
         { config_key: 'fail_balance', config_value: '100', description: '失败底线净值（低于此值判定失败）' },
         { config_key: 'target_balance', config_value: '2000', description: '通关目标净值' },
         { config_key: 'profit_target', config_value: '1000', description: '通关盈利目标' },
         { config_key: 'show_leaderboard', config_value: 'true', description: '是否显示挑战进度榜' },
-        { config_key: 'completion_reward', config_value: '100000', description: '通关奖励金额（星球币）' },
+        { config_key: 'completion_reward', config_value: '100000', description: '通关奖励金额（U）' },
       ];
       await supabase.from('challenge_config').insert(defaultConfigs);
     }
@@ -273,7 +273,7 @@ export async function POST(request: Request) {
     // initConfig - 初始化默认配置
     if (action === 'initConfig') {
       const defaultConfigs = [
-        { config_key: 'registration_fee', config_value: '1000', description: '报名费（星球币）' },
+        { config_key: 'registration_fee', config_value: '1000', description: '报名费（U）' },
         { config_key: 'email_notification', config_value: 'true', description: '是否启用邮件通知' },
         { config_key: 'challenge_enabled', config_value: 'true', description: '挑战赛是否启用' },
       ];

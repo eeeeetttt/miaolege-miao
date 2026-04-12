@@ -98,7 +98,7 @@ export default function CreatePlanetPage() {
     setError('');
 
     if (!canAfford && totalPrice > 0) {
-      setError(`星球币不足，需要 ${totalPrice} 星球币，当前余额 ${userBalance} 星球币`);
+      setError(`U 不足，需要 ${totalPrice} U，当前余额 ${userBalance} U`);
       return;
     }
 
@@ -137,7 +137,7 @@ export default function CreatePlanetPage() {
         <div className="mb-6 flex items-center justify-between bg-white dark:bg-gray-800 rounded-lg p-4 shadow-sm">
           <div className="flex items-center gap-2">
             <Coins className="w-5 h-5 text-yellow-500" />
-            <span className="text-gray-600 dark:text-gray-400">我的星球币余额：</span>
+            <span className="text-gray-600 dark:text-gray-400">我的 U 余额：</span>
             <span className="font-bold text-lg text-purple-600">{userBalance}</span>
           </div>
           <Button variant="outline" size="sm" onClick={() => router.push('/recharge')}>
@@ -202,7 +202,7 @@ export default function CreatePlanetPage() {
                             {option.price === 0 ? (
                               <span className="text-green-500">免费</span>
                             ) : (
-                              <span className="text-purple-600">{option.price} 星球币</span>
+                              <span className="text-purple-600">{option.price} U</span>
                             )}
                           </div>
                         </div>
@@ -217,12 +217,12 @@ export default function CreatePlanetPage() {
                 <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4">
                   <div className="flex justify-between items-center mb-2">
                     <span className="text-gray-600 dark:text-gray-400">星球时长费用</span>
-                    <span className="font-medium">{totalPrice} 星球币</span>
+                    <span className="font-medium">{totalPrice} U</span>
                   </div>
                   <div className="flex justify-between items-center pt-2 border-t">
                     <span className="text-gray-600 dark:text-gray-400">应付金额</span>
                     <span className={`font-bold text-lg ${canAfford ? 'text-purple-600' : 'text-red-500'}`}>
-                      {totalPrice} 星球币
+                      {totalPrice} U
                     </span>
                   </div>
                   {!canAfford && (
@@ -269,7 +269,7 @@ export default function CreatePlanetPage() {
 
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="ticketPrice">门票价格（星球币）</Label>
+                    <Label htmlFor="ticketPrice">门票价格（U）</Label>
                     <Input
                       id="ticketPrice"
                       type="number"
@@ -347,7 +347,7 @@ export default function CreatePlanetPage() {
                 disabled={loading || (!canAfford && totalPrice > 0)}
                 className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700"
               >
-                {loading ? '创建中...' : totalPrice > 0 ? `支付 ${totalPrice} 星球币并创建` : '免费创建'}
+                {loading ? '创建中...' : totalPrice > 0 ? `支付 ${totalPrice} U并创建` : '免费创建'}
               </Button>
             </CardFooter>
           </form>

@@ -286,7 +286,7 @@ export default function PlanetDetailPage() {
                     ) : (
                       <>
                         <Coins className="w-4 h-4 mr-2" />
-                        购买门票加入（{planet.ticketPrice} 星球币）
+                        购买门票加入（{planet.ticketPrice} U）
                       </>
                     )}
                   </Button>

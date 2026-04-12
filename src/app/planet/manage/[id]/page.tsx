@@ -412,7 +412,7 @@ export default function PlanetManagePage() {
                       </div>
                       
                       <div className="space-y-2">
-                        <Label htmlFor="ticketPrice">门票价格（星球币）</Label>
+                        <Label htmlFor="ticketPrice">门票价格（U）</Label>
                         <Input
                           id="ticketPrice"
                           type="number"
@@ -455,7 +455,7 @@ export default function PlanetManagePage() {
                         </div>
                         <div className="p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
                           <p className="text-sm text-gray-500 mb-1">门票价格</p>
-                          <p className="font-semibold">{planet?.ticketPrice || 0} 星球币</p>
+                          <p className="font-semibold">{planet?.ticketPrice || 0} U</p>
                         </div>
                         <div className="p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
                           <p className="text-sm text-gray-500 mb-1">最大发布者数</p>

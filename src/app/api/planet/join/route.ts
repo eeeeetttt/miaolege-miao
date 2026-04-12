@@ -61,7 +61,7 @@ export async function POST(request: NextRequest) {
       const ticketPrice = planet.ticketPrice ?? 0;
 
       if (!user || userBalance < ticketPrice) {
-        return NextResponse.json({ error: '星球币余额不足' }, { status: 400 });
+        return NextResponse.json({ error: 'U 余额不足' }, { status: 400 });
       }
 
       // Deduct balance

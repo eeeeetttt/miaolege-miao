@@ -49,6 +49,26 @@ export async function GET() {
       }
     }
 
+    // 收集所有用户ID
+    const userIds = registrations
+      ?.map(r => r.user_id)
+      .filter(id => id) || [];
+
+    // 获取用户头像信息
+    let userAvatarMap: Record<string, string | null> = {};
+    if (userIds.length > 0) {
+      const { data: users } = await supabase
+        .from('users')
+        .select('userId, avatar')
+        .in('userId', userIds);
+
+      if (users) {
+        for (const user of users) {
+          userAvatarMap[user.userId] = user.avatar || null;
+        }
+      }
+    }
+
     // 构建大厅数据
     const participants = (registrations || []).map(reg => {
       const equity = equityMap[reg.trading_account || ''] || 1000;
@@ -66,6 +86,7 @@ export async function GET() {
         id: reg.id,
         userId: reg.user_id,
         userName: reg.user_name || reg.user_id.substring(0, 8), // 使用昵称或脱敏ID
+        userAvatar: userAvatarMap[reg.user_id] || null,
         status: reg.status,
         currentLevel,
         equity,

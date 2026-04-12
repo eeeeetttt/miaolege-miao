@@ -14,11 +14,13 @@ import {
   Medal,
   RefreshCw
 } from 'lucide-react';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 
 interface Participant {
   id: number;
   userId: string;
   userName: string;
+  userAvatar: string | null;
   status: string;
   currentLevel: number;
   equity: number;
@@ -168,9 +170,12 @@ export default function ChallengeHallPage() {
 
                     {/* User Info */}
                     <div className="col-span-4 flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-full bg-gradient-to-br from-amber-500 to-orange-600 flex items-center justify-center text-white font-bold">
-                        {p.userName[0]?.toUpperCase() || '?'}
-                      </div>
+                      <Avatar className="w-10 h-10">
+                        <AvatarFallback className="bg-gradient-to-br from-amber-500 to-orange-600 text-white font-bold">
+                          {p.userName[0]?.toUpperCase() || '?'}
+                        </AvatarFallback>
+                        {p.userAvatar && <AvatarImage src={p.userAvatar} />}
+                      </Avatar>
                       <div>
                         <p className="font-medium text-gray-900 dark:text-white">{p.userName}</p>
                       </div>

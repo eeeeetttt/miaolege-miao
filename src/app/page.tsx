@@ -24,19 +24,19 @@ export default function HomePage() {
     {
       icon: Target,
       title: '挑战目标',
-      description: '初始净值1000，通过挑战将净值翻倍至2000即可通关',
+      description: '通过挑战将净值翻倍，即可通关',
       color: 'from-amber-500 to-orange-600',
     },
     {
       icon: Shield,
       title: '风险控制',
-      description: '净值低于100将判定挑战失败，严格止损保护您的资金',
+      description: '严格止损，控制回撤风险',
       color: 'from-red-500 to-pink-600',
     },
     {
       icon: Trophy,
       title: '丰厚奖励',
-      description: '通关即可获得100000星球币奖励，成就交易梦想',
+      description: '通关即可获得实盘账户，合作期间无责底薪',
       color: 'from-yellow-500 to-amber-600',
     },
     {
@@ -48,7 +48,7 @@ export default function HomePage() {
   ];
 
   const steps = [
-    { step: 1, title: '报名参赛', desc: '支付1000星球币报名费' },
+    { step: 1, title: '报名参赛', desc: '支付报名费参加挑战' },
     { step: 2, title: '审核激活', desc: '等待管理员分配账号' },
     { step: 3, title: '开始挑战', desc: '使用分配账号进行交易' },
     { step: 4, title: '通关领奖', desc: '达成目标领取丰厚奖励' },
@@ -86,21 +86,10 @@ export default function HomePage() {
           </h1>
 
           <p className="text-xl md:text-2xl text-gray-600 dark:text-gray-400 mb-6 max-w-3xl mx-auto">
-            支付1000星球币，挑战净值翻倍！
+            挑战净值翻倍！
             <br className="hidden md:block" />
-            通关即有机会获得100000星球币奖励
+            通关即有机会获得巨额奖励
           </p>
-
-          <div className="flex items-center justify-center gap-4 mb-10">
-            <div className="flex items-center gap-2 px-4 py-2 bg-green-100 dark:bg-green-900/50 rounded-full">
-              <Target className="w-5 h-5 text-green-600 dark:text-green-400" />
-              <span className="text-green-700 dark:text-green-300 font-medium">目标净值: 2000</span>
-            </div>
-            <div className="flex items-center gap-2 px-4 py-2 bg-red-100 dark:bg-red-900/50 rounded-full">
-              <Shield className="w-5 h-5 text-red-600 dark:text-red-400" />
-              <span className="text-red-700 dark:text-red-300 font-medium">失败底线: 100</span>
-            </div>
-          </div>
 
           <div className="flex flex-col sm:flex-row justify-center gap-4">
             {session ? (

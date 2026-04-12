@@ -292,7 +292,7 @@ export default function ChallengePage() {
                   <i className="fas fa-pen-fancy"></i>
                   {registering ? '申请中...' : isRejected ? '重新报名' : '立即报名'}
                 </button>
-                <div className={styles.statsBadge}>报名费: {registrationFee} 星球币</div>
+                <div className={styles.statsBadge}>报名费: {registrationFee} U</div>
               </div>
             ) : null}
 

@@ -110,6 +110,9 @@ export default function UserCenterPage() {
   const [rechargeLoading, setRechargeLoading] = useState(false);
   const [selectedAmount, setSelectedAmount] = useState<number | null>(null);
   const [customAmount, setCustomAmount] = useState('');
+  const [rechargeScreenshot, setRechargeScreenshot] = useState<string | null>(null);
+  const [screenshotPreview, setScreenshotPreview] = useState<string | null>(null);
+  const screenshotInputRef = useRef<HTMLInputElement>(null);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   
@@ -231,6 +234,52 @@ export default function UserCenterPage() {
     }
   };
 
+  const handleScreenshotUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    
+    // 验证文件类型
+    if (!file.type.startsWith('image/')) {
+      setError('请上传图片文件');
+      return;
+    }
+    
+    // 验证文件大小 (最大5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      setError('图片大小不能超过5MB');
+      return;
+    }
+    
+    // 预览图片
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      setScreenshotPreview(e.target?.result as string);
+    };
+    reader.readAsDataURL(file);
+    
+    // 上传图片
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      
+      const res = await fetch('/api/upload/screenshot', {
+        method: 'POST',
+        body: formData,
+      });
+      const data = await res.json();
+      
+      if (data.success) {
+        setRechargeScreenshot(data.url);
+      } else {
+        setError(data.error || '截图上传失败');
+        setScreenshotPreview(null);
+      }
+    } catch (error) {
+      setError('截图上传失败，请重试');
+      setScreenshotPreview(null);
+    }
+  };
+
   const handleRecharge = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
@@ -239,6 +288,11 @@ export default function UserCenterPage() {
     const amount = selectedAmount || parseInt(customAmount);
     if (!amount || amount <= 0) {
       setError('请选择或输入有效充值金额');
+      return;
+    }
+    
+    if (!rechargeScreenshot) {
+      setError('请上传充值截图');
       return;
     }
     
@@ -251,14 +305,17 @@ export default function UserCenterPage() {
         body: JSON.stringify({
           amount,
           paymentMethod: 'crypto',
+          screenshotUrl: rechargeScreenshot,
         }),
       });
       const data = await res.json();
       
       if (data.success) {
-        setSuccess(`充值申请已提交，金额: ${amount} USDC，请按照显示的钱包地址转账并上传截图`);
+        setSuccess(`充值申请已提交！金额: ${amount} USDT，请等待后台审核，审核通过后 U 将自动到账`);
         setSelectedAmount(null);
         setCustomAmount('');
+        setRechargeScreenshot(null);
+        setScreenshotPreview(null);
         // 刷新用户信息
         fetchData();
       } else {
@@ -362,7 +419,7 @@ export default function UserCenterPage() {
           </div>
           <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">个人中心</h1>
           <p className="text-gray-600 dark:text-gray-400">
-            余额: <span className="font-bold text-amber-600">{user?.coinBalance || 0} 星球币</span>
+            余额: <span className="font-bold text-amber-600">{user?.coinBalance || 0} U</span>
           </p>
         </div>
 
@@ -371,7 +428,7 @@ export default function UserCenterPage() {
           <div className={`inline-flex items-center gap-3 px-6 py-3 rounded-full ${memberLevel.bgColor}`}>
             <LevelIcon className={`w-5 h-5 ${memberLevel.color}`} />
             <span className={`font-semibold ${memberLevel.color}`}>{memberLevel.name}</span>
-            <span className="text-gray-500 text-sm">累计充值 {totalRecharged} 星球币</span>
+            <span className="text-gray-500 text-sm">累计充值 {totalRecharged} U</span>
           </div>
         </div>
 
@@ -479,7 +536,7 @@ export default function UserCenterPage() {
                 </CardContent>
               </Card>
 
-              {/* MT账号绑定 */}
+              {/* MT账号绑定 - 暂时隐藏
               <Card className="lg:col-span-2">
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
@@ -558,8 +615,9 @@ export default function UserCenterPage() {
                   )}
                 </CardContent>
               </Card>
+              */}
 
-              {/* 跟单统计 */}
+              {/* 跟单统计 - 暂时隐藏
               <Card className="lg:col-span-2">
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
@@ -596,6 +654,7 @@ export default function UserCenterPage() {
                   )}
                 </CardContent>
               </Card>
+              */}
             </div>
           </TabsContent>
 
@@ -608,7 +667,7 @@ export default function UserCenterPage() {
                   加密货币充值
                 </CardTitle>
                 <CardDescription>
-                  使用USDC进行充值，1 USDC = 1 星球币
+                  使用USDT (TRC20) 进行充值，1 USDT = 1 U
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
@@ -666,7 +725,7 @@ export default function UserCenterPage() {
                           }`}
                         >
                           <p className="font-bold text-lg">{option.amount}</p>
-                          <p className="text-xs text-gray-500">USDC</p>
+                          <p className="text-xs text-gray-500">USDT</p>
                           {option.bonus > 0 && (
                             <Badge className="mt-2 bg-green-500 text-xs">+{option.bonus} 赠送</Badge>
                           )}
@@ -687,26 +746,73 @@ export default function UserCenterPage() {
                         setCustomAmount(e.target.value);
                         setSelectedAmount(null);
                       }}
-                      placeholder="输入USDC数量"
+                      placeholder="输入USDT数量"
                       min="1"
                     />
                   </div>
 
+                  {/* 截图上传 */}
+                  <div className="space-y-2">
+                    <Label>上传充值截图 *</Label>
+                    <p className="text-xs text-gray-500">请上传转账成功的截图，以便后台审核</p>
+                    <input
+                      type="file"
+                      ref={screenshotInputRef}
+                      onChange={handleScreenshotUpload}
+                      accept="image/*"
+                      className="hidden"
+                    />
+                    {screenshotPreview ? (
+                      <div className="relative">
+                        <img
+                          src={screenshotPreview}
+                          alt="充值截图预览"
+                          className="max-h-48 rounded-lg border"
+                        />
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className="mt-2"
+                          onClick={() => {
+                            setScreenshotPreview(null);
+                            setRechargeScreenshot(null);
+                            screenshotInputRef.current?.click();
+                          }}
+                        >
+                          重新上传
+                        </Button>
+                      </div>
+                    ) : (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="w-full h-24 border-dashed"
+                        onClick={() => screenshotInputRef.current?.click()}
+                      >
+                        <div className="flex flex-col items-center gap-1">
+                          <Camera className="w-6 h-6" />
+                          <span className="text-sm">点击上传截图</span>
+                        </div>
+                      </Button>
+                    )}
+                  </div>
+
                   <Button
                     type="submit"
-                    disabled={rechargeLoading || RECHARGE_DISABLED || (!selectedAmount && !customAmount)}
+                    disabled={rechargeLoading || RECHARGE_DISABLED || (!selectedAmount && !customAmount) || !rechargeScreenshot}
                     className="w-full bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-700 hover:to-orange-700"
                   >
                     {rechargeLoading ? (
                       '提交审核中...'
                     ) : (
-                      '提交充值申请'
+                      '确认充值并提交'
                     )}
                   </Button>
                 </form>
 
                 <p className="text-xs text-gray-500 text-center">
-                  * 充值申请提交后，后台将在1-24小时内审核，审核通过后星球币将自动到账
+                  * 充值申请提交后，后台将在1-24小时内审核，审核通过后 U 将自动到账
                 </p>
               </CardContent>
             </Card>

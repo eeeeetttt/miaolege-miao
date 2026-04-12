@@ -238,7 +238,7 @@ export default function SocialPage() {
     }
     
     if (coinBalance < amount) {
-      setTransferError(`余额不足，当前余额: ${coinBalance} 星球币`);
+      setTransferError(`余额不足，当前余额: ${coinBalance} U`);
       return;
     }
     
@@ -405,7 +405,7 @@ export default function SocialPage() {
           </div>
           <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">社交中心</h1>
           <p className="text-gray-600 dark:text-gray-400">
-            余额: <span className="font-bold text-amber-600">{coinBalance} 星球币</span>
+            余额: <span className="font-bold text-amber-600">{coinBalance} U</span>
           </p>
         </div>
 
@@ -593,7 +593,7 @@ export default function SocialPage() {
                       转账
                     </CardTitle>
                     <CardDescription>
-                      向其他用户转账星球币，当前余额: <span className="font-bold text-amber-600">{coinBalance}</span>
+                      向其他用户转账 U，当前余额: <span className="font-bold text-amber-600">{coinBalance}</span>
                     </CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-4">
@@ -918,11 +918,11 @@ export default function SocialPage() {
               </div>
             </CardHeader>
             <CardContent className="space-y-4">
-              {/* 星球币 */}
+              {/* U */}
               <div className="flex items-center gap-3 p-3 bg-amber-50 dark:bg-amber-900/20 rounded-lg">
                 <Coins className="w-5 h-5 text-amber-600" />
                 <div>
-                  <p className="text-sm text-gray-500">拥有星球币</p>
+                  <p className="text-sm text-gray-500">拥有 U</p>
                   <p className="font-bold text-amber-600">{viewingUser.coinBalance?.toLocaleString() || 0}</p>
                 </div>
               </div>

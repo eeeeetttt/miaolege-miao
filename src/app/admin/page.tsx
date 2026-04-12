@@ -585,7 +585,7 @@ export default function AdminDashboardPage() {
               <CardContent className="pt-6">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm text-gray-500">星球币流通</p>
+                    <p className="text-sm text-gray-500">U 流通</p>
                     <p className="text-2xl font-bold">{stats.totalCoins}</p>
                   </div>
                   <Coins className="w-8 h-8 text-yellow-500" />
@@ -853,7 +853,7 @@ export default function AdminDashboardPage() {
               <CardContent className="space-y-6">
                 {/* 星球创建价格配置 */}
                 <div className="border-b pb-6">
-                  <h3 className="font-semibold mb-4 text-purple-600">星球创建价格（星球币）</h3>
+                  <h3 className="font-semibold mb-4 text-purple-600">星球创建价格（U）</h3>
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                     <div className="space-y-2">
                       <Label htmlFor="planet_price_7days">7天</Label>
@@ -897,7 +897,7 @@ export default function AdminDashboardPage() {
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="space-y-2">
-                    <Label htmlFor="defaultTicketPrice">默认门票价格（星球币）</Label>
+                    <Label htmlFor="defaultTicketPrice">默认门票价格（U）</Label>
                     <Input
                       id="defaultTicketPrice"
                       type="number"
@@ -1053,7 +1053,7 @@ export default function AdminDashboardPage() {
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="space-y-2">
-                  <Label>星球币余额</Label>
+                  <Label>U 余额</Label>
                   <Input
                     type="number"
                     value={editForm.coinBalance}

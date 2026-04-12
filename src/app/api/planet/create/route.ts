@@ -79,7 +79,7 @@ export async function POST(request: NextRequest) {
 
     if ((user.coinBalance ?? 0) < price) {
       return NextResponse.json({ 
-        error: `星球币不足，需要 ${price} 星球币，当前余额 ${user.coinBalance} 星球币` 
+        error: `U 不足，需要 ${price} U，当前余额 ${user.coinBalance} U` 
       }, { status: 400 });
     }
 
@@ -130,7 +130,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       success: true,
       planetId: planet.id,
-      message: price > 0 ? `星球创建成功，已扣除 ${price} 星球币` : '星球创建成功',
+      message: price > 0 ? `星球创建成功，已扣除 ${price} U` : '星球创建成功',
       price: price,
     });
   } catch (error) {

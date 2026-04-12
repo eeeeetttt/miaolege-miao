@@ -290,7 +290,7 @@ export default function EaManagePage() {
 
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label>价格（星球币）*</Label>
+                    <Label>价格（U）*</Label>
                     <Input
                       type="number"
                       value={formData.price}
@@ -412,7 +412,7 @@ export default function EaManagePage() {
                       </p>
 
                       <div className="flex items-center gap-6 text-sm text-gray-500">
-                        <span>价格: <strong className="text-purple-600">{product.price}</strong> 星球币</span>
+                        <span>价格: <strong className="text-purple-600">{product.price}</strong> U</span>
                         <span>销量: {product.salesCount || 0}</span>
                         <span>分类: {product.category || '-'}</span>
                       </div>
