@@ -138,6 +138,9 @@ export default function ChallengeAdminPage() {
       const res = await fetch(`/api/admin/challenge?${params}`);
       const data = await res.json();
       
+      console.log('API 返回数据:', data);
+      console.log('levelConfigs:', data.levelConfigs);
+      
       if (res.ok) {
         setList(data.list || []);
         setTotal(data.total || 0);
@@ -828,6 +831,13 @@ export default function ChallengeAdminPage() {
           </DialogHeader>
           
           <div className="space-y-4 py-4">
+            {levelConfigs.length === 0 ? (
+              <div className="text-center py-8 text-gray-500">
+                <p>暂无关卡配置数据</p>
+                <p className="text-sm mt-2">请联系管理员添加关卡配置</p>
+              </div>
+            ) : (
+              <>
             {/* 关卡选择 - 使用原生 select */}
             <div className="space-y-2">
               <Label htmlFor="selectLevel">选择关卡</Label>
@@ -929,6 +939,8 @@ export default function ChallengeAdminPage() {
                 <li><strong>失败底线：</strong>净值低于此值判定挑战失败</li>
               </ul>
             </div>
+              </>
+            )}
           </div>
           
           <DialogFooter>

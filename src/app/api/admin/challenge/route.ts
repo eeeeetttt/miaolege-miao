@@ -66,6 +66,7 @@ export async function GET(request: Request) {
     const supabase = getSupabaseClient();
 
     if (!supabase) {
+      console.error('Supabase 客户端不可用');
       return NextResponse.json({ error: '数据库连接不可用' }, { status: 503 });
     }
 
@@ -110,24 +111,29 @@ export async function GET(request: Request) {
       }
     }
 
-    // 获取关卡配置
+    // 获取关卡配置 (is_active 是 integer 类型，1 表示启用)
     const { data: levelRows, error: levelError } = await supabase
       .from('challenge_level_config')
       .select('level, name, description, target_balance, initial_balance, fail_balance, reward, is_active')
-      .eq('is_active', true)
+      .eq('is_active', 1)
       .order('level');
 
+    console.log('关卡配置查询结果:', { levelRows, levelError });
+    
+    // 转换 numeric 类型为普通数字
     const levelConfigs = levelRows?.map(row => ({
       id: row.level,
       level: row.level,
       name: row.name,
       description: row.description,
-      targetBalance: parseFloat(String(row.target_balance)) || 2000,
-      initialBalance: parseFloat(String(row.initial_balance)) || 1000,
-      failBalance: parseFloat(String(row.fail_balance)) || 100,
+      targetBalance: parseFloat(String(row.target_balance).replace(/[^\d.-]/g, '')) || 2000,
+      initialBalance: parseFloat(String(row.initial_balance).replace(/[^\d.-]/g, '')) || 1000,
+      failBalance: parseFloat(String(row.fail_balance).replace(/[^\d.-]/g, '')) || 100,
       reward: row.reward,
-      isActive: row.is_active,
+      isActive: row.is_active === 1,
     })) || [];
+    
+    console.log('处理后的关卡配置:', levelConfigs);
 
     // 格式化返回数据 - 匹配前端期望的嵌套结构
     const formattedList = registrations?.map(reg => ({
