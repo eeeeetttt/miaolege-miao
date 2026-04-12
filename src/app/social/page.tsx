@@ -28,7 +28,9 @@ import {
   Trophy,
   X,
   CheckCircle2,
-  XCircle
+  XCircle,
+  Image,
+  Upload
 } from 'lucide-react';
 
 // 类型定义
@@ -50,6 +52,7 @@ interface Message {
   sender_id: string;
   receiver_id: string;
   content: string;
+  image_url: string | null;
   is_read: number;
   created_at: string;
 }
@@ -99,6 +102,9 @@ export default function SocialPage() {
   const [sendLoading, setSendLoading] = useState(false);
   const [conversationsLoading, setConversationsLoading] = useState(true);
   const [messagesLoading, setMessagesLoading] = useState(false);
+  const [uploadingImage, setUploadingImage] = useState(false);
+  const [selectedImage, setSelectedImage] = useState<string | null>(null);
+  const [previewImage, setPreviewImage] = useState<string | null>(null);
   
   // 转账相关状态
   const [transfers, setTransfers] = useState<TransferRecord[]>([]);
@@ -183,7 +189,7 @@ export default function SocialPage() {
 
   // 发送消息
   const handleSendMessage = async () => {
-    if (!newMessage.trim() || !selectedConversation || sendLoading) return;
+    if ((!newMessage.trim() && !selectedImage) || !selectedConversation || sendLoading) return;
     
     setSendLoading(true);
     try {
@@ -193,11 +199,13 @@ export default function SocialPage() {
         body: JSON.stringify({
           receiverId: selectedConversation.userId,
           content: newMessage.trim(),
+          imageUrl: selectedImage,
         }),
       });
       const data = await res.json();
       if (data.success) {
         setNewMessage('');
+        setSelectedImage(null);
         loadMessages(selectedConversation.userId);
         loadConversations();
       }
@@ -206,6 +214,63 @@ export default function SocialPage() {
     } finally {
       setSendLoading(false);
     }
+  };
+
+  // 上传图片
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // 验证文件类型
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+    if (!allowedTypes.includes(file.type)) {
+      alert('仅支持 JPG、PNG、GIF、WebP 格式');
+      return;
+    }
+
+    // 验证文件大小
+    if (file.size > 2 * 1024 * 1024) {
+      alert('文件大小不能超过 2MB');
+      return;
+    }
+
+    // 预览图片
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      setPreviewImage(ev.target?.result as string);
+    };
+    reader.readAsDataURL(file);
+
+    // 上传图片
+    setUploadingImage(true);
+    const formData = new FormData();
+    formData.append('file', file);
+
+    try {
+      const res = await fetch('/api/message/upload', {
+        method: 'POST',
+        body: formData,
+      });
+      const data = await res.json();
+      if (data.success) {
+        setSelectedImage(data.imageUrl);
+      } else {
+        alert(data.error || '上传失败');
+        setPreviewImage(null);
+      }
+    } catch (err) {
+      console.error('Failed to upload image:', err);
+      alert('上传失败');
+      setPreviewImage(null);
+    } finally {
+      setUploadingImage(false);
+    }
+  };
+
+  // 移除已选图片
+  const handleRemoveImage = () => {
+    setSelectedImage(null);
+    setPreviewImage(null);
   };
 
   // 加载转账记录
@@ -557,7 +622,15 @@ export default function SocialPage() {
                               : 'bg-gray-100 dark:bg-gray-800'
                           }`}
                         >
-                          <p>{msg.content}</p>
+                          {msg.image_url && (
+                            <img 
+                              src={msg.image_url} 
+                              alt="图片消息" 
+                              className="rounded-lg mb-2 max-w-full cursor-pointer hover:opacity-90"
+                              onClick={() => window.open(msg.image_url, '_blank')}
+                            />
+                          )}
+                          {msg.content && msg.content !== '[图片]' && <p>{msg.content}</p>}
                           <p className={`text-xs mt-1 ${
                             msg.sender_id === userId ? 'text-amber-200' : 'text-gray-500'
                           }`}>
@@ -568,17 +641,56 @@ export default function SocialPage() {
                     ))
                   )}
                 </CardContent>
-                <div className="p-4 border-t flex gap-2">
-                  <Input
-                    value={newMessage}
-                    onChange={e => setNewMessage(e.target.value)}
-                    placeholder="输入消息..."
-                    onKeyDown={e => e.key === 'Enter' && handleSendMessage()}
-                    disabled={sendLoading}
-                  />
-                  <Button onClick={handleSendMessage} disabled={sendLoading || !newMessage.trim()}>
-                    <Send className="w-4 h-4" />
-                  </Button>
+                <div className="p-4 border-t space-y-3">
+                  {/* 图片预览 */}
+                  {previewImage && (
+                    <div className="relative inline-block">
+                      <img 
+                        src={previewImage} 
+                        alt="预览" 
+                        className="w-20 h-20 object-cover rounded-lg border" 
+                      />
+                      <button
+                        onClick={handleRemoveImage}
+                        className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center hover:bg-red-600"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                      {uploadingImage && (
+                        <div className="absolute inset-0 bg-black/50 rounded-lg flex items-center justify-center">
+                          <Spinner className="w-6 h-6 text-white" />
+                        </div>
+                      )}
+                    </div>
+                  )}
+                  <div className="flex gap-2">
+                    <input
+                      type="file"
+                      id="message-image"
+                      accept="image/jpeg,image/png,image/gif,image/webp"
+                      className="hidden"
+                      onChange={handleImageUpload}
+                      disabled={uploadingImage}
+                    />
+                    <label
+                      htmlFor="message-image"
+                      className={`p-2 rounded-lg cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800 ${uploadingImage ? 'opacity-50 cursor-not-allowed' : ''}`}
+                    >
+                      <Image className="w-5 h-5 text-gray-500" />
+                    </label>
+                    <div className="flex-1">
+                      <Input
+                        value={newMessage}
+                        onChange={e => setNewMessage(e.target.value)}
+                        placeholder="输入消息..."
+                        onKeyDown={e => e.key === 'Enter' && handleSendMessage()}
+                        disabled={sendLoading}
+                      />
+                    </div>
+                    <Button onClick={handleSendMessage} disabled={sendLoading || (!newMessage.trim() && !selectedImage)}>
+                      <Send className="w-4 h-4" />
+                    </Button>
+                  </div>
                 </div>
               </Card>
             )}

@@ -12,7 +12,6 @@ import {
   TrendingUp, 
   Info,
   ChevronRight,
-  Eye,
   Clock
 } from 'lucide-react';
 
@@ -216,10 +215,6 @@ export default function DocsClient() {
                 </Button>
                 <div className="flex items-center gap-3 text-xs text-gray-500">
                   <span className="flex items-center gap-1">
-                    <Eye className="w-3 h-3" />
-                    {selectedDoc.viewCount || 0}
-                  </span>
-                  <span className="flex items-center gap-1">
                     <Clock className="w-3 h-3" />
                     {new Date(selectedDoc.updatedAt).toLocaleDateString()}
                   </span>
@@ -274,9 +269,6 @@ export default function DocsClient() {
                             </p>
                           </div>
                           <div className="flex items-center gap-3">
-                            <span className="text-xs text-gray-400">
-                              {doc.viewCount || 0} 次浏览
-                            </span>
                             <ChevronRight className="w-4 h-4 text-gray-400 group-hover:text-purple-500" />
                           </div>
                         </button>

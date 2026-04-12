@@ -1,5 +1,8 @@
 import { NextResponse } from 'next/server';
 import { getSupabaseClient } from '@/storage/database/supabase-client';
+import { db } from '@/lib/db';
+import { users } from '@/lib/schema';
+import { eq, inArray } from 'drizzle-orm';
 
 // 获取挑战赛大厅数据
 export async function GET() {
@@ -54,17 +57,41 @@ export async function GET() {
       ?.map(r => r.user_id)
       .filter(id => id) || [];
 
-    // 获取用户头像信息
-    let userAvatarMap: Record<string, string | null> = {};
+    // 获取用户头像和昵称信息
+    let userInfoMap: Record<string, { name: string | null; avatar: string | null }> = {};
     if (userIds.length > 0) {
-      const { data: users } = await supabase
-        .from('users')
-        .select('userId, avatar')
-        .in('userId', userIds);
+      // 使用 drizzle 从 MySQL 获取用户信息
+      try {
+        const usersData = await db
+          .select({ 
+            userId: users.userId, 
+            name: users.name,
+            avatar: users.avatar 
+          })
+          .from(users)
+          .where(inArray(users.userId, userIds));
 
-      if (users) {
-        for (const user of users) {
-          userAvatarMap[user.userId] = user.avatar || null;
+        for (const user of usersData) {
+          userInfoMap[user.userId] = {
+            name: user.name,
+            avatar: user.avatar,
+          };
+        }
+      } catch (dbErr) {
+        console.error('MySQL query error:', dbErr);
+        // 尝试从 Supabase 获取
+        const { data: supabaseUsers } = await supabase
+          .from('users')
+          .select('userId, name, avatar')
+          .in('userId', userIds);
+
+        if (supabaseUsers) {
+          for (const user of supabaseUsers) {
+            userInfoMap[user.userId] = {
+              name: user.name,
+              avatar: user.avatar,
+            };
+          }
         }
       }
     }
@@ -73,6 +100,7 @@ export async function GET() {
     const participants = (registrations || []).map(reg => {
       const equity = equityMap[reg.trading_account || ''] || 1000;
       const currentLevel = reg.current_level || 1;
+      const userInfo = userInfoMap[reg.user_id] || { name: null, avatar: null };
       
       // 获取当前关卡目标
       let targetBalance = 1200;
@@ -85,8 +113,8 @@ export async function GET() {
       return {
         id: reg.id,
         userId: reg.user_id,
-        userName: reg.user_name || reg.user_id.substring(0, 8), // 使用昵称或脱敏ID
-        userAvatar: userAvatarMap[reg.user_id] || null,
+        userName: userInfo.name || reg.user_id.substring(0, 8), // 使用昵称或脱敏ID
+        userAvatar: userInfo.avatar || null,
         status: reg.status,
         currentLevel,
         equity,

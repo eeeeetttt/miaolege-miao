@@ -32,7 +32,10 @@ import {
   FileText,
   Plus,
   Trash2,
-  Save
+  Save,
+  Image,
+  Check,
+  X
 } from 'lucide-react';
 
 // 系统配置
@@ -117,6 +120,15 @@ export default function AdminDashboardPage() {
     status: 'published' as 'published' | 'draft',
   });
 
+  // 充值审核状态
+  const [rechargeApplications, setRechargeApplications] = useState<any[]>([]);
+  const [rechargeLoading, setRechargeLoading] = useState(false);
+  const [rechargePage, setRechargePage] = useState(1);
+  const [rechargeTotal, setRechargeTotal] = useState(0);
+  const [rechargeStatus, setRechargeStatus] = useState<string>('all');
+  const [processingId, setProcessingId] = useState<number | null>(null);
+  const [adminNote, setAdminNote] = useState('');
+
   useEffect(() => {
     if (status === 'unauthenticated') {
       router.push('/login');
@@ -135,6 +147,9 @@ export default function AdminDashboardPage() {
     }
     if (isAdmin && activeTab === 'users' && users.length === 0) {
       fetchUsers();
+    }
+    if (isAdmin && activeTab === 'recharge') {
+      fetchRechargeApplications();
     }
   }, [activeTab, isAdmin]);
 
@@ -342,6 +357,72 @@ export default function AdminDashboardPage() {
       }
     } catch (err) {
       setError('删除失败');
+    }
+  };
+
+  // 充值审核相关函数
+  const fetchRechargeApplications = async () => {
+    setRechargeLoading(true);
+    try {
+      const params = new URLSearchParams({
+        page: rechargePage.toString(),
+        limit: '20',
+        status: rechargeStatus,
+      });
+      
+      const res = await fetch(`/api/admin/recharge?${params}`);
+      const data = await res.json();
+
+      if (res.ok) {
+        setRechargeApplications(data.applications || []);
+        setRechargeTotal(data.total);
+      } else {
+        setError(data.error || '获取充值申请失败');
+      }
+    } catch (err) {
+      console.error('Fetch recharge applications error:', err);
+      setError('获取充值申请失败');
+    } finally {
+      setRechargeLoading(false);
+    }
+  };
+
+  const handleProcessRecharge = async (applicationId: number, action: 'approve' | 'reject') => {
+    if (action === 'approve' && !confirm('确认通过此充值申请？用户余额将增加。')) {
+      return;
+    }
+    if (action === 'reject' && !confirm('确认拒绝此充值申请？')) {
+      return;
+    }
+
+    setProcessingId(applicationId);
+    setError('');
+    setSuccess('');
+
+    try {
+      const res = await fetch('/api/admin/recharge', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          applicationId,
+          action,
+          adminNote,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (res.ok) {
+        setSuccess(data.message);
+        setAdminNote('');
+        fetchRechargeApplications();
+      } else {
+        setError(data.error || '操作失败');
+      }
+    } catch (err) {
+      setError('操作失败');
+    } finally {
+      setProcessingId(null);
     }
   };
 
@@ -597,10 +678,14 @@ export default function AdminDashboardPage() {
 
         {/* Main Content */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-6 lg:w-auto lg:inline-grid">
+          <TabsList className="grid w-full grid-cols-7 lg:w-auto lg:inline-grid">
             <TabsTrigger value="users" className="flex items-center gap-2">
               <Users className="w-4 h-4" />
               用户管理
+            </TabsTrigger>
+            <TabsTrigger value="recharge" className="flex items-center gap-2">
+              <DollarSign className="w-4 h-4" />
+              充值审核
             </TabsTrigger>
             <TabsTrigger value="docs" className="flex items-center gap-2">
               <FileText className="w-4 h-4" />
@@ -756,6 +841,205 @@ export default function AdminDashboardPage() {
                         下一页
                       </Button>
                     </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Recharge Tab */}
+          <TabsContent value="recharge">
+            <Card>
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle className="flex items-center gap-2">
+                      <DollarSign className="w-5 h-5" />
+                      充值审核
+                    </CardTitle>
+                    <CardDescription>
+                      审核用户的充值申请，处理通过的申请将自动增加用户余额
+                    </CardDescription>
+                  </div>
+                  <div className="flex gap-2">
+                    <select
+                      value={rechargeStatus}
+                      onChange={(e) => {
+                        setRechargeStatus(e.target.value);
+                        setRechargePage(1);
+                      }}
+                      className="px-3 py-2 border rounded-md bg-white dark:bg-gray-800 dark:border-gray-700 text-sm"
+                    >
+                      <option value="all">全部状态</option>
+                      <option value="pending">待处理</option>
+                      <option value="completed">已通过</option>
+                      <option value="rejected">已拒绝</option>
+                    </select>
+                    <Button variant="outline" size="sm" onClick={fetchRechargeApplications}>
+                      <RefreshCw className="w-4 h-4 mr-2" />
+                      刷新
+                    </Button>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent>
+                {rechargeLoading ? (
+                  <div className="flex items-center justify-center py-12">
+                    <Spinner className="w-6 h-6" />
+                  </div>
+                ) : rechargeApplications.length === 0 ? (
+                  <div className="text-center py-12 text-gray-500">
+                    <DollarSign className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                    <p>暂无充值申请</p>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {rechargeApplications.map((app: any) => (
+                      <div key={app.id} className="border rounded-lg p-4">
+                        <div className="flex items-start justify-between">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-3 mb-2">
+                              <Avatar className="w-8 h-8">
+                                <AvatarImage src={app.user?.avatar || undefined} />
+                                <AvatarFallback className="bg-gradient-to-br from-purple-500 to-blue-500 text-white text-xs">
+                                  {app.user?.name?.[0]?.toUpperCase() || 'U'}
+                                </AvatarFallback>
+                              </Avatar>
+                              <div>
+                                <p className="font-medium">{app.user?.name || '未知用户'}</p>
+                                <p className="text-xs text-gray-500">{app.user?.email}</p>
+                              </div>
+                            </div>
+                            
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                              <div>
+                                <p className="text-gray-500">充值金额</p>
+                                <p className="font-bold text-lg">{app.amount} U</p>
+                              </div>
+                              <div>
+                                <p className="text-gray-500">货币类型</p>
+                                <p className="font-medium">{app.currency}</p>
+                              </div>
+                              <div>
+                                <p className="text-gray-500">网络</p>
+                                <p className="font-medium">{app.network_type || 'TRC20'}</p>
+                              </div>
+                              <div>
+                                <p className="text-gray-500">状态</p>
+                                <Badge variant={
+                                  app.status === 'completed' ? 'default' :
+                                  app.status === 'rejected' ? 'destructive' : 'secondary'
+                                }>
+                                  {app.status === 'pending' ? '待处理' :
+                                   app.status === 'completed' ? '已通过' : '已拒绝'}
+                                </Badge>
+                              </div>
+                            </div>
+
+                            {app.wallet_address && (
+                              <div className="mt-2 text-sm">
+                                <p className="text-gray-500">钱包地址</p>
+                                <p className="font-mono text-xs break-all">{app.wallet_address}</p>
+                              </div>
+                            )}
+
+                            {app.admin_note && (
+                              <div className="mt-2 text-sm">
+                                <p className="text-gray-500">处理备注</p>
+                                <p className="text-orange-600 dark:text-orange-400">{app.admin_note}</p>
+                              </div>
+                            )}
+
+                            <div className="mt-2 text-xs text-gray-400">
+                              申请时间: {new Date(app.created_at).toLocaleString()}
+                              {app.processed_at && ` | 处理时间: ${new Date(app.processed_at).toLocaleString()}`}
+                            </div>
+                          </div>
+
+                          {app.screenshot_url && (
+                            <div className="ml-4">
+                              <a 
+                                href={app.screenshot_url} 
+                                target="_blank" 
+                                rel="noopener noreferrer"
+                                className="block"
+                              >
+                                <img 
+                                  src={app.screenshot_url} 
+                                  alt="充值截图" 
+                                  className="w-32 h-32 object-cover rounded-lg border hover:border-purple-500 cursor-pointer"
+                                />
+                                <p className="text-xs text-center text-gray-500 mt-1 flex items-center justify-center gap-1">
+                                  <Image className="w-3 h-3" />
+                                  查看截图
+                                </p>
+                              </a>
+                            </div>
+                          )}
+                        </div>
+
+                        {app.status === 'pending' && (
+                          <div className="mt-4 pt-4 border-t flex items-center gap-3">
+                            <Input
+                              placeholder="处理备注（可选）"
+                              value={adminNote}
+                              onChange={(e) => setAdminNote(e.target.value)}
+                              className="flex-1"
+                            />
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleProcessRecharge(app.id, 'reject')}
+                              disabled={processingId === app.id}
+                              className="text-red-500 hover:text-red-600"
+                            >
+                              <X className="w-4 h-4 mr-1" />
+                              拒绝
+                            </Button>
+                            <Button
+                              size="sm"
+                              onClick={() => handleProcessRecharge(app.id, 'approve')}
+                              disabled={processingId === app.id}
+                              className="bg-green-500 hover:bg-green-600"
+                            >
+                              {processingId === app.id ? (
+                                <Spinner className="w-4 h-4" />
+                              ) : (
+                                <Check className="w-4 h-4 mr-1" />
+                              )}
+                              通过
+                            </Button>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+
+                    {/* 分页 */}
+                    {rechargeTotal > 20 && (
+                      <div className="flex justify-between items-center pt-4">
+                        <p className="text-sm text-gray-500">
+                          共 {rechargeTotal} 条申请
+                        </p>
+                        <div className="flex gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            disabled={rechargePage === 1}
+                            onClick={() => { setRechargePage(p => p - 1); fetchRechargeApplications(); }}
+                          >
+                            上一页
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            disabled={rechargePage * 20 >= rechargeTotal}
+                            onClick={() => { setRechargePage(p => p + 1); fetchRechargeApplications(); }}
+                          >
+                            下一页
+                          </Button>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
               </CardContent>
