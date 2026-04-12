@@ -824,7 +824,13 @@ export default function ChallengeAdminPage() {
       </Dialog>
 
       {/* 关卡配置对话框（独立窗口） */}
-      <Dialog open={levelConfigsDialogOpen} onOpenChange={setLevelConfigsDialogOpen}>
+      <Dialog open={levelConfigsDialogOpen} onOpenChange={(open) => {
+        if (open) {
+          // 打开时先刷新数据
+          fetchList();
+        }
+        setLevelConfigsDialogOpen(open);
+      }}>
         <DialogContent className="sm:max-w-lg overflow-visible">
           <DialogHeader>
             <DialogTitle>关卡配置</DialogTitle>
