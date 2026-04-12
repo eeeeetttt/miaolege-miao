@@ -6,8 +6,12 @@ export async function GET() {
     const supabase = getSupabaseClient();
 
     if (!supabase) {
-      return NextResponse.json({ error: '数据库连接不可用' }, { status: 503 });
+      return NextResponse.json({ error: '数据库连接不可用', supabaseUrl: process.env.COZE_SUPABASE_URL }, { status: 503 });
     }
+
+    // 获取凭证信息
+    const supabaseUrl = process.env.COZE_SUPABASE_URL;
+    const hasKey = !!process.env.COZE_SUPABASE_ANON_KEY;
 
     const { data: levelRows, error } = await supabase
       .from('challenge_level_config')
@@ -17,7 +21,9 @@ export async function GET() {
     return NextResponse.json({
       levelRows,
       error,
-      count: levelRows?.length || 0
+      count: levelRows?.length || 0,
+      supabaseUrl,
+      hasKey
     });
   } catch (error) {
     return NextResponse.json({ error: String(error) }, { status: 500 });
