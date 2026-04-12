@@ -471,6 +471,34 @@
   margin: 0 2px;
 }
 
+.targetValue {
+  color: #4caf50 !important;
+  font-weight: 800;
+}
+
+.levelFailLine {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  margin-top: 6px;
+  padding: 4px 8px;
+  background: rgba(239, 68, 68, 0.15);
+  border-radius: 6px;
+  border: 1px solid rgba(239, 68, 68, 0.3);
+}
+
+.failLineLabel {
+  font-size: 0.6rem;
+  color: #ef4444;
+}
+
+.failLineValue {
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: #ef4444;
+}
+
 .levelStatus {
   margin-top: 10px;
   font-size: 0.8rem;

@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -12,7 +13,8 @@ import {
   TrendingDown,
   Crown,
   Medal,
-  RefreshCw
+  RefreshCw,
+  Eye
 } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 
@@ -32,6 +34,7 @@ interface Participant {
 }
 
 export default function ChallengeHallPage() {
+  const router = useRouter();
   const [participants, setParticipants] = useState<Participant[]>([]);
   const [loading, setLoading] = useState(true);
   const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
@@ -216,6 +219,15 @@ export default function ChallengeHallPage() {
                           ${p.equity.toLocaleString()}
                         </span>
                       </div>
+                      <Button 
+                        size="sm" 
+                        variant="ghost" 
+                        className="mt-1 text-xs h-6"
+                        onClick={() => router.push(`/challenge/hall/detail?id=${p.id}`)}
+                      >
+                        <Eye className="w-3 h-3 mr-1" />
+                        详情
+                      </Button>
                     </div>
                   </div>
                 ))}

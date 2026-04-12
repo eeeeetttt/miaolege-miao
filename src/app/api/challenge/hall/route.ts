@@ -96,30 +96,52 @@ export async function GET() {
       }
     }
 
+    // 获取所有活跃关卡配置
+    const { data: levelConfigsData } = await supabase
+      .from('challenge_level_config')
+      .select('level, initial_balance, target_balance, fail_balance')
+      .eq('is_active', true)
+      .order('level');
+
+    // 构建关卡配置映射
+    const levelConfigMap: Record<number, { initialBalance: number; targetBalance: number; failBalance: number }> = {};
+    if (levelConfigsData) {
+      for (const lc of levelConfigsData) {
+        levelConfigMap[lc.level] = {
+          initialBalance: parseFloat(String(lc.initial_balance)) || 1000,
+          targetBalance: parseFloat(String(lc.target_balance)) || 2000,
+          failBalance: parseFloat(String(lc.fail_balance)) || 100,
+        };
+      }
+    }
+
     // 构建大厅数据
     const participants = (registrations || []).map(reg => {
       const equity = equityMap[reg.trading_account || ''] || 1000;
       const currentLevel = reg.current_level || 1;
       const userInfo = userInfoMap[reg.user_id] || { name: null, avatar: null };
       
-      // 获取当前关卡目标
-      let targetBalance = 1200;
-      if (currentLevel >= 2) targetBalance = 1500;
-      if (currentLevel >= 3) targetBalance = 1800;
-      if (currentLevel >= 4) targetBalance = 2000;
+      // 获取当前关卡配置
+      const levelConfig = levelConfigMap[currentLevel] || { initialBalance: 1000, targetBalance: 2000, failBalance: 100 };
+      const initialBalance = levelConfig.initialBalance;
+      const targetBalance = levelConfig.targetBalance;
+      const failBalance = levelConfig.failBalance;
       
-      const progress = Math.min(100, Math.max(0, ((equity - 1000) / (targetBalance - 1000)) * 100));
+      // 根据每关配置计算进度
+      const progress = Math.min(100, Math.max(0, ((equity - initialBalance) / (targetBalance - initialBalance)) * 100));
 
       return {
         id: reg.id,
         userId: reg.user_id,
-        userName: userInfo.name || reg.user_id.substring(0, 8), // 使用昵称或脱敏ID
+        userName: userInfo.name || reg.user_id.substring(0, 8),
         userAvatar: userInfo.avatar || null,
         status: reg.status,
         currentLevel,
         equity,
         progress: parseFloat(progress.toFixed(1)),
         targetBalance,
+        initialBalance,
+        failBalance,
         startedAt: reg.started_at,
         completedLevels: (() => {
           const raw = reg.completed_levels;

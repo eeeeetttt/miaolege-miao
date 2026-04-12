@@ -69,6 +69,24 @@ export async function GET() {
     let equity: number | null = null;
     let profit: number | null = null;
     let equitySource: 'database' | 'no_data' = 'no_data';
+    let initialBalance = 1000;
+    let targetBalance = 2000;
+    let failBalance = 100;
+
+    // 获取当前关卡配置
+    const currentLevel = activeChallenge.current_level;
+    const { data: levelConfig } = await supabase
+      .from('challenge_level_config')
+      .select('initial_balance, target_balance, fail_balance')
+      .eq('level', currentLevel)
+      .eq('is_active', true)
+      .single();
+    
+    if (levelConfig) {
+      initialBalance = parseFloat(String(levelConfig.initial_balance)) || 1000;
+      targetBalance = parseFloat(String(levelConfig.target_balance)) || 2000;
+      failBalance = parseFloat(String(levelConfig.fail_balance)) || 100;
+    }
 
     // 从mt_account_equity表获取真实净值
     const { data: equityData, error: equityError } = await supabase
@@ -85,18 +103,8 @@ export async function GET() {
       balance = parseFloat(String(equityData.balance));
       profit = parseFloat(String(equityData.profit));
       
-      // 如果profit为空，根据equity计算
-      if (isNaN(profit) && !isNaN(equity)) {
-        profit = equity - 1000; // 初始净值1000
-      }
-      
       equitySource = 'database';
       
-      // 自动检测净值，判断是否通过当前关卡或失败
-      const targetBalance = 2000;
-      const failBalance = 100;
-      const currentStatus = activeChallenge.status;
-      const currentLevel = activeChallenge.current_level;
       let completedLevels: number[] = [];
       try {
         completedLevels = activeChallenge.completed_levels 
@@ -108,24 +116,30 @@ export async function GET() {
         completedLevels = [];
       }
       
+      // 如果profit为空，根据equity和初始净值计算
+      if (isNaN(profit) && !isNaN(equity)) {
+        profit = equity - initialBalance;
+      }
+      
       // 只有在active状态下才检测
-      if (currentStatus === 'active') {
+      if (activeChallenge.status === 'active') {
         // 检查当前关卡是否已完成
         if (!completedLevels.includes(currentLevel)) {
-          // 净值>=2000，标记为通过当前关卡
+          // 净值>=目标值，标记为通过当前关卡
           if (equity >= targetBalance) {
             await supabase
               .from('challenge_registrations')
               .update({ status: 'level_passed' })
               .eq('id', activeChallenge.id);
           }
-          // 净值<100，标记为失败
+          // 净值<失败底线，标记为失败
           else if (equity < failBalance) {
             await supabase
               .from('challenge_registrations')
               .update({ 
                 status: 'failed',
                 failed_at: new Date().toISOString(),
+                failed_level: currentLevel,
               })
               .eq('id', activeChallenge.id);
           }
@@ -156,6 +170,11 @@ export async function GET() {
       profit,
       startedAt: activeChallenge.started_at,
       equitySource, // database=真实数据，no_data=暂无数据，no_account=未分配账户
+      levelConfig: {
+        initialBalance: initialBalance,
+        targetBalance: targetBalance,
+        failBalance: failBalance,
+      },
       message: equitySource === 'no_data' ? '净值数据上报中，请稍后刷新' : undefined,
     });
   } catch (error) {

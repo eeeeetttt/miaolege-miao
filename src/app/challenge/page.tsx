@@ -374,6 +374,7 @@ export default function ChallengePage() {
               const levelDesc = levelConfig?.description || '';
               const levelInitial = levelConfig?.initialBalance || 1000;
               const levelTarget = levelConfig?.targetBalance || 2000;
+              const levelFail = levelConfig?.failBalance || 100;
               
               return (
                 <div 
@@ -393,8 +394,12 @@ export default function ChallengePage() {
                     <div className={styles.levelTargetArrow}>→</div>
                     <div className={styles.levelTargetItem}>
                       <span className={styles.levelTargetLabel}>目标</span>
-                      <span className={styles.levelTargetValue}>${levelTarget}</span>
+                      <span className={`${styles.levelTargetValue} ${styles.targetValue}`}>${levelTarget}</span>
                     </div>
+                  </div>
+                  <div className={styles.levelFailLine}>
+                    <span className={styles.failLineLabel}>失败底线</span>
+                    <span className={styles.failLineValue}>${levelFail}</span>
                   </div>
                   <div className={styles.levelStatus}>
                     <i className={`fas ${statusIcon}`}></i>
