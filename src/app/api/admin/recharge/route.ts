@@ -42,7 +42,7 @@ export async function GET(request: NextRequest) {
     let query = supabase
       .from('recharge_applications')
       .select('*', { count: 'exact' })
-      .orderBy('created_at', { ascending: false })
+      .order('created_at', { ascending: false })
       .range((page - 1) * limit, page * limit - 1);
 
     if (status && status !== 'all') {

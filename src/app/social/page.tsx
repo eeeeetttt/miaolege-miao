@@ -627,7 +627,7 @@ export default function SocialPage() {
                               src={msg.image_url} 
                               alt="图片消息" 
                               className="rounded-lg mb-2 max-w-full cursor-pointer hover:opacity-90"
-                              onClick={() => window.open(msg.image_url, '_blank')}
+                              onClick={() => msg.image_url && window.open(msg.image_url, '_blank')}
                             />
                           )}
                           {msg.content && msg.content !== '[图片]' && <p>{msg.content}</p>}
