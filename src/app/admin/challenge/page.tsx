@@ -122,6 +122,7 @@ export default function ChallengeAdminPage() {
         failBalance: typeof firstLevel.failBalance === 'number' 
           ? firstLevel.failBalance 
           : parseFloat(String(firstLevel.failBalance)) || 100,
+        reward: firstLevel.reward || '',
       });
     }
   }, [levelConfigsDialogOpen, levelConfigs]);
@@ -849,6 +850,7 @@ export default function ChallengeAdminPage() {
                       failBalance: typeof levelData.failBalance === 'number' 
                         ? levelData.failBalance 
                         : parseFloat(String(levelData.failBalance)) || 100,
+                      reward: levelData.reward || '',
                     });
                   }
                 }}
