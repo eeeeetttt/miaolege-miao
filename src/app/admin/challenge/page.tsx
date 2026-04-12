@@ -138,6 +138,7 @@ export default function ChallengeAdminPage() {
       const res = await fetch(`/api/admin/challenge?${params}`);
       const data = await res.json();
       
+      console.log('API 响应状态:', res.status);
       console.log('API 返回数据:', data);
       console.log('levelConfigs:', data.levelConfigs);
       
@@ -146,6 +147,8 @@ export default function ChallengeAdminPage() {
         setTotal(data.total || 0);
         setConfig(data.config || {});
         setLevelConfigs(data.levelConfigs || []);
+      } else {
+        console.error('API 错误:', data);
       }
     } catch (error) {
       console.error('获取列表失败:', error);
