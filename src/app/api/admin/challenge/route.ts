@@ -111,15 +111,14 @@ export async function GET(request: Request) {
       }
     }
 
-    // 获取关卡配置 (is_active 是 integer 类型，1 表示启用)
+    // 获取关卡配置 (直接查询，不依赖 ensureDefaultConfig)
     console.log('开始查询关卡配置...');
     const { data: levelRows, error: levelError } = await supabase
       .from('challenge_level_config')
       .select('level, name, description, target_balance, initial_balance, fail_balance, reward, is_active')
-      .eq('is_active', 1)
       .order('level');
 
-    console.log('关卡配置查询完成 - levelRows:', levelRows, 'levelError:', levelError);
+    console.log('关卡配置查询结果 - rows:', levelRows?.length, 'error:', levelError);
     
     // 转换 numeric 类型为普通数字
     const levelConfigs = levelRows?.map(row => ({
@@ -127,14 +126,14 @@ export async function GET(request: Request) {
       level: row.level,
       name: row.name,
       description: row.description,
-      targetBalance: parseFloat(String(row.target_balance).replace(/[^\d.-]/g, '')) || 2000,
-      initialBalance: parseFloat(String(row.initial_balance).replace(/[^\d.-]/g, '')) || 1000,
-      failBalance: parseFloat(String(row.fail_balance).replace(/[^\d.-]/g, '')) || 100,
+      targetBalance: parseFloat(String(row.target_balance)) || 2000,
+      initialBalance: parseFloat(String(row.initial_balance)) || 1000,
+      failBalance: parseFloat(String(row.fail_balance)) || 100,
       reward: row.reward,
-      isActive: row.is_active === 1,
+      isActive: row.is_active === 1 || row.is_active === true,
     })) || [];
     
-    console.log('处理后的关卡配置, 共', levelConfigs.length, '条:', levelConfigs);
+    console.log('处理后的关卡配置:', levelConfigs);
 
     // 格式化返回数据 - 匹配前端期望的嵌套结构
     const formattedList = registrations?.map(reg => ({
