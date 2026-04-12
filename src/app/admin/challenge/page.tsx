@@ -828,13 +828,14 @@ export default function ChallengeAdminPage() {
           </DialogHeader>
           
           <div className="space-y-4 py-4">
-            {/* 关卡选择 */}
-            <div className="space-y-2 relative z-50">
+            {/* 关卡选择 - 使用原生 select */}
+            <div className="space-y-2">
               <Label htmlFor="selectLevel">选择关卡</Label>
-              <Select 
-                value={String(editingLevel?.level || 1)} 
-                onValueChange={(val) => {
-                  const level = parseInt(val);
+              <select
+                id="selectLevel"
+                value={editingLevel?.level || 1}
+                onChange={(e) => {
+                  const level = parseInt(e.target.value);
                   const levelData = levelConfigs.find(l => l.level === level);
                   if (levelData) {
                     setEditingLevel(levelData);
@@ -854,18 +855,14 @@ export default function ChallengeAdminPage() {
                     });
                   }
                 }}
+                className="w-full h-10 px-3 border rounded-md bg-white text-sm"
               >
-                <SelectTrigger id="selectLevel" className="z-50">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent className="z-[100]">
-                  {levelConfigs.map(level => (
-                    <SelectItem key={level.level} value={String(level.level)}>
-                      第{level.level}关 - {level.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                {levelConfigs.map(level => (
+                  <option key={level.level} value={level.level}>
+                    第{level.level}关 - {level.name}
+                  </option>
+                ))}
+              </select>
             </div>
             
             {/* 关卡名称 */}
