@@ -83,13 +83,6 @@ export default function ChallengeAdminPage() {
   // 关卡配置对话框（独立窗口）
   const [levelConfigsDialogOpen, setLevelConfigsDialogOpen] = useState(false);
   
-  // 快速编辑状态（用于关卡配置表格）
-  const [editingLevels, setEditingLevels] = useState<Record<number, {
-    initialBalance: number;
-    targetBalance: number;
-    failBalance: number;
-  }>>({});
-  
   // 单关编辑对话框
   const [levelDialogOpen, setLevelDialogOpen] = useState(false);
   const [editingLevel, setEditingLevel] = useState<LevelConfig | null>(null);
@@ -111,6 +104,27 @@ export default function ChallengeAdminPage() {
       setDescriptionForm(config.description);
     }
   }, [configDialogOpen, config.description]);
+
+  // 关卡配置对话框打开时初始化
+  useEffect(() => {
+    if (levelConfigsDialogOpen && levelConfigs.length > 0) {
+      const firstLevel = levelConfigs[0];
+      setEditingLevel(firstLevel);
+      setLevelForm({
+        name: firstLevel.name,
+        description: firstLevel.description || '',
+        initialBalance: typeof firstLevel.initialBalance === 'number' 
+          ? firstLevel.initialBalance 
+          : parseFloat(String(firstLevel.initialBalance)) || 1000,
+        targetBalance: typeof firstLevel.targetBalance === 'number' 
+          ? firstLevel.targetBalance 
+          : parseFloat(String(firstLevel.targetBalance)) || 2000,
+        failBalance: typeof firstLevel.failBalance === 'number' 
+          ? firstLevel.failBalance 
+          : parseFloat(String(firstLevel.failBalance)) || 100,
+      });
+    }
+  }, [levelConfigsDialogOpen, levelConfigs]);
 
   const fetchList = async () => {
     setLoading(true);
@@ -803,114 +817,109 @@ export default function ChallengeAdminPage() {
       </Dialog>
 
       {/* 关卡配置对话框（独立窗口） */}
-      <Dialog open={levelConfigsDialogOpen} onOpenChange={(open) => {
-        setLevelConfigsDialogOpen(open);
-        if (open) {
-          // 打开时初始化编辑状态
-          const initial: Record<number, { initialBalance: number; targetBalance: number; failBalance: number }> = {};
-          levelConfigs.forEach(level => {
-            initial[level.level] = {
-              initialBalance: typeof level.initialBalance === 'number' ? level.initialBalance : parseFloat(String(level.initialBalance)) || 1000,
-              targetBalance: typeof level.targetBalance === 'number' ? level.targetBalance : parseFloat(String(level.targetBalance)) || 2000,
-              failBalance: typeof level.failBalance === 'number' ? level.failBalance : parseFloat(String(level.failBalance)) || 100,
-            };
-          });
-          setEditingLevels(initial);
-        }
-      }}>
-        <DialogContent className="sm:max-w-4xl max-h-[90vh] overflow-y-auto">
+      <Dialog open={levelConfigsDialogOpen} onOpenChange={setLevelConfigsDialogOpen}>
+        <DialogContent className="sm:max-w-lg">
           <DialogHeader>
             <DialogTitle>关卡配置</DialogTitle>
             <DialogDescription>
-              设置每一关的账户初始净值、通关目标净值和失败底线，每一关的值可以不同
+              选择要编辑的关卡，设置初始净值、目标净值和失败底线
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-3 py-4">
-            {/* 表头 */}
-            <div className="grid grid-cols-12 gap-3 px-3 py-2 bg-gray-100 rounded-lg font-medium text-sm">
-              <div className="col-span-1">关卡</div>
-              <div className="col-span-2">名称</div>
-              <div className="col-span-2 text-green-600">初始净值</div>
-              <div className="col-span-2 text-amber-600">目标净值</div>
-              <div className="col-span-2 text-red-500">失败底线</div>
-              <div className="col-span-2">奖励描述</div>
-              <div className="col-span-1">操作</div>
+          
+          <div className="space-y-4 py-4">
+            {/* 关卡选择 */}
+            <div className="space-y-2">
+              <Label htmlFor="selectLevel">选择关卡</Label>
+              <Select 
+                value={String(editingLevel?.level || 1)} 
+                onValueChange={(val) => {
+                  const level = parseInt(val);
+                  const levelData = levelConfigs.find(l => l.level === level);
+                  if (levelData) {
+                    setEditingLevel(levelData);
+                    setLevelForm({
+                      name: levelData.name,
+                      description: levelData.description || '',
+                      initialBalance: typeof levelData.initialBalance === 'number' 
+                        ? levelData.initialBalance 
+                        : parseFloat(String(levelData.initialBalance)) || 1000,
+                      targetBalance: typeof levelData.targetBalance === 'number' 
+                        ? levelData.targetBalance 
+                        : parseFloat(String(levelData.targetBalance)) || 2000,
+                      failBalance: typeof levelData.failBalance === 'number' 
+                        ? levelData.failBalance 
+                        : parseFloat(String(levelData.failBalance)) || 100,
+                    });
+                  }
+                }}
+              >
+                <SelectTrigger id="selectLevel">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {levelConfigs.map(level => (
+                    <SelectItem key={level.level} value={String(level.level)}>
+                      第{level.level}关 - {level.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             
-            {/* 关卡列表 */}
-            {levelConfigs.map((level) => (
-              <div 
-                key={level.id} 
-                className="grid grid-cols-12 gap-3 items-center p-3 bg-white rounded-lg border hover:bg-gray-50 transition-colors"
-              >
-                <div className="col-span-1">
-                  <Badge variant="outline" className="bg-purple-50 text-purple-700 border-purple-200">
-                    第{level.level}关
-                  </Badge>
-                </div>
-                <div className="col-span-2 font-medium">{level.name}</div>
-                <div className="col-span-2">
-                  <Input
-                    type="number"
-                    value={editingLevels[level.level]?.initialBalance ?? (typeof level.initialBalance === 'number' ? level.initialBalance : parseFloat(String(level.initialBalance)) || 1000)}
-                    onChange={(e) => setEditingLevels(prev => ({
-                      ...prev,
-                      [level.level]: {
-                        ...prev[level.level],
-                        initialBalance: parseFloat(e.target.value) || 0,
-                      }
-                    }))}
-                    className="h-8 text-sm"
-                  />
-                </div>
-                <div className="col-span-2">
-                  <Input
-                    type="number"
-                    value={editingLevels[level.level]?.targetBalance ?? (typeof level.targetBalance === 'number' ? level.targetBalance : parseFloat(String(level.targetBalance)) || 2000)}
-                    onChange={(e) => setEditingLevels(prev => ({
-                      ...prev,
-                      [level.level]: {
-                        ...prev[level.level],
-                        targetBalance: parseFloat(e.target.value) || 0,
-                      }
-                    }))}
-                    className="h-8 text-sm"
-                  />
-                </div>
-                <div className="col-span-2">
-                  <Input
-                    type="number"
-                    value={editingLevels[level.level]?.failBalance ?? (typeof level.failBalance === 'number' ? level.failBalance : parseFloat(String(level.failBalance)) || 100)}
-                    onChange={(e) => setEditingLevels(prev => ({
-                      ...prev,
-                      [level.level]: {
-                        ...prev[level.level],
-                        failBalance: parseFloat(e.target.value) || 0,
-                      }
-                    }))}
-                    className="h-8 text-sm"
-                  />
-                </div>
-                <div className="col-span-2 text-sm text-gray-600 truncate" title={level.reward || ''}>
-                  {level.reward || '-'}
-                </div>
-                <div className="col-span-1">
-                  <Button 
-                    size="sm" 
-                    variant="outline"
-                    className="h-8"
-                    onClick={() => {
-                      const values = editingLevels[level.level];
-                      if (values) {
-                        handleSaveLevelQuick(level.level, values.initialBalance, values.targetBalance, values.failBalance);
-                      }
-                    }}
-                  >
-                    保存
-                  </Button>
-                </div>
+            {/* 关卡名称 */}
+            <div className="space-y-2">
+              <Label htmlFor="levelName">关卡名称</Label>
+              <Input
+                id="levelName"
+                value={levelForm.name}
+                onChange={(e) => setLevelForm({ ...levelForm, name: e.target.value })}
+                placeholder="例如: 启念"
+              />
+            </div>
+            
+            {/* 数值配置 */}
+            <div className="grid grid-cols-3 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="initialBalance" className="text-green-600">初始净值</Label>
+                <Input
+                  id="initialBalance"
+                  type="number"
+                  value={levelForm.initialBalance}
+                  onChange={(e) => setLevelForm({ ...levelForm, initialBalance: parseFloat(e.target.value) || 0 })}
+                />
               </div>
-            ))}
+              <div className="space-y-2">
+                <Label htmlFor="targetBalance" className="text-amber-600">目标净值</Label>
+                <Input
+                  id="targetBalance"
+                  type="number"
+                  value={levelForm.targetBalance}
+                  onChange={(e) => setLevelForm({ ...levelForm, targetBalance: parseFloat(e.target.value) || 0 })}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="failBalance" className="text-red-500">失败底线</Label>
+                <Input
+                  id="failBalance"
+                  type="number"
+                  value={levelForm.failBalance}
+                  onChange={(e) => setLevelForm({ ...levelForm, failBalance: parseFloat(e.target.value) || 0 })}
+                />
+              </div>
+            </div>
+            
+            {/* 关卡描述 */}
+            <div className="space-y-2">
+              <Label htmlFor="levelDesc">关卡描述</Label>
+              <textarea
+                id="levelDesc"
+                value={levelForm.description}
+                onChange={(e) => setLevelForm({ ...levelForm, description: e.target.value })}
+                placeholder="描述该关卡的内容"
+                rows={2}
+                className="w-full px-3 py-2 border rounded-md bg-white resize-none"
+              />
+            </div>
             
             {/* 提示信息 */}
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-sm text-blue-800">
@@ -921,15 +930,25 @@ export default function ChallengeAdminPage() {
                 <li><strong>失败底线：</strong>净值低于此值判定挑战失败</li>
               </ul>
             </div>
-            
-            {/* 批量操作提示 */}
-            <div className="text-xs text-gray-500 text-center">
-              点击每行右侧的"保存"按钮可快速保存该关卡的配置
-            </div>
           </div>
+          
           <DialogFooter>
             <Button variant="outline" onClick={() => setLevelConfigsDialogOpen(false)}>
               关闭
+            </Button>
+            <Button 
+              onClick={() => {
+                if (editingLevel) {
+                  handleSaveLevelQuick(
+                    editingLevel.level,
+                    levelForm.initialBalance,
+                    levelForm.targetBalance,
+                    levelForm.failBalance
+                  );
+                }
+              }}
+            >
+              保存当前关卡
             </Button>
           </DialogFooter>
         </DialogContent>
