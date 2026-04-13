@@ -22,6 +22,7 @@ export async function GET(request: NextRequest) {
     }
 
     const leaderboard: any[] = [];
+    let lastUpdated: string | null = null;
     let equityMap: Record<string, number> = {};
     
     if (registrations && registrations.length > 0) {
@@ -95,7 +96,7 @@ export async function GET(request: NextRequest) {
         .select('updated_at')
         .limit(1);
       
-      leaderboard.lastUpdated = cacheData?.[0]?.updated_at || null;
+      lastUpdated = cacheData?.[0]?.updated_at || null;
     } catch (e) {
       console.error('Get cache time error:', e);
     }
@@ -117,7 +118,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       success: true,
       data: top10,
-      lastUpdated: leaderboard.lastUpdated || null,
+      lastUpdated,
     });
   } catch (error) {
     console.error('Get leaderboard error:', error);
