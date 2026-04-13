@@ -189,18 +189,3 @@ export const suggestionLikes = pgTable("suggestion_likes", {
 	pgPolicy("suggestion_likes_允许公开插入", { as: "permissive", for: "insert", to: ["public"] }),
 	pgPolicy("suggestion_likes_允许公开删除", { as: "permissive", for: "delete", to: ["public"] }),
 ]);
-
-// 后台管理导航配置表
-export const adminNavConfig = pgTable("admin_nav_config", {
-	id: serial().primaryKey().notNull(),
-	navKey: varchar("nav_key", { length: 50 }).notNull().unique(),
-	navName: varchar("nav_name", { length: 100 }).notNull(),
-	isVisible: integer("is_visible").default(1).notNull(),
-	sortOrder: integer("sort_order").default(0).notNull(),
-	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
-	updatedAt: timestamp("updated_at", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
-}, (table) => [
-	unique("admin_nav_config_key_unique").on(table.navKey),
-	pgPolicy("admin_nav_config_允许公开读取", { as: "permissive", for: "select", to: ["public"] }),
-	pgPolicy("admin_nav_config_允许公开更新", { as: "permissive", for: "update", to: ["public"] }),
-]);
