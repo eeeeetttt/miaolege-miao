@@ -119,26 +119,73 @@ export const challengeLevelConfig = pgTable("challenge_level_config", {
 }, (table) => [
 	index("idx_challenge_level_num").using("btree", table.level.asc().nullsLast().op("int4_ops")),
 	unique("challenge_level_config_level_unique").on(table.level),
-	pgPolicy("challenge_level_config_允许公开插入", { as: "permissive", for: "insert", to: ["public"] }),
-	pgPolicy("challenge_level_config_允许公开更新", { as: "permissive", for: "update", to: ["public"] }),
-	pgPolicy("challenge_level_config_允许公开读取", { as: "permissive", for: "select", to: ["public"] }),
+	pgPolicy("allow_all_update", { as: "permissive", for: "update", to: ["public"], using: sql`true`, withCheck: sql`true`  }),
+	pgPolicy("allow_all_insert", { as: "permissive", for: "insert", to: ["public"] }),
+	pgPolicy("allow_all_select", { as: "permissive", for: "select", to: ["public"] }),
 ]);
 
+// 充值申请表
 export const rechargeApplications = pgTable("recharge_applications", {
 	id: serial().primaryKey().notNull(),
 	userId: varchar("user_id", { length: 255 }).notNull(),
 	amount: integer().notNull(),
-	currency: varchar({ length: 20 }).default('USDC').notNull(),
-	walletAddress: varchar("wallet_address", { length: 255 }),
-	networkType: varchar("network_type", { length: 20 }).default('TRC20'),
+	status: varchar({ length: 20 }).default('pending').notNull(), // pending, completed, rejected
 	screenshotUrl: varchar("screenshot_url", { length: 500 }),
-	status: varchar({ length: 20 }).default('pending').notNull(),
 	adminNote: varchar("admin_note", { length: 500 }),
-	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
 	processedAt: timestamp("processed_at", { withTimezone: true, mode: 'string' }),
+	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
 }, (table) => [
 	index("idx_recharge_user_id").using("btree", table.userId.asc().nullsLast().op("text_ops")),
 	index("idx_recharge_status").using("btree", table.status.asc().nullsLast().op("text_ops")),
-	pgPolicy("recharge_applications_允许公开插入", { as: "permissive", for: "insert", to: ["public"] }),
 	pgPolicy("recharge_applications_允许公开读取", { as: "permissive", for: "select", to: ["public"] }),
+	pgPolicy("recharge_applications_允许公开插入", { as: "permissive", for: "insert", to: ["public"] }),
+	pgPolicy("recharge_applications_允许公开更新", { as: "permissive", for: "update", to: ["public"] }),
+]);
+
+// 用户投诉表
+export const userComplaints = pgTable("user_complaints", {
+	id: serial().primaryKey().notNull(),
+	userId: varchar("user_id", { length: 255 }).notNull(),
+	title: varchar({ length: 200 }).notNull(),
+	content: varchar({ length: 2000 }).notNull(),
+	status: varchar({ length: 20 }).default('pending').notNull(), // pending, replied, closed
+	adminReply: varchar("admin_reply", { length: 2000 }),
+	repliedAt: timestamp("replied_at", { withTimezone: true, mode: 'string' }),
+	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
+}, (table) => [
+	index("idx_complaint_user_id").using("btree", table.userId.asc().nullsLast().op("text_ops")),
+	index("idx_complaint_status").using("btree", table.status.asc().nullsLast().op("text_ops")),
+	pgPolicy("user_complaints_允许公开读取", { as: "permissive", for: "select", to: ["public"] }),
+	pgPolicy("user_complaints_允许公开插入", { as: "permissive", for: "insert", to: ["public"] }),
+	pgPolicy("user_complaints_允许公开更新", { as: "permissive", for: "update", to: ["public"] }),
+]);
+
+// 用户建议表
+export const userSuggestions = pgTable("user_suggestions", {
+	id: serial().primaryKey().notNull(),
+	userId: varchar("user_id", { length: 255 }).notNull(),
+	content: varchar({ length: 2000 }).notNull(),
+	status: varchar({ length: 20 }).default('pending').notNull(), // pending, approved, rejected
+	likeCount: integer("like_count").default(0).notNull(),
+	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
+}, (table) => [
+	index("idx_suggestion_user_id").using("btree", table.userId.asc().nullsLast().op("text_ops")),
+	index("idx_suggestion_status").using("btree", table.status.asc().nullsLast().op("text_ops")),
+	index("idx_suggestion_like_count").using("btree", table.likeCount.desc().nullsLast().op("int4_ops")),
+	pgPolicy("user_suggestions_允许公开读取", { as: "permissive", for: "select", to: ["public"] }),
+	pgPolicy("user_suggestions_允许公开插入", { as: "permissive", for: "insert", to: ["public"] }),
+	pgPolicy("user_suggestions_允许公开更新", { as: "permissive", for: "update", to: ["public"] }),
+]);
+
+// 建议点赞表
+export const suggestionLikes = pgTable("suggestion_likes", {
+	id: serial().primaryKey().notNull(),
+	suggestionId: integer("suggestion_id").notNull(),
+	userId: varchar("user_id", { length: 255 }).notNull(),
+	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
+}, (table) => [
+	unique("suggestion_likes_unique").on(table.suggestionId, table.userId),
+	pgPolicy("suggestion_likes_允许公开读取", { as: "permissive", for: "select", to: ["public"] }),
+	pgPolicy("suggestion_likes_允许公开插入", { as: "permissive", for: "insert", to: ["public"] }),
+	pgPolicy("suggestion_likes_允许公开删除", { as: "permissive", for: "delete", to: ["public"] }),
 ]);

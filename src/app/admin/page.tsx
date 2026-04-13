@@ -9,6 +9,14 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Spinner } from '@/components/ui/spinner';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -35,7 +43,9 @@ import {
   Save,
   Image,
   Check,
-  X
+  X,
+  MessageSquare,
+  Lightbulb,
 } from 'lucide-react';
 
 // 系统配置
@@ -129,6 +139,24 @@ export default function AdminDashboardPage() {
   const [processingId, setProcessingId] = useState<number | null>(null);
   const [adminNote, setAdminNote] = useState('');
 
+  // 投诉管理状态
+  const [complaints, setComplaints] = useState<any[]>([]);
+  const [complaintsLoading, setComplaintsLoading] = useState(false);
+  const [complaintsPage, setComplaintsPage] = useState(1);
+  const [complaintsTotal, setComplaintsTotal] = useState(0);
+  const [complaintsStatus, setComplaintsStatus] = useState<string>('all');
+  const [replyDialogOpen, setReplyDialogOpen] = useState(false);
+  const [replyingComplaint, setReplyingComplaint] = useState<any>(null);
+  const [replyContent, setReplyContent] = useState('');
+  const [replySubmitting, setReplySubmitting] = useState(false);
+
+  // 建议管理状态
+  const [suggestions, setSuggestions] = useState<any[]>([]);
+  const [suggestionsLoading, setSuggestionsLoading] = useState(false);
+  const [suggestionsPage, setSuggestionsPage] = useState(1);
+  const [suggestionsTotal, setSuggestionsTotal] = useState(0);
+  const [suggestionsStatus, setSuggestionsStatus] = useState<string>('all');
+
   useEffect(() => {
     if (status === 'unauthenticated') {
       router.push('/login');
@@ -150,6 +178,12 @@ export default function AdminDashboardPage() {
     }
     if (isAdmin && activeTab === 'recharge') {
       fetchRechargeApplications();
+    }
+    if (isAdmin && activeTab === 'complaints') {
+      fetchComplaints();
+    }
+    if (isAdmin && activeTab === 'suggestions') {
+      fetchSuggestions();
     }
   }, [activeTab, isAdmin]);
 
@@ -426,6 +460,123 @@ export default function AdminDashboardPage() {
     }
   };
 
+  // 投诉管理函数
+  const fetchComplaints = async () => {
+    setComplaintsLoading(true);
+    try {
+      const params = new URLSearchParams({
+        page: complaintsPage.toString(),
+        limit: '20',
+        status: complaintsStatus,
+      });
+      
+      const res = await fetch(`/api/admin/complaint?${params}`);
+      const data = await res.json();
+
+      if (res.ok) {
+        setComplaints(data.complaints || []);
+        setComplaintsTotal(data.total);
+      } else {
+        setError(data.error || '获取投诉列表失败');
+      }
+    } catch (err) {
+      console.error('Fetch complaints error:', err);
+      setError('获取投诉列表失败');
+    } finally {
+      setComplaintsLoading(false);
+    }
+  };
+
+  const handleReplyComplaint = async () => {
+    if (!replyingComplaint || !replyContent.trim()) {
+      alert('请输入回复内容');
+      return;
+    }
+
+    setReplySubmitting(true);
+    try {
+      const res = await fetch('/api/admin/complaint', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          complaintId: replyingComplaint.id,
+          reply: replyContent,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (res.ok && data.success) {
+        setSuccess('回复成功');
+        setReplyDialogOpen(false);
+        setReplyContent('');
+        setReplyingComplaint(null);
+        fetchComplaints();
+      } else {
+        setError(data.error || '回复失败');
+      }
+    } catch (err) {
+      setError('回复失败');
+    } finally {
+      setReplySubmitting(false);
+    }
+  };
+
+  // 建议管理函数
+  const fetchSuggestions = async () => {
+    setSuggestionsLoading(true);
+    try {
+      const params = new URLSearchParams({
+        page: suggestionsPage.toString(),
+        limit: '20',
+        status: suggestionsStatus,
+      });
+      
+      const res = await fetch(`/api/admin/suggestion?${params}`);
+      const data = await res.json();
+
+      if (res.ok) {
+        setSuggestions(data.suggestions || []);
+        setSuggestionsTotal(data.total);
+      } else {
+        setError(data.error || '获取建议列表失败');
+      }
+    } catch (err) {
+      console.error('Fetch suggestions error:', err);
+      setError('获取建议列表失败');
+    } finally {
+      setSuggestionsLoading(false);
+    }
+  };
+
+  const handleReviewSuggestion = async (suggestionId: number, action: 'approve' | 'reject') => {
+    if (!confirm(`确认${action === 'approve' ? '通过' : '拒绝'}此建议？`)) {
+      return;
+    }
+
+    try {
+      const res = await fetch('/api/admin/suggestion', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          suggestionId,
+          action,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (res.ok && data.success) {
+        setSuccess(data.message);
+        fetchSuggestions();
+      } else {
+        setError(data.error || '操作失败');
+      }
+    } catch (err) {
+      setError('操作失败');
+    }
+  };
+
   const handleInitDatabase = async () => {
     if (!confirm('确定要初始化数据库吗？这将创建缺失的表。')) {
       return;
@@ -678,7 +829,7 @@ export default function AdminDashboardPage() {
 
         {/* Main Content */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-7 lg:w-auto lg:inline-grid">
+          <TabsList className="grid w-full grid-cols-9 lg:w-auto lg:inline-grid">
             <TabsTrigger value="users" className="flex items-center gap-2">
               <Users className="w-4 h-4" />
               用户管理
@@ -686,6 +837,14 @@ export default function AdminDashboardPage() {
             <TabsTrigger value="recharge" className="flex items-center gap-2">
               <DollarSign className="w-4 h-4" />
               充值审核
+            </TabsTrigger>
+            <TabsTrigger value="complaints" className="flex items-center gap-2">
+              <MessageSquare className="w-4 h-4" />
+              投诉管理
+            </TabsTrigger>
+            <TabsTrigger value="suggestions" className="flex items-center gap-2">
+              <Lightbulb className="w-4 h-4" />
+              建议管理
             </TabsTrigger>
             <TabsTrigger value="docs" className="flex items-center gap-2">
               <FileText className="w-4 h-4" />
@@ -1034,6 +1193,271 @@ export default function AdminDashboardPage() {
                             size="sm"
                             disabled={rechargePage * 20 >= rechargeTotal}
                             onClick={() => { setRechargePage(p => p + 1); fetchRechargeApplications(); }}
+                          >
+                            下一页
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Complaints Tab */}
+          <TabsContent value="complaints">
+            <Card>
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle className="flex items-center gap-2">
+                      <MessageSquare className="w-5 h-5" />
+                      投诉管理
+                    </CardTitle>
+                    <CardDescription>
+                      查看并回复用户的投诉
+                    </CardDescription>
+                  </div>
+                  <div className="flex gap-2">
+                    <select
+                      value={complaintsStatus}
+                      onChange={(e) => {
+                        setComplaintsStatus(e.target.value);
+                        setComplaintsPage(1);
+                      }}
+                      className="px-3 py-2 border rounded-md bg-white dark:bg-gray-800 dark:border-gray-700 text-sm"
+                    >
+                      <option value="all">全部状态</option>
+                      <option value="pending">待处理</option>
+                      <option value="replied">已回复</option>
+                      <option value="closed">已关闭</option>
+                    </select>
+                    <Button variant="outline" size="sm" onClick={fetchComplaints}>
+                      <RefreshCw className="w-4 h-4 mr-2" />
+                      刷新
+                    </Button>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent>
+                {complaintsLoading ? (
+                  <div className="flex items-center justify-center py-12">
+                    <Spinner className="w-6 h-6" />
+                  </div>
+                ) : complaints.length === 0 ? (
+                  <div className="text-center py-12 text-gray-500">
+                    <MessageSquare className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                    <p>暂无投诉</p>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {complaints.map((complaint: any) => (
+                      <div key={complaint.id} className="border rounded-lg p-4">
+                        <div className="flex items-start justify-between mb-3">
+                          <div className="flex items-center gap-3">
+                            <Avatar className="w-8 h-8">
+                              <AvatarImage src={complaint.user?.avatar || undefined} />
+                              <AvatarFallback className="bg-gradient-to-br from-red-500 to-orange-500 text-white text-xs">
+                                {complaint.user?.name?.[0]?.toUpperCase() || 'U'}
+                              </AvatarFallback>
+                            </Avatar>
+                            <div>
+                              <p className="font-medium">{complaint.user?.name || '未知用户'}</p>
+                              <p className="text-xs text-gray-500">{complaint.user?.email}</p>
+                            </div>
+                          </div>
+                          <Badge variant={
+                            complaint.status === 'pending' ? 'secondary' :
+                            complaint.status === 'replied' ? 'default' : 'outline'
+                          }>
+                            {complaint.status === 'pending' ? '待处理' :
+                             complaint.status === 'replied' ? '已回复' : '已关闭'}
+                          </Badge>
+                        </div>
+                        <div className="mb-3">
+                          <h4 className="font-medium mb-1">{complaint.title}</h4>
+                          <p className="text-sm text-gray-600 dark:text-gray-400 whitespace-pre-wrap">
+                            {complaint.content}
+                          </p>
+                        </div>
+                        {complaint.admin_reply && (
+                          <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-3 mb-3">
+                            <p className="text-sm font-medium text-green-700 dark:text-green-400 mb-1">回复内容</p>
+                            <p className="text-sm text-gray-700 dark:text-gray-300 whitespace-pre-wrap">
+                              {complaint.admin_reply}
+                            </p>
+                          </div>
+                        )}
+                        <div className="flex items-center justify-between">
+                          <p className="text-xs text-gray-500">
+                            {new Date(complaint.created_at).toLocaleString('zh-CN')}
+                          </p>
+                          {complaint.status === 'pending' && (
+                            <Button
+                              size="sm"
+                              onClick={() => {
+                                setReplyingComplaint(complaint);
+                                setReplyDialogOpen(true);
+                              }}
+                            >
+                              <MessageSquare className="w-4 h-4 mr-1" />
+                              回复
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                    {complaintsTotal > 20 && (
+                      <div className="flex justify-between items-center pt-4">
+                        <p className="text-sm text-gray-500">共 {complaintsTotal} 条投诉</p>
+                        <div className="flex gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            disabled={complaintsPage === 1}
+                            onClick={() => { setComplaintsPage(p => p - 1); fetchComplaints(); }}
+                          >
+                            上一页
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            disabled={complaintsPage * 20 >= complaintsTotal}
+                            onClick={() => { setComplaintsPage(p => p + 1); fetchComplaints(); }}
+                          >
+                            下一页
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Suggestions Tab */}
+          <TabsContent value="suggestions">
+            <Card>
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle className="flex items-center gap-2">
+                      <Lightbulb className="w-5 h-5" />
+                      建议管理
+                    </CardTitle>
+                    <CardDescription>
+                      审核用户提交的建议，通过后所有人可见
+                    </CardDescription>
+                  </div>
+                  <div className="flex gap-2">
+                    <select
+                      value={suggestionsStatus}
+                      onChange={(e) => {
+                        setSuggestionsStatus(e.target.value);
+                        setSuggestionsPage(1);
+                      }}
+                      className="px-3 py-2 border rounded-md bg-white dark:bg-gray-800 dark:border-gray-700 text-sm"
+                    >
+                      <option value="all">全部状态</option>
+                      <option value="pending">待审核</option>
+                      <option value="approved">已通过</option>
+                      <option value="rejected">已拒绝</option>
+                    </select>
+                    <Button variant="outline" size="sm" onClick={fetchSuggestions}>
+                      <RefreshCw className="w-4 h-4 mr-2" />
+                      刷新
+                    </Button>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent>
+                {suggestionsLoading ? (
+                  <div className="flex items-center justify-center py-12">
+                    <Spinner className="w-6 h-6" />
+                  </div>
+                ) : suggestions.length === 0 ? (
+                  <div className="text-center py-12 text-gray-500">
+                    <Lightbulb className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                    <p>暂无建议</p>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {suggestions.map((suggestion: any) => (
+                      <div key={suggestion.id} className="border rounded-lg p-4">
+                        <div className="flex items-start justify-between mb-3">
+                          <div className="flex items-center gap-3">
+                            <Avatar className="w-8 h-8">
+                              <AvatarImage src={suggestion.user?.avatar || undefined} />
+                              <AvatarFallback className="bg-gradient-to-br from-amber-500 to-yellow-500 text-white text-xs">
+                                {suggestion.user?.name?.[0]?.toUpperCase() || 'U'}
+                              </AvatarFallback>
+                            </Avatar>
+                            <div>
+                              <p className="font-medium">{suggestion.user?.name || '未知用户'}</p>
+                              <p className="text-xs text-gray-500">{suggestion.user?.email}</p>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm text-gray-500">{suggestion.like_count} 赞</span>
+                            <Badge variant={
+                              suggestion.status === 'approved' ? 'default' :
+                              suggestion.status === 'rejected' ? 'destructive' : 'secondary'
+                            }>
+                              {suggestion.status === 'pending' ? '待审核' :
+                               suggestion.status === 'approved' ? '已通过' : '已拒绝'}
+                            </Badge>
+                          </div>
+                        </div>
+                        <p className="text-sm text-gray-600 dark:text-gray-400 whitespace-pre-wrap mb-3">
+                          {suggestion.content}
+                        </p>
+                        <div className="flex items-center justify-between">
+                          <p className="text-xs text-gray-500">
+                            {new Date(suggestion.created_at).toLocaleString('zh-CN')}
+                          </p>
+                          {suggestion.status === 'pending' && (
+                            <div className="flex gap-2">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleReviewSuggestion(suggestion.id, 'reject')}
+                                className="text-red-500 hover:text-red-600"
+                              >
+                                <X className="w-4 h-4 mr-1" />
+                                拒绝
+                              </Button>
+                              <Button
+                                size="sm"
+                                onClick={() => handleReviewSuggestion(suggestion.id, 'approve')}
+                                className="bg-green-500 hover:bg-green-600"
+                              >
+                                <Check className="w-4 h-4 mr-1" />
+                                通过
+                              </Button>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                    {suggestionsTotal > 20 && (
+                      <div className="flex justify-between items-center pt-4">
+                        <p className="text-sm text-gray-500">共 {suggestionsTotal} 条建议</p>
+                        <div className="flex gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            disabled={suggestionsPage === 1}
+                            onClick={() => { setSuggestionsPage(p => p - 1); fetchSuggestions(); }}
+                          >
+                            上一页
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            disabled={suggestionsPage * 20 >= suggestionsTotal}
+                            onClick={() => { setSuggestionsPage(p => p + 1); fetchSuggestions(); }}
                           >
                             下一页
                           </Button>
@@ -1490,6 +1914,57 @@ export default function AdminDashboardPage() {
           </div>
         )}
       </div>
+
+      {/* 回复投诉对话框 */}
+      <Dialog open={replyDialogOpen} onOpenChange={setReplyDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>回复投诉</DialogTitle>
+            <DialogDescription>
+              回复用户：{replyingComplaint?.user?.name || '未知用户'}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4">
+            <div className="mb-4 p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
+              <p className="text-sm font-medium mb-1">投诉标题：</p>
+              <p className="text-sm">{replyingComplaint?.title}</p>
+              <p className="text-sm font-medium mb-1 mt-2">投诉内容：</p>
+              <p className="text-sm text-gray-600 dark:text-gray-400">{replyingComplaint?.content}</p>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="replyContent">回复内容</Label>
+              <textarea
+                id="replyContent"
+                value={replyContent}
+                onChange={(e) => setReplyContent(e.target.value)}
+                placeholder="请输入回复内容..."
+                rows={4}
+                className="w-full px-3 py-2 border rounded-md bg-white dark:bg-gray-800 dark:border-gray-700 resize-none"
+                maxLength={2000}
+              />
+              <p className="text-xs text-gray-500">{replyContent.length}/2000</p>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setReplyDialogOpen(false)}>
+              取消
+            </Button>
+            <Button onClick={handleReplyComplaint} disabled={replySubmitting}>
+              {replySubmitting ? (
+                <>
+                  <Spinner className="w-4 h-4 mr-2" />
+                  提交中...
+                </>
+              ) : (
+                <>
+                  <MessageSquare className="w-4 h-4 mr-2" />
+                  提交回复
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
