@@ -52,7 +52,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { title, slug, content, category, sortOrder, status, publishedAt } = body;
+    const { title, slug, content, category, sortOrder, status } = body;
 
     if (!title || !slug || !content) {
       return NextResponse.json({ error: '标题、别名和内容为必填项' }, { status: 400 });
@@ -76,7 +76,6 @@ export async function POST(request: NextRequest) {
       category: category || 'general',
       sortOrder: sortOrder || 0,
       status: status || 'published',
-      publishedAt: publishedAt ? new Date(publishedAt) : null,
     });
 
     // 获取刚创建的文档
@@ -103,7 +102,7 @@ export async function PUT(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { id, title, slug, content, category, sortOrder, status, publishedAt } = body;
+    const { id, title, slug, content, category, sortOrder, status } = body;
 
     if (!id) {
       return NextResponse.json({ error: '文档ID为必填项' }, { status: 400 });
@@ -143,7 +142,6 @@ export async function PUT(request: NextRequest) {
         ...(category && { category }),
         ...(sortOrder !== undefined && { sortOrder }),
         ...(status && { status }),
-        ...(publishedAt !== undefined && { publishedAt: publishedAt ? new Date(publishedAt) : null }),
       })
       .where(eq(documents.id, id));
 

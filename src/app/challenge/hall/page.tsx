@@ -14,38 +14,43 @@ import {
   Crown,
   Medal,
   RefreshCw,
-  Eye,
-  Bot
+  Eye
 } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 
-interface LeaderboardEntry {
+interface Participant {
   id: number;
   userId: string;
-  name: string;
-  avatar: string | null;
-  level: number;
+  userName: string;
+  userAvatar: string | null;
+  status: string;
+  currentLevel: number;
   equity: number;
   progress: number;
-  isVirtual: number;
+  targetBalance: number;
+  startedAt: string;
+  completedLevels: number[];
+  rank: number;
 }
 
 export default function ChallengeHallPage() {
   const router = useRouter();
-  const [participants, setParticipants] = useState<LeaderboardEntry[]>([]);
+  const [participants, setParticipants] = useState<Participant[]>([]);
   const [loading, setLoading] = useState(true);
-  const [lastUpdated, setLastUpdated] = useState<string | null>(null);
+  const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
+  const [allowViewDetail, setAllowViewDetail] = useState(true);
 
   const fetchData = async () => {
     try {
-      const res = await fetch('/api/challenge/leaderboard');
+      const res = await fetch('/api/challenge/hall');
       const data = await res.json();
       if (data.success) {
         setParticipants(data.data || []);
-        setLastUpdated(data.lastUpdated);
+        setAllowViewDetail(data.config?.allow_view_detail !== 'false');
+        setLastUpdate(new Date());
       }
     } catch (err) {
-      console.error('Failed to fetch leaderboard:', err);
+      console.error('Failed to fetch hall data:', err);
     } finally {
       setLoading(false);
     }
@@ -118,18 +123,12 @@ export default function ChallengeHallPage() {
                 <Medal className="w-5 h-5 text-amber-500" />
                 实时排行榜 TOP 10
               </CardTitle>
-              {lastUpdated && (
+              {lastUpdate && (
                 <span className="text-sm text-gray-500">
-                  更新于 {new Date(lastUpdated).toLocaleTimeString()}
+                  更新于 {lastUpdate.toLocaleTimeString()}
                 </span>
               )}
             </div>
-            <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">
-              <span className="inline-flex items-center gap-1">
-                <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
-                排行榜每日晚上8点自动更新，真实用户优先展示
-              </span>
-            </p>
           </CardHeader>
           <CardContent>
             {loading && participants.length === 0 ? (
@@ -160,45 +159,40 @@ export default function ChallengeHallPage() {
                 </div>
 
                 {/* Participants */}
-                {participants.map((p, index) => (
+                {participants.map((p) => (
                   <div 
-                    key={p.id + '-' + p.userId}
+                    key={p.id}
                     className={`grid grid-cols-12 gap-4 px-4 py-4 rounded-lg border items-center ${
-                      index < 3 
+                      p.rank <= 3 
                         ? 'bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-900/20 dark:to-orange-900/20 border-amber-200 dark:border-amber-800' 
                         : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700'
                     }`}
                   >
                     {/* Rank */}
                     <div className="col-span-1 flex items-center justify-center">
-                      {getRankIcon(index + 1)}
+                      {getRankIcon(p.rank)}
                     </div>
 
                     {/* User Info */}
                     <div className="col-span-4 flex items-center gap-3">
                       <Avatar className="w-10 h-10">
-                        <AvatarFallback className={p.isVirtual === 1 ? 'bg-gradient-to-br from-blue-500 to-purple-600' : 'bg-gradient-to-br from-amber-500 to-orange-600 text-white font-bold'}>
-                          {p.isVirtual === 1 ? <Bot className="w-5 h-5" /> : p.name[0]?.toUpperCase() || '?'}
+                        <AvatarFallback className="bg-gradient-to-br from-amber-500 to-orange-600 text-white font-bold">
+                          {p.userName[0]?.toUpperCase() || '?'}
                         </AvatarFallback>
-                        {p.avatar && <AvatarImage src={p.avatar} />}
+                        {p.userAvatar && <AvatarImage src={p.userAvatar} />}
                       </Avatar>
-                      <div className="flex items-center gap-2">
-                        <p className="font-medium text-gray-900 dark:text-white">{p.name}</p>
-                        {p.isVirtual === 1 && (
-                          <Badge variant="outline" className="text-xs bg-blue-50 dark:bg-blue-900/30 border-blue-300 dark:border-blue-700">
-                            虚拟
-                          </Badge>
-                        )}
+                      <div>
+                        <p className="font-medium text-gray-900 dark:text-white">{p.userName}</p>
                       </div>
                     </div>
 
                     {/* Level */}
                     <div className="col-span-3 text-center">
                       <Badge className="bg-amber-500">
-                        第{p.level}关
+                        第{p.currentLevel}关
                       </Badge>
                       <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                        {getLevelName(p.level)}
+                        {getLevelName(p.currentLevel)}
                       </p>
                     </div>
 
@@ -227,7 +221,7 @@ export default function ChallengeHallPage() {
                           ${p.equity.toLocaleString()}
                         </span>
                       </div>
-                      {p.isVirtual !== 1 && (
+                      {allowViewDetail && (
                         <Button 
                           size="sm" 
                           variant="ghost" 
