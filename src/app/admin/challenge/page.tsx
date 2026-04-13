@@ -274,6 +274,7 @@ export default function ChallengeAdminPage() {
   const [descriptionForm, setDescriptionForm] = useState('');
 
   // 关卡配置对话框
+  const [levelConfigDialogOpen, setLevelConfigDialogOpen] = useState(false);
   const [levelDialogOpen, setLevelDialogOpen] = useState(false);
   const [editingLevel, setEditingLevel] = useState<LevelConfig | null>(null);
   const [levelForm, setLevelForm] = useState({
@@ -484,6 +485,14 @@ export default function ChallengeAdminPage() {
           <Button variant="outline" onClick={() => setConfigDialogOpen(true)}>
             <Settings className="w-4 h-4 mr-2" />
             挑战赛配置
+          </Button>
+          <Button 
+            variant="outline" 
+            className="border-purple-200 text-purple-600 hover:bg-purple-50"
+            onClick={() => setLevelConfigDialogOpen(true)}
+          >
+            <Settings className="w-4 h-4 mr-2" />
+            关卡配置
           </Button>
           <Button variant="outline" onClick={fetchList}>
             <RefreshCw className="w-4 h-4 mr-2" />
@@ -995,54 +1004,64 @@ export default function ChallengeAdminPage() {
               </div>
               <p className="text-xs text-gray-500">通关后发放的奖励人民币金额</p>
             </div>
-            
-            <div className="border-t pt-4 mt-4">
-              <div className="flex items-center justify-between mb-3">
-                <h4 className="font-medium">关卡配置</h4>
-                <span className="text-xs text-gray-500">每关独立配置，直接编辑后点击保存</span>
-              </div>
-              <div className="space-y-3 max-h-[400px] overflow-y-auto pr-2">
-                {levelConfigs.map((level) => (
-                  <LevelConfigCard
-                    key={level.id}
-                    level={level}
-                    onSave={async (updatedLevel) => {
-                      // 更新本地状态
-                      setLevelConfigs(prev => prev.map(l => 
-                        l.level === updatedLevel.level ? { ...l, ...updatedLevel } : l
-                      ));
-                      // 调用API保存
-                      try {
-                        const res = await fetch('/api/admin/challenge', {
-                          method: 'POST',
-                          headers: { 'Content-Type': 'application/json' },
-                          body: JSON.stringify({
-                            action: 'updateLevelConfig',
-                            level: level.level,
-                            name: updatedLevel.name,
-                            description: updatedLevel.description,
-                            initialBalance: updatedLevel.initialBalance,
-                            targetBalance: updatedLevel.targetBalance,
-                            failBalance: updatedLevel.failBalance,
-                            reward: updatedLevel.reward,
-                          }),
-                        });
-                        const data = await res.json();
-                        if (!res.ok || !data.success) {
-                          alert(data.error || '保存失败');
-                        }
-                      } catch {
-                        alert('保存失败');
-                      }
-                    }}
-                    onEditFull={() => handleEditLevel(level)}
-                  />
-                ))}
-              </div>
-            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setConfigDialogOpen(false)}>
+              关闭
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* 独立的关卡配置对话框 */}
+      <Dialog open={levelConfigDialogOpen} onOpenChange={setLevelConfigDialogOpen}>
+        <DialogContent className="sm:max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
+          <DialogHeader>
+            <DialogTitle>关卡配置</DialogTitle>
+            <DialogDescription>
+              管理各关卡的净值参数，编辑后点击保存按钮即时生效
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex-1 overflow-y-auto py-4 space-y-3 pr-2">
+            {levelConfigs.map((level) => (
+              <LevelConfigCard
+                key={level.id}
+                level={level}
+                onSave={async (updatedLevel) => {
+                  // 更新本地状态
+                  setLevelConfigs(prev => prev.map(l => 
+                    l.level === updatedLevel.level ? { ...l, ...updatedLevel } : l
+                  ));
+                  // 调用API保存
+                  try {
+                    const res = await fetch('/api/admin/challenge', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({
+                        action: 'updateLevelConfig',
+                        level: level.level,
+                        name: updatedLevel.name,
+                        description: updatedLevel.description,
+                        initialBalance: updatedLevel.initialBalance,
+                        targetBalance: updatedLevel.targetBalance,
+                        failBalance: updatedLevel.failBalance,
+                        reward: updatedLevel.reward,
+                      }),
+                    });
+                    const data = await res.json();
+                    if (!res.ok || !data.success) {
+                      alert(data.error || '保存失败');
+                    }
+                  } catch {
+                    alert('保存失败');
+                  }
+                }}
+                onEditFull={() => handleEditLevel(level)}
+              />
+            ))}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setLevelConfigDialogOpen(false)}>
               关闭
             </Button>
           </DialogFooter>
