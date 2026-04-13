@@ -36,16 +36,16 @@ async function ensureDefaultConfig(supabase: NonNullable<ReturnType<typeof getSu
     // 如果没有关卡配置，初始化默认关卡
     if (!levelRows || levelRows.length === 0) {
       const defaultLevels = [
-        { level: 1, name: '启念', description: '开始你的交易之旅', target_balance: 2000, initial_balance: 1000, fail_balance: 100, reward: '继续挑战', is_active: true },
-        { level: 2, name: '立规', description: '建立交易规则', target_balance: 2000, initial_balance: 1000, fail_balance: 100, reward: '继续挑战', is_active: true },
-        { level: 3, name: '守戒', description: '遵守交易纪律', target_balance: 2000, initial_balance: 1000, fail_balance: 100, reward: '继续挑战', is_active: true },
-        { level: 4, name: '忍痛', description: '学会止损止盈', target_balance: 2000, initial_balance: 1000, fail_balance: 100, reward: '继续挑战', is_active: true },
-        { level: 5, name: '止喜', description: '控制情绪波动', target_balance: 2000, initial_balance: 1000, fail_balance: 100, reward: '继续挑战', is_active: true },
-        { level: 6, name: '观己', description: '认识自我弱点', target_balance: 2000, initial_balance: 1000, fail_balance: 100, reward: '继续挑战', is_active: true },
-        { level: 7, name: '破执', description: '突破固有思维', target_balance: 2000, initial_balance: 1000, fail_balance: 100, reward: '继续挑战', is_active: true },
-        { level: 8, name: '随势', description: '顺势而为', target_balance: 2000, initial_balance: 1000, fail_balance: 100, reward: '继续挑战', is_active: true },
-        { level: 9, name: '忘我', description: '达到交易境界', target_balance: 2000, initial_balance: 1000, fail_balance: 100, reward: '继续挑战', is_active: true },
-        { level: 10, name: '得道', description: '完成终极挑战', target_balance: 2000, initial_balance: 1000, fail_balance: 100, reward: '通关大奖', is_active: true },
+        { level: 1, name: '启念', description: '开始你的交易之旅', target_balance: 6000, initial_balance: 1000, fail_balance: 1800, reward: '继续挑战', is_active: true },
+        { level: 2, name: '立规', description: '建立交易规则', target_balance: 10000, initial_balance: 1000, fail_balance: 1500, reward: '继续挑战', is_active: true },
+        { level: 3, name: '守戒', description: '遵守交易纪律', target_balance: 20000, initial_balance: 1000, fail_balance: 3000, reward: '继续挑战', is_active: true },
+        { level: 4, name: '忍痛', description: '学会止损止盈', target_balance: 20000, initial_balance: 1000, fail_balance: 3000, reward: '继续挑战', is_active: true },
+        { level: 5, name: '止喜', description: '控制情绪波动', target_balance: 20000, initial_balance: 1000, fail_balance: 3000, reward: '继续挑战', is_active: true },
+        { level: 6, name: '观己', description: '认识自我弱点', target_balance: 20000, initial_balance: 1000, fail_balance: 3000, reward: '继续挑战', is_active: true },
+        { level: 7, name: '破执', description: '突破固有思维', target_balance: 20000, initial_balance: 1000, fail_balance: 3000, reward: '继续挑战', is_active: true },
+        { level: 8, name: '随势', description: '顺势而为', target_balance: 20000, initial_balance: 1000, fail_balance: 3000, reward: '继续挑战', is_active: true },
+        { level: 9, name: '忘我', description: '达到交易境界', target_balance: 20000, initial_balance: 1000, fail_balance: 3000, reward: '继续挑战', is_active: true },
+        { level: 10, name: '得道', description: '完成终极挑战', target_balance: 20000, initial_balance: 1000, fail_balance: 3000, reward: '通关大奖', is_active: true },
       ];
       await supabase.from('challenge_level_config').insert(defaultLevels);
     }
@@ -291,16 +291,16 @@ export async function POST(request: Request) {
     // initLevels - 初始化关卡配置
     if (action === 'initLevels') {
       const defaultLevels = [
-        { level: 1, name: '启念', description: '开始你的交易之旅', target_balance: 2000, initial_balance: 1000, fail_balance: 100, reward: '继续挑战', is_active: true },
-        { level: 2, name: '立规', description: '建立交易规则', target_balance: 2000, initial_balance: 1000, fail_balance: 100, reward: '继续挑战', is_active: true },
-        { level: 3, name: '守戒', description: '遵守交易纪律', target_balance: 2000, initial_balance: 1000, fail_balance: 100, reward: '继续挑战', is_active: true },
-        { level: 4, name: '忍痛', description: '学会止损止盈', target_balance: 2000, initial_balance: 1000, fail_balance: 100, reward: '继续挑战', is_active: true },
-        { level: 5, name: '止喜', description: '控制情绪波动', target_balance: 2000, initial_balance: 1000, fail_balance: 100, reward: '继续挑战', is_active: true },
-        { level: 6, name: '观己', description: '认识自我弱点', target_balance: 2000, initial_balance: 1000, fail_balance: 100, reward: '继续挑战', is_active: true },
-        { level: 7, name: '破执', description: '突破固有思维', target_balance: 2000, initial_balance: 1000, fail_balance: 100, reward: '继续挑战', is_active: true },
-        { level: 8, name: '随势', description: '顺势而为', target_balance: 2000, initial_balance: 1000, fail_balance: 100, reward: '继续挑战', is_active: true },
-        { level: 9, name: '忘我', description: '达到交易境界', target_balance: 2000, initial_balance: 1000, fail_balance: 100, reward: '继续挑战', is_active: true },
-        { level: 10, name: '得道', description: '完成终极挑战', target_balance: 2000, initial_balance: 1000, fail_balance: 100, reward: '通关大奖', is_active: true },
+        { level: 1, name: '启念', description: '开始你的交易之旅', target_balance: 6000, initial_balance: 1000, fail_balance: 1800, reward: '继续挑战', is_active: true },
+        { level: 2, name: '立规', description: '建立交易规则', target_balance: 10000, initial_balance: 1000, fail_balance: 1500, reward: '继续挑战', is_active: true },
+        { level: 3, name: '守戒', description: '遵守交易纪律', target_balance: 20000, initial_balance: 1000, fail_balance: 3000, reward: '继续挑战', is_active: true },
+        { level: 4, name: '忍痛', description: '学会止损止盈', target_balance: 20000, initial_balance: 1000, fail_balance: 3000, reward: '继续挑战', is_active: true },
+        { level: 5, name: '止喜', description: '控制情绪波动', target_balance: 20000, initial_balance: 1000, fail_balance: 3000, reward: '继续挑战', is_active: true },
+        { level: 6, name: '观己', description: '认识自我弱点', target_balance: 20000, initial_balance: 1000, fail_balance: 3000, reward: '继续挑战', is_active: true },
+        { level: 7, name: '破执', description: '突破固有思维', target_balance: 20000, initial_balance: 1000, fail_balance: 3000, reward: '继续挑战', is_active: true },
+        { level: 8, name: '随势', description: '顺势而为', target_balance: 20000, initial_balance: 1000, fail_balance: 3000, reward: '继续挑战', is_active: true },
+        { level: 9, name: '忘我', description: '达到交易境界', target_balance: 20000, initial_balance: 1000, fail_balance: 3000, reward: '继续挑战', is_active: true },
+        { level: 10, name: '得道', description: '完成终极挑战', target_balance: 20000, initial_balance: 1000, fail_balance: 3000, reward: '通关大奖', is_active: true },
       ];
 
       for (const level of defaultLevels) {
