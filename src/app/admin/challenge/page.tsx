@@ -272,9 +272,13 @@ export default function ChallengeAdminPage() {
 
       const data = await res.json();
       if (res.ok && data.success) {
-        // 更新本地状态
+        // 更新本地状态，保留原始 id
         setLevelConfigs(prev => prev.map(l => 
-          l.level === editingLevel.level ? { ...l, ...levelForm } : l
+          l.level === editingLevel.level ? { 
+            ...l, 
+            ...levelForm,
+            id: l.id, // 保留原始 id
+          } : l
         ));
         setLevelDialogOpen(false);
         alert('关卡配置已保存');

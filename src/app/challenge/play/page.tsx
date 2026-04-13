@@ -5,22 +5,15 @@ import { useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import styles from './page.module.css';
 
-const levels = [
-  { number: 1, name: '启念', description: '开始你的交易之旅' },
-  { number: 2, name: '立规', description: '建立交易规则' },
-  { number: 3, name: '守戒', description: '遵守交易纪律' },
-  { number: 4, name: '忍痛', description: '学会止损止盈' },
-  { number: 5, name: '止喜', description: '控制情绪波动' },
-  { number: 6, name: '观己', description: '认识自我弱点' },
-  { number: 7, name: '破执', description: '突破固有思维' },
-  { number: 8, name: '随势', description: '顺势而为' },
-  { number: 9, name: '忘我', description: '达到交易境界' },
-  { number: 10, name: '得道', description: '完成终极挑战' },
-];
-
-const INITIAL_BALANCE = 1000;
-const TARGET_BALANCE = 2000;
-const FAIL_BALANCE = 100;
+interface LevelConfig {
+  level: number;
+  name: string;
+  description: string | null;
+  targetBalance: number;
+  initialBalance: number;
+  failBalance: number;
+  reward: string | null;
+}
 
 interface ChallengeStatus {
   id: number;
@@ -39,13 +32,24 @@ interface BalanceData {
   equitySource: 'database' | 'simulated';
 }
 
+interface ChallengeData {
+  hasActiveChallenge: boolean;
+  registration: {
+    id: number;
+    currentLevel: number;
+    completedLevels: number[];
+    startedAt: string;
+  } | null;
+  levelConfigs: LevelConfig[];
+}
+
 export default function ChallengePlayPage() {
   const router = useRouter();
   const { data: session, status } = useSession();
   const [challengeStatus, setChallengeStatus] = useState<ChallengeStatus | null>(null);
   const [loading, setLoading] = useState(true);
-  const [currentBalance, setCurrentBalance] = useState(INITIAL_BALANCE);
-  const [balanceInput, setBalanceInput] = useState(INITIAL_BALANCE.toString());
+  const [currentBalance, setCurrentBalance] = useState(1000);
+  const [balanceInput, setBalanceInput] = useState('1000');
   const [showVictory, setShowVictory] = useState(false);
   const [showFailed, setShowFailed] = useState(false);
   const [showRechallenge, setShowRechallenge] = useState(false);
@@ -55,6 +59,12 @@ export default function ChallengePlayPage() {
   const [rewards, setRewards] = useState<{ cash: string; trophy: string } | null>(null);
   const [balanceData, setBalanceData] = useState<BalanceData | null>(null);
   const [refreshing, setRefreshing] = useState(false);
+  const [currentLevelConfig, setCurrentLevelConfig] = useState<LevelConfig | null>(null);
+
+  // 动态获取当前关卡的净值阈值
+  const getFailBalance = () => currentLevelConfig?.failBalance ?? 100;
+  const getTargetBalance = () => currentLevelConfig?.targetBalance ?? 2000;
+  const getInitialBalance = () => currentLevelConfig?.initialBalance ?? 1000;
 
   useEffect(() => {
     if (status === 'authenticated') {
@@ -97,22 +107,23 @@ export default function ChallengePlayPage() {
       const data = await res.json();
       
       if (res.ok && data.hasActiveChallenge) {
-        const equity = data.equity || INITIAL_BALANCE;
+        const initialBalance = getInitialBalance();
+        const equity = data.equity || initialBalance;
         setBalanceData({
           equity: equity,
           balance: data.balance || equity,
-          profit: data.profit || (equity - INITIAL_BALANCE),
+          profit: data.profit || (equity - initialBalance),
           equitySource: data.equitySource || 'database'
         });
         setCurrentBalance(equity);
         setBalanceInput(equity.toString());
         
         // 自动检测失败条件
-        if (equity <= FAIL_BALANCE && !showFailed) {
+        if (equity <= getFailBalance() && !showFailed) {
           handleAutoFail();
         }
         // 自动检测通关条件
-        else if (equity >= TARGET_BALANCE && !showVictory && !levelJustCompleted) {
+        else if (equity >= getTargetBalance() && !showVictory && !levelJustCompleted) {
           handleAutoComplete();
         }
       }
@@ -124,12 +135,22 @@ export default function ChallengePlayPage() {
   const fetchChallengeStatus = async () => {
     try {
       const res = await fetch('/api/challenge/register');
-      const data = await res.json();
+      const data = await res.json() as ChallengeData;
       
       if (data.hasActiveChallenge && data.registration) {
-        setChallengeStatus(data.registration);
-        setCurrentBalance(INITIAL_BALANCE);
-        setBalanceInput(INITIAL_BALANCE.toString());
+        // 获取当前关卡的配置
+        const currentLevel = data.registration.currentLevel || 1;
+        const levelConfig = data.levelConfigs?.find((l: LevelConfig) => l.level === currentLevel);
+        setCurrentLevelConfig(levelConfig || null);
+        
+        setChallengeStatus({
+          ...data.registration,
+          initialBalance: levelConfig?.initialBalance || 1000,
+          targetBalance: levelConfig?.targetBalance || 2000,
+          failBalance: levelConfig?.failBalance || 100,
+        });
+        setCurrentBalance(getInitialBalance());
+        setBalanceInput(getInitialBalance().toString());
         // 获取净值
         await fetchEquityData();
       } else {
@@ -167,7 +188,7 @@ export default function ChallengePlayPage() {
       const res = await fetch('/api/challenge/level', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ balance: TARGET_BALANCE }),
+        body: JSON.stringify({ balance: getTargetBalance() }),
       });
       const data = await res.json();
       
@@ -180,7 +201,7 @@ export default function ChallengePlayPage() {
     }
   };
 
-  const currentLevelData = levels.find(l => l.number === challengeStatus?.currentLevel);
+  const currentLevelData = currentLevelConfig || { name: `第${challengeStatus?.currentLevel}关`, description: '' };
 
   const handleUpdateBalance = async () => {
     const balance = parseInt(balanceInput);
@@ -211,7 +232,7 @@ export default function ChallengePlayPage() {
         const progress = checkData.progress || '0';
         setMessage({ 
           type: 'info', 
-          text: `当前进度: ${progress}% | 目标: ${TARGET_BALANCE} | 底线: ${FAIL_BALANCE}` 
+          text: `当前进度: ${progress}% | 目标: ${getTargetBalance()} | 底线: ${getFailBalance()}` 
         });
       }
     } catch (error) {
@@ -239,8 +260,8 @@ export default function ChallengePlayPage() {
         } else {
           // 进入下一关，重置余额
           setLevelJustCompleted(false);
-          setCurrentBalance(INITIAL_BALANCE);
-          setBalanceInput(INITIAL_BALANCE.toString());
+          setCurrentBalance(getInitialBalance());
+          setBalanceInput(getInitialBalance().toString());
           setMessage({ type: 'success', text: data.message });
           // 刷新状态
           await fetchChallengeStatus();
@@ -282,8 +303,8 @@ export default function ChallengePlayPage() {
       if (res.ok) {
         setShowRechallenge(false);
         setShowFailed(false);
-        setCurrentBalance(INITIAL_BALANCE);
-        setBalanceInput(INITIAL_BALANCE.toString());
+        setCurrentBalance(getInitialBalance());
+        setBalanceInput(getInitialBalance().toString());
         setMessage({ type: 'info', text: '挑战已重置，请重新开始' });
         await fetchChallengeStatus();
       } else {
@@ -309,16 +330,20 @@ export default function ChallengePlayPage() {
   };
 
   const getProgress = () => {
-    if (currentBalance < INITIAL_BALANCE) {
+    const initialBalance = getInitialBalance();
+    const targetBalance = getTargetBalance();
+    const failBalance = getFailBalance();
+    
+    if (currentBalance < initialBalance) {
       // 计算距离失败的距离
-      return Math.max(0, ((currentBalance - FAIL_BALANCE) / (INITIAL_BALANCE - FAIL_BALANCE)) * 100);
+      return Math.max(0, ((currentBalance - failBalance) / (initialBalance - failBalance)) * 100);
     }
     // 计算距离通关的距离
-    return Math.min(100, ((currentBalance - INITIAL_BALANCE) / (TARGET_BALANCE - INITIAL_BALANCE)) * 100);
+    return Math.min(100, ((currentBalance - initialBalance) / (targetBalance - initialBalance)) * 100);
   };
 
-  const isInDanger = currentBalance < INITIAL_BALANCE && currentBalance >= FAIL_BALANCE;
-  const isCritical = currentBalance < FAIL_BALANCE;
+  const isInDanger = currentBalance < getInitialBalance() && currentBalance >= getFailBalance();
+  const isCritical = currentBalance < getFailBalance();
 
   if (loading) {
     return (
@@ -488,13 +513,13 @@ export default function ChallengePlayPage() {
             />
             <div 
               className={styles.failLine}
-              style={{ left: `${((FAIL_BALANCE - FAIL_BALANCE) / (TARGET_BALANCE - FAIL_BALANCE)) * 100}%` }}
+              style={{ left: `${((getFailBalance() - getFailBalance()) / (getTargetBalance() - getFailBalance())) * 100}%` }}
             />
           </div>
           <div className={styles.progressLabels}>
-            <span className={styles.failLabel}>失败线: {FAIL_BALANCE}</span>
-            <span className={styles.startLabel}>起始: {INITIAL_BALANCE}</span>
-            <span className={styles.targetLabel}>目标: {TARGET_BALANCE}</span>
+            <span className={styles.failLabel}>失败线: {getFailBalance()}</span>
+            <span className={styles.startLabel}>起始: {getInitialBalance()}</span>
+            <span className={styles.targetLabel}>目标: {getTargetBalance()}</span>
           </div>
         </div>
 
@@ -581,7 +606,7 @@ export default function ChallengePlayPage() {
               </div>
               <div className={styles.ruleContent}>
                 <h4>通关条件</h4>
-                <p>账户净值达到 {TARGET_BALANCE}（盈利≥{TARGET_BALANCE - INITIAL_BALANCE}）</p>
+                <p>账户净值达到 {getTargetBalance()}（盈利≥{getTargetBalance() - getInitialBalance()}）</p>
               </div>
             </div>
             <div className={styles.ruleCard}>
@@ -592,7 +617,7 @@ export default function ChallengePlayPage() {
               </div>
               <div className={styles.ruleContent}>
                 <h4>失败条件</h4>
-                <p>账户净值低于 {FAIL_BALANCE}</p>
+                <p>账户净值低于 {getFailBalance()}</p>
               </div>
             </div>
             <div className={styles.ruleCard}>
