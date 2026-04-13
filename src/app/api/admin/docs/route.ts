@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { isAdmin } from '@/lib/admin';
 import { db } from '@/lib/db';
 import { documents } from '@/lib/schema';
-import { eq, desc, like, or, and } from 'drizzle-orm';
+import { eq, desc, asc, like, or, and } from 'drizzle-orm';
 
 // 获取文档列表（管理端）
 export async function GET(request: NextRequest) {
@@ -27,12 +27,12 @@ export async function GET(request: NextRequest) {
             like(documents.content, `%${search}%`)
           )
         )
-        .orderBy(desc(documents.createdAt));
+        .orderBy(asc(documents.sortOrder), desc(documents.createdAt));
     } else {
       docs = await db
         .select()
         .from(documents)
-        .orderBy(desc(documents.createdAt));
+        .orderBy(asc(documents.sortOrder), desc(documents.createdAt));
     }
 
     return NextResponse.json({ documents: docs });
@@ -52,7 +52,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { title, slug, content, category, status } = body;
+    const { title, slug, content, category, sortOrder, status } = body;
 
     if (!title || !slug || !content) {
       return NextResponse.json({ error: '标题、别名和内容为必填项' }, { status: 400 });
@@ -74,6 +74,7 @@ export async function POST(request: NextRequest) {
       slug,
       content,
       category: category || 'general',
+      sortOrder: sortOrder || 0,
       status: status || 'published',
     });
 
@@ -101,7 +102,7 @@ export async function PUT(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { id, title, slug, content, category, status } = body;
+    const { id, title, slug, content, category, sortOrder, status } = body;
 
     if (!id) {
       return NextResponse.json({ error: '文档ID为必填项' }, { status: 400 });
@@ -139,6 +140,7 @@ export async function PUT(request: NextRequest) {
         ...(slug && { slug }),
         ...(content && { content }),
         ...(category && { category }),
+        ...(sortOrder !== undefined && { sortOrder }),
         ...(status && { status }),
       })
       .where(eq(documents.id, id));

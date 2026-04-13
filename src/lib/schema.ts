@@ -226,6 +226,7 @@ export const documents = mysqlTable('documents', {
   slug: varchar('slug', { length: 255 }).notNull().unique(),
   content: text('content').notNull(),
   category: varchar('category', { length: 100 }).default('general'), // 分类：getting-started, trading, faq, etc.
+  sortOrder: int('sort_order').default(0), // 排序权重
   status: mysqlEnum('status', ['published', 'draft']).default('published'),
   viewCount: int('view_count').default(0),
   createdAt: timestamp('created_at').defaultNow(),

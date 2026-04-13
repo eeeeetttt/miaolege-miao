@@ -126,6 +126,7 @@ export default function AdminDashboardPage() {
     slug: '',
     content: '',
     category: 'general',
+    sortOrder: 0,
     status: 'published' as 'published' | 'draft',
   });
 
@@ -326,6 +327,7 @@ export default function AdminDashboardPage() {
       slug: doc.slug,
       content: doc.content,
       category: doc.category || 'general',
+      sortOrder: doc.sortOrder || 0,
       status: doc.status || 'published',
     });
   };
@@ -337,6 +339,7 @@ export default function AdminDashboardPage() {
       slug: '',
       content: '',
       category: 'general',
+      sortOrder: 0,
       status: 'published',
     });
   };
@@ -1516,7 +1519,6 @@ export default function AdminDashboardPage() {
                             </div>
                             <p className="text-sm text-gray-500 mt-1">
                               /{doc.slug} · {doc.viewCount || 0} 次浏览
-                              {doc.publishedAt && ` · 发布于 ${new Date(doc.publishedAt).toLocaleDateString('zh-CN')}`}
                             </p>
                           </div>
                           <div className="flex items-center gap-2">
@@ -1861,14 +1863,6 @@ export default function AdminDashboardPage() {
                       type="number"
                       value={docForm.sortOrder}
                       onChange={(e) => setDocForm({ ...docForm, sortOrder: parseInt(e.target.value) || 0 })}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>发布日期</Label>
-                    <Input
-                      type="date"
-                      value={docForm.publishedAt}
-                      onChange={(e) => setDocForm({ ...docForm, publishedAt: e.target.value })}
                     />
                   </div>
                   <div className="space-y-2">

@@ -32,11 +32,7 @@ import {
   TrendingUp,
   Crown,
   Star,
-  Ban,
-  MessageSquare,
-  Send,
-  List,
-  Eye
+  Ban
 } from 'lucide-react';
 
 interface UserInfo {
@@ -65,15 +61,6 @@ interface FollowInfo {
   signalAccount: string;
   status: string;
   createdAt: string;
-}
-
-interface Complaint {
-  id: number;
-  title: string;
-  content: string;
-  status: string;
-  reply?: string;
-  created_at: string;
 }
 
 // 会员等级配置
@@ -136,13 +123,6 @@ export default function UserCenterPage() {
   const [canChangeName, setCanChangeName] = useState(true);
   const [nextNameChangeDate, setNextNameChangeDate] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-
-  // 投诉建议相关状态
-  const [complaints, setComplaints] = useState<Complaint[]>([]);
-  const [complaintTitle, setComplaintTitle] = useState('');
-  const [complaintContent, setComplaintContent] = useState('');
-  const [complaintLoading, setComplaintLoading] = useState(false);
-  const [complaintActiveTab, setComplaintActiveTab] = useState<'submit' | 'history'>('submit');
 
   useEffect(() => {
     if (status === 'unauthenticated') {
@@ -410,73 +390,6 @@ export default function UserCenterPage() {
     }
   };
 
-  // 提交投诉建议
-  const handleSubmitComplaint = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError('');
-    setSuccess('');
-    
-    if (!complaintTitle.trim()) {
-      setError('请输入标题');
-      return;
-    }
-    
-    if (!complaintContent.trim()) {
-      setError('请输入内容');
-      return;
-    }
-    
-    setComplaintLoading(true);
-    
-    try {
-      const res = await fetch('/api/complaint', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          title: complaintTitle.trim(),
-          content: complaintContent.trim(),
-        }),
-      });
-      const data = await res.json();
-      
-      if (data.success) {
-        setSuccess('投诉/建议提交成功，我们会尽快处理！');
-        setComplaintTitle('');
-        setComplaintContent('');
-        // 刷新投诉列表
-        fetchComplaints();
-        // 切换到历史记录tab
-        setComplaintActiveTab('history');
-      } else {
-        setError(data.error || '提交失败');
-      }
-    } catch (error) {
-      setError('提交失败，请稍后重试');
-    } finally {
-      setComplaintLoading(false);
-    }
-  };
-
-  // 获取投诉历史
-  const fetchComplaints = async () => {
-    try {
-      const res = await fetch('/api/complaint');
-      const data = await res.json();
-      if (data.success) {
-        setComplaints(data.data || []);
-      }
-    } catch (error) {
-      console.error('Failed to fetch complaints:', error);
-    }
-  };
-
-  // 切换到反馈tab时获取数据
-  useEffect(() => {
-    if (complaintActiveTab === 'history' && complaints.length === 0) {
-      fetchComplaints();
-    }
-  }, [complaintActiveTab]);
-
   const memberLevel = getMemberLevel(totalRecharged);
   const LevelIcon = memberLevel.icon;
 
@@ -529,10 +442,6 @@ export default function UserCenterPage() {
             <TabsTrigger value="recharge" className="flex items-center gap-2">
               <Wallet className="w-4 h-4" />
               充值
-            </TabsTrigger>
-            <TabsTrigger value="feedback" className="flex items-center gap-2">
-              <MessageSquare className="w-4 h-4" />
-              帮助与反馈
             </TabsTrigger>
           </TabsList>
 
@@ -907,178 +816,6 @@ export default function UserCenterPage() {
                 </p>
               </CardContent>
             </Card>
-          </TabsContent>
-
-          {/* Feedback Tab */}
-          <TabsContent value="feedback">
-            <div className="space-y-6">
-              {/* 内部子Tab */}
-              <div className="flex gap-2 border-b">
-                <button
-                  onClick={() => setComplaintActiveTab('submit')}
-                  className={`px-4 py-2 flex items-center gap-2 border-b-2 transition-colors ${
-                    complaintActiveTab === 'submit'
-                      ? 'border-amber-500 text-amber-600'
-                      : 'border-transparent text-gray-500 hover:text-gray-700'
-                  }`}
-                >
-                  <Send className="w-4 h-4" />
-                  提交反馈
-                </button>
-                <button
-                  onClick={() => {
-                    setComplaintActiveTab('history');
-                    fetchComplaints();
-                  }}
-                  className={`px-4 py-2 flex items-center gap-2 border-b-2 transition-colors ${
-                    complaintActiveTab === 'history'
-                      ? 'border-amber-500 text-amber-600'
-                      : 'border-transparent text-gray-500 hover:text-gray-700'
-                  }`}
-                >
-                  <List className="w-4 h-4" />
-                  我的记录
-                </button>
-              </div>
-
-              {/* 提交反馈表单 */}
-              {complaintActiveTab === 'submit' && (
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <MessageSquare className="w-5 h-5 text-blue-500" />
-                      投诉与建议
-                    </CardTitle>
-                    <CardDescription>
-                      遇到问题或有好的建议？告诉我们，我们会尽快处理
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <form onSubmit={handleSubmitComplaint} className="space-y-4">
-                      {success && (
-                        <Alert className="border-green-200 bg-green-50">
-                          <CheckCircle2 className="h-4 w-4 text-green-600" />
-                          <AlertDescription className="text-green-700">{success}</AlertDescription>
-                        </Alert>
-                      )}
-                      {error && (
-                        <Alert className="border-red-200 bg-red-50">
-                          <XCircle className="h-4 w-4 text-red-600" />
-                          <AlertDescription className="text-red-700">{error}</AlertDescription>
-                        </Alert>
-                      )}
-                      <div className="space-y-2">
-                        <Label htmlFor="complaint-title">标题</Label>
-                        <Input
-                          id="complaint-title"
-                          value={complaintTitle}
-                          onChange={e => setComplaintTitle(e.target.value)}
-                          placeholder="请简要描述您的问题或建议"
-                          maxLength={200}
-                        />
-                        <p className="text-xs text-gray-500 text-right">{complaintTitle.length}/200</p>
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="complaint-content">详细描述</Label>
-                        <textarea
-                          id="complaint-content"
-                          value={complaintContent}
-                          onChange={e => setComplaintContent(e.target.value)}
-                          placeholder="请详细描述您遇到的问题或建议，我们会认真处理每一条反馈"
-                          className="w-full min-h-[150px] px-3 py-2 rounded-md border border-input bg-background text-sm resize-y"
-                          maxLength={2000}
-                        />
-                        <p className="text-xs text-gray-500 text-right">{complaintContent.length}/2000</p>
-                      </div>
-                      <Button
-                        type="submit"
-                        disabled={complaintLoading || !complaintTitle.trim() || !complaintContent.trim()}
-                        className="w-full"
-                      >
-                        {complaintLoading ? (
-                          <>
-                            <Spinner className="w-4 h-4 mr-2" />
-                            提交中...
-                          </>
-                        ) : (
-                          <>
-                            <Send className="w-4 h-4 mr-2" />
-                            提交反馈
-                          </>
-                        )}
-                      </Button>
-                    </form>
-                  </CardContent>
-                </Card>
-              )}
-
-              {/* 历史记录 */}
-              {complaintActiveTab === 'history' && (
-                <div className="space-y-4">
-                  {complaints.length === 0 ? (
-                    <Card>
-                      <CardContent className="py-12">
-                        <div className="text-center text-gray-500">
-                          <MessageSquare className="w-12 h-12 mx-auto mb-4 opacity-50" />
-                          <p>暂无反馈记录</p>
-                          <p className="text-sm mt-2">您提交的投诉与建议会显示在这里</p>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ) : (
-                    complaints.map((complaint) => (
-                      <Card key={complaint.id}>
-                        <CardHeader className="pb-3">
-                          <div className="flex items-start justify-between">
-                            <div className="space-y-1">
-                              <CardTitle className="text-base">{complaint.title}</CardTitle>
-                              <CardDescription className="text-xs">
-                                提交于 {new Date(complaint.created_at).toLocaleString('zh-CN')}
-                              </CardDescription>
-                            </div>
-                            <Badge
-                              className={
-                                complaint.status === 'pending'
-                                  ? 'bg-yellow-500'
-                                  : complaint.status === 'processing'
-                                  ? 'bg-blue-500'
-                                  : complaint.status === 'resolved'
-                                  ? 'bg-green-500'
-                                  : 'bg-gray-500'
-                              }
-                            >
-                              {complaint.status === 'pending'
-                                ? '待处理'
-                                : complaint.status === 'processing'
-                                ? '处理中'
-                                : complaint.status === 'resolved'
-                                ? '已解决'
-                                : complaint.status}
-                            </Badge>
-                          </div>
-                        </CardHeader>
-                        <CardContent>
-                          <p className="text-sm text-gray-600 dark:text-gray-300 whitespace-pre-wrap">
-                            {complaint.content}
-                          </p>
-                          {complaint.reply && (
-                            <div className="mt-4 p-3 bg-green-50 dark:bg-green-900/20 rounded-lg">
-                              <p className="text-xs font-medium text-green-700 dark:text-green-400 mb-1 flex items-center gap-1">
-                                <CheckCircle2 className="w-3 h-3" />
-                                官方回复
-                              </p>
-                              <p className="text-sm text-gray-700 dark:text-gray-300 whitespace-pre-wrap">
-                                {complaint.reply}
-                              </p>
-                            </div>
-                          )}
-                        </CardContent>
-                      </Card>
-                    ))
-                  )}
-                </div>
-              )}
-            </div>
           </TabsContent>
         </Tabs>
       </div>

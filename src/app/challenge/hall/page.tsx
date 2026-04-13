@@ -115,29 +115,6 @@ export default function ChallengeHallPage() {
           </Button>
         </div>
 
-        {/* 名人堂入口 */}
-        <Link href="/challenge/hall-of-fame">
-          <Card className="mb-6 bg-gradient-to-r from-amber-500 to-orange-500 border-0 cursor-pointer hover:from-amber-600 hover:to-orange-600 transition-all hover:scale-[1.02] hover:shadow-lg">
-            <CardContent className="py-4 px-6">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center">
-                    <Crown className="w-6 h-6 text-white" />
-                  </div>
-                  <div>
-                    <h3 className="text-lg font-bold text-white">名人堂</h3>
-                    <p className="text-sm text-white/80">历届通关选手荣耀展示</p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2 text-white/90">
-                  <span className="text-sm">查看全部</span>
-                  <span className="text-xl">→</span>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </Link>
-
         {/* Leaderboard */}
         <Card>
           <CardHeader>
