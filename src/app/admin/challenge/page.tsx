@@ -22,7 +22,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Spinner } from '@/components/ui/spinner';
-import { Check, X, RefreshCw, Settings, AlertCircle, Edit3 } from 'lucide-react';
+import { Check, X, RefreshCw, Settings, AlertCircle } from 'lucide-react';
 
 interface ChallengeRegistration {
   registration: {
@@ -57,139 +57,6 @@ interface LevelConfig {
   reward: string | null;
 }
 
-interface LevelConfigCardProps {
-  level: LevelConfig;
-  onEdit: () => void;
-}
-
-function LevelConfigCard({ level, onEdit }: LevelConfigCardProps) {
-  const initialBalance = typeof level.initialBalance === 'number' ? level.initialBalance : parseFloat(String(level.initialBalance)) || 1000;
-  const targetBalance = typeof level.targetBalance === 'number' ? level.targetBalance : parseFloat(String(level.targetBalance)) || 2000;
-  const failBalance = typeof level.failBalance === 'number' ? level.failBalance : parseFloat(String(level.failBalance)) || 100;
-  const profitTarget = targetBalance - initialBalance;
-  
-  // 计算进度条位置：初始净值位置设为0%，目标净值为100%
-  // 失败底线用红色标记
-  const maxBalance = Math.max(targetBalance * 1.1, failBalance * 1.5);
-  const initialPos = (initialBalance / maxBalance) * 100;
-  const targetPos = (targetBalance / maxBalance) * 100;
-  const failPos = (failBalance / maxBalance) * 100;
-
-  return (
-    <div 
-      className="border rounded-xl p-4 bg-white hover:shadow-lg transition-all cursor-pointer relative overflow-hidden group"
-      onClick={onEdit}
-    >
-      {/* 背景装饰 */}
-      <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-purple-50 to-transparent rounded-bl-full opacity-60 group-hover:opacity-80 transition-opacity" />
-      
-      {/* 主内容 */}
-      <div className="flex items-center gap-4 relative">
-        {/* 关卡标识 */}
-        <div className="flex flex-col items-center min-w-[60px]">
-          <span className="px-3 py-1.5 bg-gradient-to-r from-purple-500 to-purple-600 text-white font-bold text-sm rounded-lg shadow-sm">
-            第{level.level}关
-          </span>
-        </div>
-
-        {/* 关卡名称 */}
-        <div className="flex-1 min-w-[100px]">
-          <p className="font-semibold text-gray-800 group-hover:text-purple-600 transition-colors">
-            {level.name || '未命名'}
-          </p>
-          {level.description && (
-            <p className="text-xs text-gray-400 mt-0.5 truncate max-w-[150px]">{level.description}</p>
-          )}
-        </div>
-
-        {/* 净值可视化 */}
-        <div className="flex-1 min-w-[200px]">
-          <div className="relative h-8 bg-gray-100 rounded-full overflow-hidden">
-            {/* 盈利区域 */}
-            <div 
-              className="absolute top-0 left-0 h-full bg-gradient-to-r from-green-400 to-green-500 opacity-30"
-              style={{ width: `${targetPos}%` }}
-            />
-            {/* 危险区域（失败底线以下） */}
-            <div 
-              className="absolute top-0 right-0 h-full bg-gradient-to-l from-red-400 to-transparent opacity-20"
-              style={{ width: `${100 - failPos}%` }}
-            />
-            
-            {/* 标记点 */}
-            <div className="absolute top-0 h-full flex items-center">
-              {/* 初始净值标记 */}
-              <div 
-                className="absolute w-0.5 h-10 bg-green-600 rounded-full shadow-sm"
-                style={{ left: `${initialPos}%` }}
-              />
-              {/* 目标净值标记 */}
-              <div 
-                className="absolute w-1 h-10 bg-amber-500 rounded-full shadow-sm"
-                style={{ left: `${targetPos}%` }}
-              />
-            </div>
-          </div>
-          
-          {/* 底部标签 */}
-          <div className="flex justify-between mt-1 text-xs">
-            <span className="text-green-600 font-medium">$初始</span>
-            <span className="text-amber-600 font-medium">$目标</span>
-            <span className="text-red-500 font-medium">$底线</span>
-          </div>
-        </div>
-
-        {/* 数值展示 */}
-        <div className="flex items-center gap-4">
-          <div className="text-center">
-            <p className="text-xs text-gray-400">初始净值</p>
-            <p className="font-bold text-green-600">${initialBalance.toLocaleString()}</p>
-          </div>
-          <div className="text-center">
-            <p className="text-xs text-gray-400">目标净值</p>
-            <p className="font-bold text-amber-600">${targetBalance.toLocaleString()}</p>
-          </div>
-          <div className="text-center">
-            <p className="text-xs text-gray-400">失败底线</p>
-            <p className="font-bold text-red-500">${failBalance.toLocaleString()}</p>
-          </div>
-          <div className="text-center px-3 py-1 bg-gradient-to-r from-green-50 to-emerald-50 rounded-lg border border-green-200">
-            <p className="text-xs text-gray-400">盈利目标</p>
-            <p className="font-bold text-green-600">+${profitTarget.toLocaleString()}</p>
-          </div>
-        </div>
-
-        {/* 编辑按钮 */}
-        <Button
-          size="sm"
-          variant="outline"
-          className="border-purple-200 text-purple-600 hover:bg-purple-50"
-          onClick={(e) => {
-            e.stopPropagation();
-            onEdit();
-          }}
-        >
-          <Edit3 className="w-4 h-4 mr-1" />
-          编辑
-        </Button>
-      </div>
-
-      {/* 奖励提示 */}
-      {level.reward && (
-        <div className="mt-3 pt-3 border-t border-dashed border-gray-200 flex items-center gap-2">
-          <span className="text-xs text-gray-400">通关奖励：</span>
-          <span className="text-xs font-medium text-purple-600 bg-purple-50 px-2 py-0.5 rounded">
-            {level.reward}
-          </span>
-        </div>
-      )}
-
-      {/* 悬停提示 */}
-      <div className="absolute inset-0 bg-purple-500 bg-opacity-0 group-hover:bg-opacity-5 transition-all rounded-xl pointer-events-none" />
-    </div>
-  );
-}
-
 export default function ChallengeAdminPage() {
   const [loading, setLoading] = useState(true);
   const [list, setList] = useState<ChallengeRegistration[]>([]);
@@ -213,8 +80,7 @@ export default function ChallengeAdminPage() {
   const [configDialogOpen, setConfigDialogOpen] = useState(false);
   const [descriptionForm, setDescriptionForm] = useState('');
 
-  // 关卡配置对话框
-  const [levelConfigDialogOpen, setLevelConfigDialogOpen] = useState(false);
+  // 关卡编辑对话框
   const [levelDialogOpen, setLevelDialogOpen] = useState(false);
   const [editingLevel, setEditingLevel] = useState<LevelConfig | null>(null);
   const [levelForm, setLevelForm] = useState({
@@ -369,6 +235,26 @@ export default function ChallengeAdminPage() {
     setLevelDialogOpen(true);
   };
 
+  // 通过关卡号打开编辑对话框
+  const handleEditLevelByNumber = (levelNum: number) => {
+    const level = levelConfigs.find(l => l.level === levelNum);
+    if (level) {
+      handleEditLevel(level);
+    } else {
+      // 如果没有数据，创建一个默认配置
+      handleEditLevel({
+        id: 0,
+        level: levelNum,
+        name: `第${levelNum}关`,
+        description: '',
+        initialBalance: 1000,
+        targetBalance: 2000,
+        failBalance: 100,
+        reward: '',
+      });
+    }
+  };
+
   // 保存关卡配置
   const handleSaveLevel = async () => {
     if (!editingLevel) return;
@@ -421,20 +307,24 @@ export default function ChallengeAdminPage() {
           <h1 className="text-2xl font-bold">K线征途管理</h1>
           <p className="text-gray-500">管理挑战赛申请和配置</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <Button variant="outline" onClick={() => setConfigDialogOpen(true)}>
             <Settings className="w-4 h-4 mr-2" />
             挑战赛配置
           </Button>
-          <Button 
-            variant="outline" 
-            className="border-purple-200 text-purple-600 hover:bg-purple-50"
-            onClick={() => setLevelConfigDialogOpen(true)}
-          >
-            <Settings className="w-4 h-4 mr-2" />
-            关卡配置
-          </Button>
-          <Button variant="outline" onClick={fetchList}>
+          <div className="h-8 w-px bg-gray-200 mx-1" />
+          {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((level) => (
+            <Button
+              key={level}
+              size="sm"
+              variant="outline"
+              className="h-8 px-3 border-purple-200 text-purple-600 hover:bg-purple-50"
+              onClick={() => handleEditLevelByNumber(level)}
+            >
+              第{level}关
+            </Button>
+          ))}
+          <Button variant="outline" onClick={fetchList} className="ml-2">
             <RefreshCw className="w-4 h-4 mr-2" />
             刷新
           </Button>
@@ -947,32 +837,6 @@ export default function ChallengeAdminPage() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setConfigDialogOpen(false)}>
-              关闭
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* 独立的关卡配置对话框 */}
-      <Dialog open={levelConfigDialogOpen} onOpenChange={setLevelConfigDialogOpen}>
-        <DialogContent className="sm:max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
-          <DialogHeader>
-            <DialogTitle>关卡配置</DialogTitle>
-            <DialogDescription>
-              管理各关卡的净值参数，编辑后点击保存按钮即时生效
-            </DialogDescription>
-          </DialogHeader>
-          <div className="flex-1 overflow-y-auto py-4 space-y-3 pr-2">
-            {levelConfigs.map((level) => (
-              <LevelConfigCard
-                key={level.id}
-                level={level}
-                onEdit={() => handleEditLevel(level)}
-              />
-            ))}
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setLevelConfigDialogOpen(false)}>
               关闭
             </Button>
           </DialogFooter>
