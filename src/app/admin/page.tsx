@@ -84,7 +84,7 @@ interface UserInfo {
   createdPlanets: number;
 }
 
-export default function AdminDashboardPage() {
+function AdminDashboardPage() {
   const router = useRouter();
   const { data: session, status } = useSession();
   const [loading, setLoading] = useState(true);
