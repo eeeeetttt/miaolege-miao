@@ -67,7 +67,7 @@ export async function GET() {
     const { data: levelConfigs, error: levelError } = await supabase
       .from('challenge_level_config')
       .select('level, name, target_balance, initial_balance')
-      .eq('is_active', true)
+      .eq('is_active', 1)
       .order('level');
 
     // 构建参与者列表

@@ -93,7 +93,7 @@ export async function GET() {
     const { data: levelRows, error: levelError } = await supabase
       .from('challenge_level_config')
       .select('level, name, description, target_balance, initial_balance, fail_balance, reward')
-      .eq('is_active', true)
+      .eq('is_active', 1)
       .order('level');
 
     const levelConfigs = levelRows?.map(row => ({

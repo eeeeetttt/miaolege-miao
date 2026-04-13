@@ -77,7 +77,7 @@ export async function GET(request: Request) {
     const { data: levelConfigsData } = await supabase
       .from('challenge_level_config')
       .select('level, name, initial_balance, target_balance, fail_balance')
-      .eq('is_active', true)
+      .eq('is_active', 1)
       .order('level');
 
     const levelConfigs: Record<number, { name: string; initialBalance: number; targetBalance: number; failBalance: number }> = {};

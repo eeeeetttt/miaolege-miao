@@ -100,7 +100,7 @@ export async function GET() {
     const { data: levelConfigsData } = await supabase
       .from('challenge_level_config')
       .select('level, initial_balance, target_balance, fail_balance')
-      .eq('is_active', true)
+      .eq('is_active', 1)
       .order('level');
 
     // 构建关卡配置映射

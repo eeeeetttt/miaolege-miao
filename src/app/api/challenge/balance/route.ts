@@ -79,7 +79,7 @@ export async function GET() {
       .from('challenge_level_config')
       .select('initial_balance, target_balance, fail_balance')
       .eq('level', currentLevel)
-      .eq('is_active', true)
+      .eq('is_active', 1)
       .single();
     
     if (levelConfig) {

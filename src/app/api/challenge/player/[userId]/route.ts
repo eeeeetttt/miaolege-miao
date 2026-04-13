@@ -40,7 +40,7 @@ export async function GET(
     const { data: levelConfigs } = await supabase
       .from('challenge_level_config')
       .select('level, name, description, initial_balance, target_balance, fail_balance, reward')
-      .eq('is_active', true)
+      .eq('is_active', 1)
       .order('level');
 
     // 获取当前净值数据
