@@ -271,6 +271,8 @@ export default function ChallengeAdminPage() {
       });
 
       const data = await res.json();
+      console.log('保存关卡配置响应:', res.status, data);
+      
       if (res.ok && data.success) {
         // 检查是否已存在该关卡
         const existingIndex = levelConfigs.findIndex(l => l.level === editingLevel.level);
@@ -295,10 +297,13 @@ export default function ChallengeAdminPage() {
         setLevelDialogOpen(false);
         alert('关卡配置已保存');
       } else {
-        alert(data.error || '保存失败');
+        const errorMsg = data.error || '保存失败';
+        const details = data.details || '';
+        alert(`${errorMsg}${details ? '\n\n详情: ' + details : ''}`);
       }
     } catch (error) {
-      alert('保存失败');
+      console.error('保存关卡配置出错:', error);
+      alert('保存失败，请查看控制台');
     }
   };
 
