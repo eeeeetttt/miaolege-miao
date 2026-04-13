@@ -14,7 +14,7 @@ import {
   DropdownMenuTrigger 
 } from '@/components/ui/dropdown-menu';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { User, LogOut, Globe, Settings, Download, Home, Shield, FileText, Trophy, MessageCircle, UserCircle, Wallet } from 'lucide-react';
+import { User, LogOut, Globe, Settings, Download, Home, Shield, FileText, Trophy, MessageCircle, UserCircle, Wallet, MessageSquare, AlertCircle } from 'lucide-react';
 
 export function Header() {
   const { data: session } = useSession();
@@ -63,6 +63,14 @@ export function Header() {
                 <Link href="/docs" className="text-gray-600 hover:text-purple-600 dark:text-gray-300 dark:hover:text-purple-400 transition-colors flex items-center gap-1">
                   <FileText className="w-4 h-4" />
                   文档中心
+                </Link>
+                <Link href="/suggestion" className="text-gray-600 hover:text-purple-600 dark:text-gray-300 dark:hover:text-purple-400 transition-colors flex items-center gap-1">
+                  <MessageSquare className="w-4 h-4" />
+                  意见建议
+                </Link>
+                <Link href="/complaint" className="text-gray-600 hover:text-purple-600 dark:text-gray-300 dark:hover:text-purple-400 transition-colors flex items-center gap-1">
+                  <AlertCircle className="w-4 h-4" />
+                  意见投诉
                 </Link>
                 {/* 软件下载入口暂时隐藏
                 <Link href="/download" className="text-gray-600 hover:text-purple-600 dark:text-gray-300 dark:hover:text-purple-400 transition-colors flex items-center gap-1">

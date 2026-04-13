@@ -335,24 +335,32 @@ export default function UserCenterPage() {
     if (!file) return;
     
     setAvatarLoading(true);
+    setError('');
     
     try {
-      const formData = new FormData();
-      formData.append('file', file);
+      // 将图片转换为 base64
+      const reader = new FileReader();
+      const base64 = await new Promise<string>((resolve, reject) => {
+        reader.onload = () => resolve(reader.result as string);
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
       
       const res = await fetch('/api/user/avatar', {
         method: 'POST',
-        body: formData,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ avatar: base64 }),
       });
       const data = await res.json();
       
       if (data.success) {
-        setUser(prev => prev ? { ...prev, avatar: data.url } : null);
+        setUser(prev => prev ? { ...prev, avatar: data.avatar } : null);
         setSuccess('头像更新成功');
       } else {
         setError(data.error || '头像更新失败');
       }
-    } catch (error) {
+    } catch (err) {
+      console.error('Avatar update error:', err);
       setError('头像更新失败，请稍后重试');
     } finally {
       setAvatarLoading(false);
