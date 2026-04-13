@@ -24,6 +24,7 @@ interface Document {
   sortOrder: number;
   status: string;
   viewCount: number;
+  publishedAt: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -216,7 +217,9 @@ export default function DocsClient() {
                 <div className="flex items-center gap-3 text-xs text-gray-500">
                   <span className="flex items-center gap-1">
                     <Clock className="w-3 h-3" />
-                    {new Date(selectedDoc.updatedAt).toLocaleDateString()}
+                    {selectedDoc.publishedAt 
+                      ? new Date(selectedDoc.publishedAt).toLocaleDateString('zh-CN')
+                      : new Date(selectedDoc.updatedAt).toLocaleDateString()}
                   </span>
                 </div>
               </div>

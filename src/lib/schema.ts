@@ -229,6 +229,7 @@ export const documents = mysqlTable('documents', {
   sortOrder: int('sort_order').default(0), // 排序权重
   status: mysqlEnum('status', ['published', 'draft']).default('published'),
   viewCount: int('view_count').default(0),
+  publishedAt: timestamp('published_at'), // 发布日期
   createdAt: timestamp('created_at').defaultNow(),
   updatedAt: timestamp('updated_at').defaultNow().onUpdateNow(),
 }, (table) => ({

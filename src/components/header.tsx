@@ -64,10 +64,6 @@ export function Header() {
                   <FileText className="w-4 h-4" />
                   文档中心
                 </Link>
-                <Link href="/download" className="text-gray-600 hover:text-purple-600 dark:text-gray-300 dark:hover:text-purple-400 transition-colors flex items-center gap-1">
-                  <Download className="w-4 h-4" />
-                  软件下载
-                </Link>
               </>
             )}
           </nav>
