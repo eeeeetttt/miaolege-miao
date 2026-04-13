@@ -35,19 +35,20 @@ export async function GET() {
       ?.filter(r => r.trading_account)
       .map(r => r.trading_account) || [];
 
-    // 获取净值数据
+    // 获取净值数据 - 为每个账号获取最新一条
     let equityMap: Record<string, number> = {};
     if (accountNumbers.length > 0) {
-      const { data: equityData } = await supabase
-        .from('mt_account_equity')
-        .select('account_number, equity')
-        .in('account_number', accountNumbers);
-
-      if (equityData) {
-        for (const record of equityData) {
-          if (!equityMap[record.account_number]) {
-            equityMap[record.account_number] = parseFloat(String(record.equity));
-          }
+      // 为每个账号单独查询最新净值
+      for (const accountNumber of accountNumbers) {
+        const { data: equityData } = await supabase
+          .from('mt_account_equity')
+          .select('account_number, equity, recorded_at')
+          .eq('account_number', accountNumber)
+          .order('recorded_at', { ascending: false })
+          .limit(1);
+        
+        if (equityData && equityData.length > 0) {
+          equityMap[accountNumber] = parseFloat(String(equityData[0].equity));
         }
       }
     }
