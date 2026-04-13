@@ -23,31 +23,56 @@ export async function GET(request: NextRequest) {
       }
 
       // 增加浏览次数
-      await db
-        .update(documents)
-        .set({ viewCount: (doc.viewCount || 0) + 1 })
-        .where(eq(documents.id, doc.id));
+      try {
+        await db
+          .update(documents)
+          .set({ viewCount: (doc.viewCount || 0) + 1 })
+          .where(eq(documents.id, doc.id));
+      } catch {
+        // 忽略浏览次数更新失败
+      }
 
       return NextResponse.json({ document: doc });
     }
 
     // 获取文档列表
     let docs;
-    if (category) {
-      docs = await db
-        .select()
-        .from(documents)
-        .where(and(
-          eq(documents.status, 'published'),
-          eq(documents.category, category)
-        ))
-        .orderBy(asc(documents.sortOrder), desc(documents.createdAt));
-    } else {
-      docs = await db
-        .select()
-        .from(documents)
-        .where(eq(documents.status, 'published'))
-        .orderBy(asc(documents.sortOrder), desc(documents.createdAt));
+    try {
+      if (category) {
+        docs = await db
+          .select()
+          .from(documents)
+          .where(and(
+            eq(documents.status, 'published'),
+            eq(documents.category, category)
+          ))
+          .orderBy(asc(documents.sortOrder), desc(documents.createdAt));
+      } else {
+        docs = await db
+          .select()
+          .from(documents)
+          .where(eq(documents.status, 'published'))
+          .orderBy(asc(documents.sortOrder), desc(documents.createdAt));
+      }
+    } catch (sortError) {
+      // 如果sortOrder列不存在，使用备用排序
+      console.warn('sortOrder query failed, falling back:', sortError);
+      if (category) {
+        docs = await db
+          .select()
+          .from(documents)
+          .where(and(
+            eq(documents.status, 'published'),
+            eq(documents.category, category)
+          ))
+          .orderBy(desc(documents.createdAt));
+      } else {
+        docs = await db
+          .select()
+          .from(documents)
+          .where(eq(documents.status, 'published'))
+          .orderBy(desc(documents.createdAt));
+      }
     }
 
     return NextResponse.json({ documents: docs });

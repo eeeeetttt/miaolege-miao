@@ -17,22 +17,44 @@ export async function GET(request: NextRequest) {
     const search = searchParams.get('search');
 
     let docs;
-    if (search) {
-      docs = await db
-        .select()
-        .from(documents)
-        .where(
-          or(
-            like(documents.title, `%${search}%`),
-            like(documents.content, `%${search}%`)
+    try {
+      if (search) {
+        docs = await db
+          .select()
+          .from(documents)
+          .where(
+            or(
+              like(documents.title, `%${search}%`),
+              like(documents.content, `%${search}%`)
+            )
           )
-        )
-        .orderBy(asc(documents.sortOrder), desc(documents.createdAt));
-    } else {
-      docs = await db
-        .select()
-        .from(documents)
-        .orderBy(asc(documents.sortOrder), desc(documents.createdAt));
+          .orderBy(asc(documents.sortOrder), desc(documents.createdAt));
+      } else {
+        docs = await db
+          .select()
+          .from(documents)
+          .orderBy(asc(documents.sortOrder), desc(documents.createdAt));
+      }
+    } catch (dbError) {
+      // 如果sortOrder列不存在，使用备用查询
+      console.warn('sortOrder query failed, falling back:', dbError);
+      if (search) {
+        docs = await db
+          .select()
+          .from(documents)
+          .where(
+            or(
+              like(documents.title, `%${search}%`),
+              like(documents.content, `%${search}%`)
+            )
+          )
+          .orderBy(desc(documents.createdAt));
+      } else {
+        docs = await db
+          .select()
+          .from(documents)
+          .orderBy(desc(documents.createdAt));
+      }
     }
 
     return NextResponse.json({ documents: docs });
@@ -69,15 +91,27 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: '别名已存在，请更换' }, { status: 400 });
     }
 
-    await db.insert(documents).values({
-      title,
-      slug,
-      content,
-      category: category || 'general',
-      sortOrder: sortOrder || 0,
-      status: status || 'published',
-      publishedAt: publishedAt ? new Date(publishedAt) : new Date(),
-    });
+    try {
+      await db.insert(documents).values({
+        title,
+        slug,
+        content,
+        category: category || 'general',
+        sortOrder: sortOrder || 0,
+        status: status || 'published',
+        publishedAt: publishedAt ? new Date(publishedAt) : new Date(),
+      });
+    } catch (insertError) {
+      // 如果插入失败（可能因为列不存在），尝试不带sortOrder/publishedAt
+      console.warn('Insert with sortOrder/publishedAt failed, trying without:', insertError);
+      await db.insert(documents).values({
+        title,
+        slug,
+        content,
+        category: category || 'general',
+        status: status || 'published',
+      });
+    }
 
     // 获取刚创建的文档
     const [doc] = await db
@@ -134,18 +168,33 @@ export async function PUT(request: NextRequest) {
       }
     }
 
-    await db
-      .update(documents)
-      .set({
-        ...(title && { title }),
-        ...(slug && { slug }),
-        ...(content && { content }),
-        ...(category && { category }),
-        ...(sortOrder !== undefined && { sortOrder }),
-        ...(status && { status }),
-        ...(publishedAt !== undefined && { publishedAt: publishedAt ? new Date(publishedAt) : null }),
-      })
-      .where(eq(documents.id, id));
+    try {
+      await db
+        .update(documents)
+        .set({
+          ...(title && { title }),
+          ...(slug && { slug }),
+          ...(content && { content }),
+          ...(category && { category }),
+          ...(sortOrder !== undefined && { sortOrder }),
+          ...(status && { status }),
+          ...(publishedAt !== undefined && { publishedAt: publishedAt ? new Date(publishedAt) : null }),
+        })
+        .where(eq(documents.id, id));
+    } catch (updateError) {
+      // 如果更新失败，尝试不带sortOrder/publishedAt
+      console.warn('Update with sortOrder/publishedAt failed, trying without:', updateError);
+      await db
+        .update(documents)
+        .set({
+          ...(title && { title }),
+          ...(slug && { slug }),
+          ...(content && { content }),
+          ...(category && { category }),
+          ...(status && { status }),
+        })
+        .where(eq(documents.id, id));
+    }
 
     // 获取更新后的文档
     const [doc] = await db
