@@ -22,7 +22,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Spinner } from '@/components/ui/spinner';
-import { Check, X, RefreshCw, Settings, AlertCircle } from 'lucide-react';
+import { Check, X, RefreshCw, Settings, AlertCircle, ChevronDown, ChevronUp, Save, Edit3 } from 'lucide-react';
 
 interface ChallengeRegistration {
   registration: {
@@ -55,6 +55,199 @@ interface LevelConfig {
   initialBalance: number;
   failBalance: number;
   reward: string | null;
+}
+
+interface LevelConfigCardProps {
+  level: LevelConfig;
+  onSave: (level: LevelConfig) => Promise<void>;
+  onEditFull: () => void;
+}
+
+function LevelConfigCard({ level, onSave, onEditFull }: LevelConfigCardProps) {
+  const [isExpanded, setIsExpanded] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [form, setForm] = useState({
+    name: level.name,
+    initialBalance: typeof level.initialBalance === 'number' ? level.initialBalance : parseFloat(String(level.initialBalance)) || 1000,
+    targetBalance: typeof level.targetBalance === 'number' ? level.targetBalance : parseFloat(String(level.targetBalance)) || 2000,
+    failBalance: typeof level.failBalance === 'number' ? level.failBalance : parseFloat(String(level.failBalance)) || 100,
+    description: level.description || '',
+    reward: level.reward || '',
+  });
+  const [hasChanges, setHasChanges] = useState(false);
+
+  useEffect(() => {
+    const changed = 
+      form.name !== level.name ||
+      form.initialBalance !== (typeof level.initialBalance === 'number' ? level.initialBalance : parseFloat(String(level.initialBalance))) ||
+      form.targetBalance !== (typeof level.targetBalance === 'number' ? level.targetBalance : parseFloat(String(level.targetBalance))) ||
+      form.failBalance !== (typeof level.failBalance === 'number' ? level.failBalance : parseFloat(String(level.failBalance)));
+    setHasChanges(changed);
+  }, [form, level]);
+
+  const handleSave = async () => {
+    setIsSaving(true);
+    try {
+      await onSave({
+        ...level,
+        name: form.name,
+        initialBalance: form.initialBalance,
+        targetBalance: form.targetBalance,
+        failBalance: form.failBalance,
+        description: form.description,
+        reward: form.reward,
+      });
+      setHasChanges(false);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const getProfitTarget = () => {
+    return form.targetBalance - form.initialBalance;
+  };
+
+  return (
+    <div className="border rounded-lg p-3 bg-white hover:shadow-md transition-all">
+      {/* 主行：关卡信息和核心参数 */}
+      <div className="flex items-center gap-3 flex-wrap">
+        {/* 关卡标识 */}
+        <div className="flex items-center gap-2 min-w-[80px]">
+          <span className="px-2 py-1 bg-purple-100 text-purple-700 font-bold text-sm rounded">
+            第{level.level}关
+          </span>
+        </div>
+
+        {/* 关卡名称 */}
+        <div className="flex-1 min-w-[120px]">
+          <Input
+            value={form.name}
+            onChange={(e) => setForm({ ...form, name: e.target.value })}
+            placeholder="关卡名称"
+            className="h-8 text-sm font-medium"
+          />
+        </div>
+
+        {/* 初始净值 */}
+        <div className="flex flex-col items-center min-w-[90px]">
+          <span className="text-xs text-gray-500 mb-1">初始净值</span>
+          <div className="flex items-center gap-1">
+            <span className="text-green-600 font-bold">$</span>
+            <Input
+              type="number"
+              value={form.initialBalance}
+              onChange={(e) => setForm({ ...form, initialBalance: parseFloat(e.target.value) || 0 })}
+              className="w-20 h-8 text-sm text-center font-medium"
+            />
+          </div>
+        </div>
+
+        {/* 目标净值 */}
+        <div className="flex flex-col items-center min-w-[90px]">
+          <span className="text-xs text-gray-500 mb-1">目标净值</span>
+          <div className="flex items-center gap-1">
+            <span className="text-amber-600 font-bold">$</span>
+            <Input
+              type="number"
+              value={form.targetBalance}
+              onChange={(e) => setForm({ ...form, targetBalance: parseFloat(e.target.value) || 0 })}
+              className="w-20 h-8 text-sm text-center font-medium"
+            />
+          </div>
+        </div>
+
+        {/* 失败底线 */}
+        <div className="flex flex-col items-center min-w-[90px]">
+          <span className="text-xs text-gray-500 mb-1">失败底线</span>
+          <div className="flex items-center gap-1">
+            <span className="text-red-500 font-bold">$</span>
+            <Input
+              type="number"
+              value={form.failBalance}
+              onChange={(e) => setForm({ ...form, failBalance: parseFloat(e.target.value) || 0 })}
+              className="w-20 h-8 text-sm text-center font-medium"
+            />
+          </div>
+        </div>
+
+        {/* 盈利目标预览 */}
+        <div className="flex flex-col items-center min-w-[80px]">
+          <span className="text-xs text-gray-500 mb-1">盈利目标</span>
+          <span className={`font-bold text-sm ${getProfitTarget() >= 0 ? 'text-green-600' : 'text-red-500'}`}>
+            ${getProfitTarget()}
+          </span>
+        </div>
+
+        {/* 操作按钮 */}
+        <div className="flex items-center gap-2">
+          <Button
+            size="sm"
+            onClick={handleSave}
+            disabled={!hasChanges || isSaving}
+            className={`h-8 ${hasChanges ? 'bg-green-600 hover:bg-green-700' : ''}`}
+          >
+            {isSaving ? (
+              <Spinner className="w-4 h-4" />
+            ) : (
+              <Save className="w-4 h-4" />
+            )}
+          </Button>
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={() => setIsExpanded(!isExpanded)}
+            className="h-8"
+          >
+            {isExpanded ? (
+              <ChevronUp className="w-4 h-4" />
+            ) : (
+              <ChevronDown className="w-4 h-4" />
+            )}
+          </Button>
+        </div>
+      </div>
+
+      {/* 展开详情 */}
+      {isExpanded && (
+        <div className="mt-3 pt-3 border-t space-y-3">
+          {/* 描述 */}
+          <div className="space-y-1">
+            <Label className="text-xs text-gray-500">关卡描述</Label>
+            <Input
+              value={form.description}
+              onChange={(e) => setForm({ ...form, description: e.target.value })}
+              placeholder="描述该关卡的内容"
+              className="h-8 text-sm"
+            />
+          </div>
+
+          {/* 奖励 */}
+          <div className="space-y-1">
+            <Label className="text-xs text-gray-500">通关奖励</Label>
+            <Input
+              value={form.reward}
+              onChange={(e) => setForm({ ...form, reward: e.target.value })}
+              placeholder="例如：继续挑战、通关大奖"
+              className="h-8 text-sm"
+            />
+          </div>
+
+          {/* 高级编辑 */}
+          <div className="flex justify-end">
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={onEditFull}
+              className="h-8 text-xs"
+            >
+              <Edit3 className="w-3 h-3 mr-1" />
+              高级编辑
+            </Button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
 }
 
 export default function ChallengeAdminPage() {
@@ -806,26 +999,44 @@ export default function ChallengeAdminPage() {
             <div className="border-t pt-4 mt-4">
               <div className="flex items-center justify-between mb-3">
                 <h4 className="font-medium">关卡配置</h4>
-                <span className="text-xs text-gray-500">点击编辑可调整每关的初始值、目标值和失败底线</span>
+                <span className="text-xs text-gray-500">每关独立配置，直接编辑后点击保存</span>
               </div>
-              <div className="space-y-2 max-h-80 overflow-y-auto">
+              <div className="space-y-3 max-h-[400px] overflow-y-auto pr-2">
                 {levelConfigs.map((level) => (
-                  <div key={level.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border hover:bg-gray-100 transition-colors">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2">
-                        <span className="font-medium text-purple-600">第{level.level}关</span>
-                        <span className="font-medium">{level.name}</span>
-                      </div>
-                      <div className="flex items-center gap-4 mt-1 text-sm text-gray-500">
-                        <span>初始: <span className="font-medium text-green-600">${typeof level.initialBalance === 'number' ? level.initialBalance : parseFloat(String(level.initialBalance))}</span></span>
-                        <span>→ 目标: <span className="font-medium text-amber-600">${typeof level.targetBalance === 'number' ? level.targetBalance : parseFloat(String(level.targetBalance))}</span></span>
-                        <span>失败线: <span className="font-medium text-red-500">${typeof level.failBalance === 'number' ? level.failBalance : parseFloat(String(level.failBalance))}</span></span>
-                      </div>
-                    </div>
-                    <Button size="sm" variant="outline" onClick={() => handleEditLevel(level)}>
-                      编辑
-                    </Button>
-                  </div>
+                  <LevelConfigCard
+                    key={level.id}
+                    level={level}
+                    onSave={async (updatedLevel) => {
+                      // 更新本地状态
+                      setLevelConfigs(prev => prev.map(l => 
+                        l.level === updatedLevel.level ? { ...l, ...updatedLevel } : l
+                      ));
+                      // 调用API保存
+                      try {
+                        const res = await fetch('/api/admin/challenge', {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({
+                            action: 'updateLevelConfig',
+                            level: level.level,
+                            name: updatedLevel.name,
+                            description: updatedLevel.description,
+                            initialBalance: updatedLevel.initialBalance,
+                            targetBalance: updatedLevel.targetBalance,
+                            failBalance: updatedLevel.failBalance,
+                            reward: updatedLevel.reward,
+                          }),
+                        });
+                        const data = await res.json();
+                        if (!res.ok || !data.success) {
+                          alert(data.error || '保存失败');
+                        }
+                      } catch {
+                        alert('保存失败');
+                      }
+                    }}
+                    onEditFull={() => handleEditLevel(level)}
+                  />
                 ))}
               </div>
             </div>
