@@ -29,10 +29,9 @@ import {
 } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 
-interface EquityRecord {
-  recorded_at: string;
+interface ProfitPoint {
+  time: string;
   equity: number;
-  balance: number;
   profit: number;
 }
 
@@ -41,10 +40,7 @@ interface TradeRecord {
   symbol: string;
   type: string;
   volume: number;
-  open_price: number;
-  close_price: number;
   profit: number;
-  open_time: string;
   close_time: string;
 }
 
@@ -61,7 +57,7 @@ interface LevelEquityData {
   initialBalance: number;
   targetBalance: number;
   failBalance: number;
-  equityHistory: EquityRecord[];
+  equityHistory: ProfitPoint[];
 }
 
 interface ParticipantDetail {
@@ -83,6 +79,10 @@ interface ParticipantDetail {
   levelEquityData: LevelEquityData[];
   tradeHistory: TradeRecord[];
   totalEquityRecords: number;
+  totalTrades: number;
+  totalProfit: number;
+  currentEquity: number;
+  initialBalance: number;
 }
 
 function DetailContent() {
@@ -138,18 +138,6 @@ function DetailContent() {
     return `<span class="${color}">${profit >= 0 ? '+' : ''}${profit.toFixed(2)}</span>`;
   };
 
-  const getTradeTypeName = (type: string) => {
-    const typeMap: Record<string, string> = {
-      'buy': '买入',
-      'sell': '卖出',
-      'buy_limit': '买入限价',
-      'sell_limit': '卖出限价',
-      'buy_stop': '买入止损',
-      'sell_stop': '卖出止损',
-    };
-    return typeMap[type.toLowerCase()] || type;
-  };
-
   if (loading) {
     return (
       <div className="flex justify-center items-center min-h-screen">
@@ -176,9 +164,8 @@ function DetailContent() {
   const { registration, levelEquityData, tradeHistory, levelConfigs } = data;
   const currentEquityData = levelEquityData.find(l => l.level === selectedLevel) || levelEquityData[0];
   const chartData = currentEquityData?.equityHistory.map((record, idx) => ({
-    time: formatDate(record.recorded_at),
+    time: formatDate(record.time),
     equity: record.equity,
-    balance: record.balance,
     profit: record.profit,
     index: idx,
   })) || [];
@@ -416,8 +403,6 @@ function DetailContent() {
                           <th className="text-left py-2 px-2">品种</th>
                           <th className="text-left py-2 px-2">类型</th>
                           <th className="text-right py-2 px-2">手数</th>
-                          <th className="text-right py-2 px-2">开仓价</th>
-                          <th className="text-right py-2 px-2">平仓价</th>
                           <th className="text-right py-2 px-2">盈亏</th>
                           <th className="text-left py-2 px-2">平仓时间</th>
                         </tr>
@@ -428,13 +413,11 @@ function DetailContent() {
                             <td className="py-2 px-2 font-mono">{trade.ticket}</td>
                             <td className="py-2 px-2">{trade.symbol}</td>
                             <td className="py-2 px-2">
-                              <Badge variant={trade.type.toLowerCase().includes('buy') ? 'default' : 'secondary'}>
-                                {getTradeTypeName(trade.type)}
+                              <Badge variant={trade.type === '买入' ? 'default' : 'secondary'}>
+                                {trade.type}
                               </Badge>
                             </td>
                             <td className="py-2 px-2 text-right">{trade.volume.toFixed(2)}</td>
-                            <td className="py-2 px-2 text-right">{trade.open_price.toFixed(2)}</td>
-                            <td className="py-2 px-2 text-right">{trade.close_price.toFixed(2)}</td>
                             <td className={`py-2 px-2 text-right font-bold ${
                               trade.profit >= 0 ? 'text-green-600' : 'text-red-600'
                             }`}>

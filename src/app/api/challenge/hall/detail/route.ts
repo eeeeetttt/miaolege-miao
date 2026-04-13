@@ -4,10 +4,9 @@ import { db } from '@/lib/db';
 import { users, signals } from '@/lib/schema';
 import { eq, desc } from 'drizzle-orm';
 
-interface EquityRecord {
-  recorded_at: string;
+interface ProfitPoint {
+  time: string;
   equity: number;
-  balance: number;
   profit: number;
 }
 
@@ -16,11 +15,17 @@ interface TradeRecord {
   symbol: string;
   type: string;
   volume: number;
-  open_price: number;
-  close_price: number;
   profit: number;
-  open_time: string;
   close_time: string;
+}
+
+interface LevelEquityData {
+  level: number;
+  name: string;
+  initialBalance: number;
+  targetBalance: number;
+  failBalance: number;
+  equityHistory: ProfitPoint[];
 }
 
 // 获取选手详情数据
@@ -81,40 +86,21 @@ export async function GET(request: Request) {
       .order('level');
 
     const levelConfigs: Record<number, { name: string; initialBalance: number; targetBalance: number; failBalance: number }> = {};
+    const levelConfigsList: Array<{level: number; initialBalance: number; targetBalance: number}> = [];
     if (levelConfigsData) {
       for (const lc of levelConfigsData) {
-        levelConfigs[lc.level] = {
+        const config = {
           name: lc.name,
           initialBalance: parseFloat(String(lc.initial_balance)) || 1000,
           targetBalance: parseFloat(String(lc.target_balance)) || 2000,
           failBalance: parseFloat(String(lc.fail_balance)) || 100,
         };
+        levelConfigs[lc.level] = config;
+        levelConfigsList.push({ level: lc.level, initialBalance: config.initialBalance, targetBalance: config.targetBalance });
       }
     }
 
-    // 获取净值历史数据（用于绘制收益曲线）
-    const equityHistory: EquityRecord[] = [];
-    if (tradingAccount) {
-      const { data: equityData } = await supabase
-        .from('mt_account_equity')
-        .select('recorded_at, equity, balance, profit')
-        .eq('account_number', tradingAccount)
-        .order('recorded_at', { ascending: true })
-        .limit(500); // 最多500条数据
-
-      if (equityData) {
-        for (const record of equityData) {
-          equityHistory.push({
-            recorded_at: record.recorded_at,
-            equity: parseFloat(String(record.equity)),
-            balance: parseFloat(String(record.balance)),
-            profit: parseFloat(String(record.profit)),
-          });
-        }
-      }
-    }
-
-    // 获取已完成关卡的净值历史
+    // 获取已完成关卡
     const completedLevels: number[] = [];
     try {
       const raw = registration.completed_levels;
@@ -132,45 +118,57 @@ export async function GET(request: Request) {
       // 忽略解析错误
     }
 
-    // 从MySQL的signals表获取交易历史单子
+    // 从MySQL的signals表获取平仓单子（dealProfit不为空的记录）
     const tradeHistory: TradeRecord[] = [];
+    const equityHistory: ProfitPoint[] = [];
+    let cumulativeProfit = 0;
+    
+    // 获取初始净值（当前关卡的初始值）
+    const currentConfig = levelConfigs[currentLevel] || { name: `第${currentLevel}关`, initialBalance: 1000 };
+    const initialBalance = currentConfig.initialBalance;
+    
     try {
+      // 获取所有信号，按时间正序排列
       const allSignals = await db
         .select()
         .from(signals)
         .where(eq(signals.senderAccount, tradingAccount || ''))
-        .orderBy(desc(signals.createdAt))
-        .limit(100);
+        .orderBy(signals.createdAt)
+        .limit(500);
 
       for (const signal of allSignals) {
-        tradeHistory.push({
-          ticket: signal.ticket || 0,
-          symbol: signal.symbol || '',
-          type: signal.signalType === 'buy' ? 'buy' : (signal.signalType === 'sell' ? 'sell' : signal.signalType || ''),
-          volume: signal.volume ? parseFloat(String(signal.volume)) : 0,
-          open_price: signal.price ? parseFloat(String(signal.price)) : 0,
-          close_price: signal.dealProfit ? parseFloat(String(signal.dealProfit)) : 0,
-          profit: signal.dealProfit ? parseFloat(String(signal.dealProfit)) : 0,
-          open_time: signal.createdAt ? String(signal.createdAt) : '',
-          close_time: signal.createdAt ? String(signal.createdAt) : '',
-        });
+        // 只处理有平仓盈亏的单子（平仓单）
+        if (signal.dealProfit !== null && signal.dealProfit !== undefined) {
+          const profit = parseFloat(String(signal.dealProfit));
+          cumulativeProfit += profit;
+          const currentEquity = initialBalance + cumulativeProfit;
+          const closeTime = signal.createdAt ? String(signal.createdAt) : '';
+          
+          tradeHistory.push({
+            ticket: signal.ticket || 0,
+            symbol: signal.symbol || '',
+            type: signal.signalType === 'buy' ? '买入' : (signal.signalType === 'sell' ? '卖出' : signal.signalType || ''),
+            volume: signal.volume ? parseFloat(String(signal.volume)) : 0,
+            profit: profit,
+            close_time: closeTime,
+          });
+          
+          // 生成收益曲线数据点
+          equityHistory.push({
+            time: closeTime,
+            equity: currentEquity,
+            profit: cumulativeProfit,
+          });
+        }
       }
     } catch (tradeErr) {
       console.error('获取交易历史失败:', tradeErr);
-      // 忽略错误，保持tradeHistory为空数组
     }
 
-    // 按关卡分段净值数据
-    const levelEquityData: Array<{
-      level: number;
-      name: string;
-      initialBalance: number;
-      targetBalance: number;
-      failBalance: number;
-      equityHistory: EquityRecord[];
-    }> = [];
-
-    // 添加已完成关卡
+    // 构建每个关卡的收益曲线数据
+    const levelEquityData: LevelEquityData[] = [];
+    
+    // 按关卡分组
     for (const level of completedLevels) {
       const config = levelConfigs[level] || { name: `第${level}关`, initialBalance: 1000, targetBalance: 2000, failBalance: 100 };
       levelEquityData.push({
@@ -179,20 +177,23 @@ export async function GET(request: Request) {
         initialBalance: config.initialBalance,
         targetBalance: config.targetBalance,
         failBalance: config.failBalance,
-        equityHistory: [], // 已完成关卡的历史数据可以通过时间筛选
+        equityHistory: [], // 已完成关卡不显示详细曲线
       });
     }
 
-    // 添加当前关卡
-    const currentConfig = levelConfigs[currentLevel] || { name: `第${currentLevel}关`, initialBalance: 1000, targetBalance: 2000, failBalance: 100 };
+    // 添加当前关卡的收益曲线
+    const currentLevelConfig = levelConfigs[currentLevel] || { name: `第${currentLevel}关`, initialBalance: 1000, targetBalance: 2000, failBalance: 100 };
     levelEquityData.push({
       level: currentLevel,
-      name: currentConfig.name,
-      initialBalance: currentConfig.initialBalance,
-      targetBalance: currentConfig.targetBalance,
-      failBalance: currentConfig.failBalance,
-      equityHistory,
+      name: currentLevelConfig.name,
+      initialBalance: currentLevelConfig.initialBalance,
+      targetBalance: currentLevelConfig.targetBalance,
+      failBalance: currentLevelConfig.failBalance,
+      equityHistory: equityHistory,
     });
+    
+    // 反转交易历史，最新的在前面
+    tradeHistory.reverse();
 
     return NextResponse.json({
       success: true,
@@ -215,6 +216,10 @@ export async function GET(request: Request) {
         levelEquityData,
         tradeHistory,
         totalEquityRecords: equityHistory.length,
+        totalTrades: tradeHistory.length,
+        totalProfit: cumulativeProfit,
+        currentEquity: initialBalance + cumulativeProfit,
+        initialBalance,
       },
     });
   } catch (error) {
