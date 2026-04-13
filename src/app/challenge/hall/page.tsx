@@ -33,9 +33,19 @@ interface Participant {
   rank: number;
 }
 
+interface HallOfFamer {
+  rank: number;
+  userId: string;
+  userName: string;
+  userAvatar: string | null;
+  completedAt: string | null;
+  totalDuration: number | null;
+}
+
 export default function ChallengeHallPage() {
   const router = useRouter();
   const [participants, setParticipants] = useState<Participant[]>([]);
+  const [hallOfFame, setHallOfFame] = useState<HallOfFamer[]>([]);
   const [loading, setLoading] = useState(true);
   const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
   const [allowViewDetail, setAllowViewDetail] = useState(true);
@@ -46,6 +56,7 @@ export default function ChallengeHallPage() {
       const data = await res.json();
       if (data.success) {
         setParticipants(data.data || []);
+        setHallOfFame(data.hallOfFame || []);
         setAllowViewDetail(data.config?.allow_view_detail !== 'false');
         setLastUpdate(new Date());
       }
@@ -58,7 +69,6 @@ export default function ChallengeHallPage() {
 
   useEffect(() => {
     fetchData();
-    // 每30秒自动刷新
     const interval = setInterval(fetchData, 30000);
     return () => clearInterval(interval);
   }, []);
@@ -75,20 +85,9 @@ export default function ChallengeHallPage() {
     return <span className="font-bold text-gray-500 w-5 inline-block text-center">#{rank}</span>;
   };
 
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case 'active':
-        return <Badge className="bg-green-500">挑战中</Badge>;
-      case 'level_passed':
-        return <Badge className="bg-amber-500">待审核</Badge>;
-      default:
-        return <Badge variant="secondary">{status}</Badge>;
-    }
-  };
-
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-8 px-4">
-      <div className="max-w-4xl mx-auto">
+      <div className="max-w-7xl mx-auto">
         {/* Header */}
         <div className="flex items-center justify-between mb-8">
           <div className="flex items-center gap-4">
@@ -115,130 +114,200 @@ export default function ChallengeHallPage() {
           </Button>
         </div>
 
-        {/* Leaderboard */}
-        <Card>
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <CardTitle className="flex items-center gap-2">
-                <Medal className="w-5 h-5 text-amber-500" />
-                实时排行榜 TOP 10
-              </CardTitle>
-              {lastUpdate && (
-                <span className="text-sm text-gray-500">
-                  更新于 {lastUpdate.toLocaleTimeString()}
-                </span>
-              )}
-            </div>
-          </CardHeader>
-          <CardContent>
-            {loading && participants.length === 0 ? (
-              <div className="flex justify-center py-12">
-                <Spinner className="w-8 h-8" />
-              </div>
-            ) : participants.length === 0 ? (
-              <div className="text-center py-12">
-                <Trophy className="w-12 h-12 mx-auto mb-4 text-gray-400" />
-                <p className="text-gray-500 dark:text-gray-400 mb-4">
-                  暂无参赛选手
-                </p>
-                <Link href="/challenge">
-                  <Button className="bg-amber-600 hover:bg-amber-700">
-                    成为第一个参赛者
-                  </Button>
-                </Link>
-              </div>
-            ) : (
-              <div className="space-y-3">
-                {/* Header */}
-                <div className="grid grid-cols-12 gap-4 px-4 py-2 text-sm font-medium text-gray-500 dark:text-gray-400 border-b">
-                  <div className="col-span-1 text-center">排名</div>
-                  <div className="col-span-4">选手</div>
-                  <div className="col-span-3 text-center">关卡</div>
-                  <div className="col-span-2 text-center">进度</div>
-                  <div className="col-span-2 text-right">净值</div>
-                </div>
-
-                {/* Participants */}
-                {participants.map((p) => (
-                  <div 
-                    key={p.id}
-                    className={`grid grid-cols-12 gap-4 px-4 py-4 rounded-lg border items-center ${
-                      p.rank <= 3 
-                        ? 'bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-900/20 dark:to-orange-900/20 border-amber-200 dark:border-amber-800' 
-                        : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700'
-                    }`}
-                  >
-                    {/* Rank */}
-                    <div className="col-span-1 flex items-center justify-center">
-                      {getRankIcon(p.rank)}
-                    </div>
-
-                    {/* User Info */}
-                    <div className="col-span-4 flex items-center gap-3">
-                      <Avatar className="w-10 h-10">
-                        <AvatarFallback className="bg-gradient-to-br from-amber-500 to-orange-600 text-white font-bold">
-                          {p.userName[0]?.toUpperCase() || '?'}
-                        </AvatarFallback>
-                        {p.userAvatar && <AvatarImage src={p.userAvatar} />}
-                      </Avatar>
-                      <div>
-                        <p className="font-medium text-gray-900 dark:text-white">{p.userName}</p>
-                      </div>
-                    </div>
-
-                    {/* Level */}
-                    <div className="col-span-3 text-center">
-                      <Badge className="bg-amber-500">
-                        第{p.currentLevel}关
-                      </Badge>
-                      <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                        {getLevelName(p.currentLevel)}
-                      </p>
-                    </div>
-
-                    {/* Progress */}
-                    <div className="col-span-2 text-center">
-                      <div className="flex items-center justify-center gap-2">
-                        <div className="w-16 h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
-                          <div 
-                            className={`h-full rounded-full ${p.progress >= 50 ? 'bg-green-500' : 'bg-amber-500'}`}
-                            style={{ width: `${p.progress}%` }}
-                          />
-                        </div>
-                        <span className="text-xs text-gray-500">{p.progress}%</span>
-                      </div>
-                    </div>
-
-                    {/* Equity */}
-                    <div className="col-span-2 text-right">
-                      <div className="flex items-center justify-end gap-1">
-                        {p.equity >= 1000 ? (
-                          <TrendingUp className="w-4 h-4 text-green-500" />
-                        ) : (
-                          <TrendingDown className="w-4 h-4 text-red-500" />
-                        )}
-                        <span className={`font-bold ${p.equity >= 1000 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
-                          ${p.equity.toLocaleString()}
-                        </span>
-                      </div>
-                      {allowViewDetail && (
-                        <Button 
-                          size="sm" 
-                          variant="ghost" 
-                          className="mt-1 text-xs h-6"
-                          onClick={() => router.push(`/challenge/hall/detail?id=${p.id}`)}
-                        >
-                          <Eye className="w-3 h-3 mr-1" />
-                          详情
-                        </Button>
-                      )}
-                    </div>
+        {/* Main Grid */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Left Column - Hall of Fame */}
+          <div className="lg:col-span-1">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Crown className="w-5 h-5 text-yellow-500" />
+                  名人堂
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {loading && hallOfFame.length === 0 ? (
+                  <div className="flex justify-center py-8">
+                    <Spinner className="w-6 h-6" />
                   </div>
-                ))}
-              </div>
-            )}
-          </CardContent>
-        </Card>
+                ) : hallOfFame.length === 0 ? (
+                  <div className="text-center py-8 text-gray-500">
+                    <Crown className="w-10 h-10 mx-auto mb-3 opacity-50" />
+                    <p className="text-sm">暂无通关记录</p>
+                    <p className="text-xs mt-1">成为第一个通关者吧！</p>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {hallOfFame.slice(0, 5).map((champion) => (
+                      <div
+                        key={champion.userId}
+                        className="flex items-center gap-3 p-3 bg-gradient-to-r from-yellow-50 to-amber-50 dark:from-yellow-900/20 dark:to-amber-900/20 rounded-lg border border-yellow-200 dark:border-yellow-800"
+                      >
+                        <div className="relative">
+                          <Avatar className="w-12 h-12 border-2 border-yellow-400">
+                            <AvatarFallback className="bg-gradient-to-br from-yellow-400 to-amber-500 text-white font-bold">
+                              {champion.userName[0]?.toUpperCase() || '?'}
+                            </AvatarFallback>
+                            {champion.userAvatar && <AvatarImage src={champion.userAvatar} />}
+                          </Avatar>
+                          <div className="absolute -top-2 -right-2 w-6 h-6 bg-yellow-500 rounded-full flex items-center justify-center">
+                            <Crown className="w-3 h-3 text-white" />
+                          </div>
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="font-semibold text-gray-900 dark:text-white truncate">
+                            {champion.userName}
+                          </p>
+                          <p className="text-xs text-gray-500 dark:text-gray-400">
+                            {champion.completedAt && new Date(champion.completedAt).toLocaleDateString('zh-CN')}
+                          </p>
+                        </div>
+                        <div className="text-center">
+                          <p className="text-xs text-yellow-600 dark:text-yellow-400 font-medium">
+                            #{champion.rank}
+                          </p>
+                          <p className="text-xs text-gray-500">通关</p>
+                        </div>
+                      </div>
+                    ))}
+                    {hallOfFame.length > 5 && (
+                      <p className="text-center text-sm text-gray-500 py-2">
+                        已有 {hallOfFame.length} 位挑战者通关
+                      </p>
+                    )}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Right Column - Live Leaderboard */}
+          <div className="lg:col-span-2">
+            <Card>
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <CardTitle className="flex items-center gap-2">
+                    <Medal className="w-5 h-5 text-amber-500" />
+                    实时排行榜 TOP 10
+                  </CardTitle>
+                  {lastUpdate && (
+                    <span className="text-sm text-gray-500">
+                      更新于 {lastUpdate.toLocaleTimeString()}
+                    </span>
+                  )}
+                </div>
+              </CardHeader>
+              <CardContent>
+                {loading && participants.length === 0 ? (
+                  <div className="flex justify-center py-12">
+                    <Spinner className="w-8 h-8" />
+                  </div>
+                ) : participants.length === 0 ? (
+                  <div className="text-center py-12">
+                    <Trophy className="w-12 h-12 mx-auto mb-4 text-gray-400" />
+                    <p className="text-gray-500 dark:text-gray-400 mb-4">
+                      暂无参赛选手
+                    </p>
+                    <Link href="/challenge">
+                      <Button className="bg-amber-600 hover:bg-amber-700">
+                        成为第一个参赛者
+                      </Button>
+                    </Link>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {/* Header */}
+                    <div className="grid grid-cols-12 gap-4 px-4 py-2 text-sm font-medium text-gray-500 dark:text-gray-400 border-b">
+                      <div className="col-span-1 text-center">排名</div>
+                      <div className="col-span-4">选手</div>
+                      <div className="col-span-3 text-center">关卡</div>
+                      <div className="col-span-2 text-center">进度</div>
+                      <div className="col-span-2 text-right">净值</div>
+                    </div>
+
+                    {/* Participants */}
+                    {participants.map((p) => (
+                      <div
+                        key={p.id}
+                        className={`grid grid-cols-12 gap-4 px-4 py-4 rounded-lg border items-center ${
+                          p.rank <= 3
+                            ? 'bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-900/20 dark:to-orange-900/20 border-amber-200 dark:border-amber-800' 
+                            : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700'
+                        }`}
+                      >
+                        {/* Rank */}
+                        <div className="col-span-1 flex items-center justify-center">
+                          {getRankIcon(p.rank)}
+                        </div>
+
+                        {/* User Info */}
+                        <div className="col-span-4 flex items-center gap-3">
+                          <Avatar className="w-10 h-10">
+                            <AvatarFallback className="bg-gradient-to-br from-amber-500 to-orange-600 text-white font-bold">
+                              {p.userName[0]?.toUpperCase() || '?'}
+                            </AvatarFallback>
+                            {p.userAvatar && <AvatarImage src={p.userAvatar} />}
+                          </Avatar>
+                          <div>
+                            <p className="font-medium text-gray-900 dark:text-white">{p.userName}</p>
+                          </div>
+                        </div>
+
+                        {/* Level */}
+                        <div className="col-span-3 text-center">
+                          <Badge className="bg-amber-500">
+                            第{p.currentLevel}关
+                          </Badge>
+                          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                            {getLevelName(p.currentLevel)}
+                          </p>
+                        </div>
+
+                        {/* Progress */}
+                        <div className="col-span-2 text-center">
+                          <div className="flex items-center justify-center gap-2">
+                            <div className="w-16 h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+                              <div 
+                                className={`h-full rounded-full ${p.progress >= 50 ? 'bg-green-500' : 'bg-amber-500'}`}
+                                style={{ width: `${p.progress}%` }}
+                              />
+                            </div>
+                            <span className="text-xs text-gray-500">{p.progress}%</span>
+                          </div>
+                        </div>
+
+                        {/* Equity */}
+                        <div className="col-span-2 text-right">
+                          <div className="flex items-center justify-end gap-1">
+                            {p.equity >= 1000 ? (
+                              <TrendingUp className="w-4 h-4 text-green-500" />
+                            ) : (
+                              <TrendingDown className="w-4 h-4 text-red-500" />
+                            )}
+                            <span className={`font-bold ${p.equity >= 1000 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
+                              ${p.equity.toLocaleString()}
+                            </span>
+                          </div>
+                          {allowViewDetail && (
+                            <Button 
+                              size="sm" 
+                              variant="ghost" 
+                              className="mt-1 text-xs h-6"
+                              onClick={() => router.push(`/challenge/hall/detail?id=${p.id}`)}
+                            >
+                              <Eye className="w-3 h-3 mr-1" />
+                              详情
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+        </div>
       </div>
     </div>
   );

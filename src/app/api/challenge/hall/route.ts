@@ -179,9 +179,58 @@ export async function GET() {
       }
     }
 
+    // 获取名人堂数据（已完成挑战的用户）
+    const { data: completedRegistrations } = await supabase
+      .from('challenge_registrations')
+      .select('*')
+      .eq('status', 'completed')
+      .order('completed_at', { ascending: true });
+
+    // 获取已通关用户的头像和昵称
+    const completedUserIds = completedRegistrations
+      ?.filter(r => r.user_id)
+      .map(r => r.user_id) || [];
+
+    let completedUserInfoMap: Record<string, { name: string | null; avatar: string | null }> = {};
+    if (completedUserIds.length > 0) {
+      try {
+        const completedUsersData = await db
+          .select({
+            userId: users.userId,
+            name: users.name,
+            avatar: users.avatar,
+          })
+          .from(users)
+          .where(inArray(users.userId, completedUserIds));
+
+        for (const user of completedUsersData) {
+          completedUserInfoMap[user.userId] = {
+            name: user.name,
+            avatar: user.avatar,
+          };
+        }
+      } catch (dbErr) {
+        console.error('MySQL query error for completed users:', dbErr);
+      }
+    }
+
+    // 构建名人堂数据
+    const hallOfFame = (completedRegistrations || []).map((reg, index) => {
+      const userInfo = completedUserInfoMap[reg.user_id] || { name: null, avatar: null };
+      return {
+        rank: index + 1,
+        userId: reg.user_id,
+        userName: userInfo.name || reg.user_id.substring(0, 8),
+        userAvatar: userInfo.avatar || null,
+        completedAt: reg.completed_at,
+        totalDuration: reg.total_duration,
+      };
+    });
+
     return NextResponse.json({
       success: true,
       data: top10,
+      hallOfFame,
       config: configMap,
     });
   } catch (error) {

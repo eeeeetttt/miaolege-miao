@@ -32,7 +32,9 @@ import {
   TrendingUp,
   Crown,
   Star,
-  Ban
+  Ban,
+  MessageSquare,
+  Lightbulb,
 } from 'lucide-react';
 
 interface UserInfo {
@@ -654,7 +656,45 @@ export default function UserCenterPage() {
                   )}
                 </CardContent>
               </Card>
-              */}
+
+              {/* 投诉和建议入口 */}
+              <Card className="lg:col-span-2">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <MessageSquare className="w-5 h-5 text-red-500" />
+                    意见反馈
+                  </CardTitle>
+                  <CardDescription>
+                    有问题或建议？我们随时为您服务
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <a href="/complaint" className="block">
+                      <div className="flex items-center gap-4 p-4 bg-red-50 dark:bg-red-900/20 rounded-lg hover:bg-red-100 dark:hover:bg-red-900/30 transition-colors cursor-pointer">
+                        <div className="w-12 h-12 bg-red-100 dark:bg-red-900/30 rounded-full flex items-center justify-center">
+                          <MessageSquare className="w-6 h-6 text-red-600" />
+                        </div>
+                        <div>
+                          <p className="font-semibold">意见投诉</p>
+                          <p className="text-sm text-gray-500">提交您遇到的问题</p>
+                        </div>
+                      </div>
+                    </a>
+                    <a href="/suggestion" className="block">
+                      <div className="flex items-center gap-4 p-4 bg-amber-50 dark:bg-amber-900/20 rounded-lg hover:bg-amber-100 dark:hover:bg-amber-900/30 transition-colors cursor-pointer">
+                        <div className="w-12 h-12 bg-amber-100 dark:bg-amber-900/30 rounded-full flex items-center justify-center">
+                          <Lightbulb className="w-6 h-6 text-amber-600" />
+                        </div>
+                        <div>
+                          <p className="font-semibold">意见建议</p>
+                          <p className="text-sm text-gray-500">提出您的宝贵建议</p>
+                        </div>
+                      </div>
+                    </a>
+                  </div>
+                </CardContent>
+              </Card>
             </div>
           </TabsContent>
 
