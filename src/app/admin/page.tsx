@@ -126,9 +126,7 @@ export default function AdminDashboardPage() {
     slug: '',
     content: '',
     category: 'general',
-    sortOrder: 0,
     status: 'published' as 'published' | 'draft',
-    publishedAt: '',
   });
 
   // 充值审核状态
@@ -328,9 +326,7 @@ export default function AdminDashboardPage() {
       slug: doc.slug,
       content: doc.content,
       category: doc.category || 'general',
-      sortOrder: doc.sortOrder || 0,
       status: doc.status || 'published',
-      publishedAt: doc.publishedAt ? new Date(doc.publishedAt).toISOString().split('T')[0] : '',
     });
   };
 
@@ -341,9 +337,7 @@ export default function AdminDashboardPage() {
       slug: '',
       content: '',
       category: 'general',
-      sortOrder: 0,
       status: 'published',
-      publishedAt: new Date().toISOString().split('T')[0],
     });
   };
 
