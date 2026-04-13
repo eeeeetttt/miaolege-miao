@@ -272,14 +272,26 @@ export default function ChallengeAdminPage() {
 
       const data = await res.json();
       if (res.ok && data.success) {
-        // 更新本地状态，保留原始 id
-        setLevelConfigs(prev => prev.map(l => 
-          l.level === editingLevel.level ? { 
-            ...l, 
+        // 检查是否已存在该关卡
+        const existingIndex = levelConfigs.findIndex(l => l.level === editingLevel.level);
+        
+        if (existingIndex >= 0) {
+          // 更新已存在的关卡
+          setLevelConfigs(prev => prev.map(l => 
+            l.level === editingLevel.level ? { 
+              ...l, 
+              ...levelForm,
+            } : l
+          ));
+        } else {
+          // 添加新关卡
+          setLevelConfigs(prev => [...prev, {
+            id: editingLevel.level,
+            level: editingLevel.level,
             ...levelForm,
-            id: l.id, // 保留原始 id
-          } : l
-        ));
+          }]);
+        }
+        
         setLevelDialogOpen(false);
         alert('关卡配置已保存');
       } else {

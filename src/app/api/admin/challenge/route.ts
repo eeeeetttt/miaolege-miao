@@ -242,14 +242,18 @@ export async function POST(request: Request) {
       return NextResponse.json({ success: true, message: '比赛说明已保存' });
     }
 
-    // updateLevelConfig - 更新关卡配置
+    // updateLevelConfig - 更新关卡配置（使用 upsert）
     if (action === 'updateLevelConfig') {
       const { level, name, description, targetBalance, initialBalance, failBalance, reward } = body;
       if (!level) {
         return NextResponse.json({ error: '缺少关卡参数' }, { status: 400 });
       }
 
-      const updateData: Record<string, unknown> = {};
+      const updateData: Record<string, unknown> = {
+        level,
+        is_active: true,
+        updated_at: new Date().toISOString(),
+      };
       if (name !== undefined) updateData.name = name;
       if (description !== undefined) updateData.description = description;
       if (targetBalance !== undefined) updateData.target_balance = targetBalance;
@@ -257,14 +261,14 @@ export async function POST(request: Request) {
       if (failBalance !== undefined) updateData.fail_balance = failBalance;
       if (reward !== undefined) updateData.reward = reward;
 
-      const { error: updateError } = await supabase
+      // 使用 upsert 插入或更新记录
+      const { error: upsertError } = await supabase
         .from('challenge_level_config')
-        .update(updateData)
-        .eq('level', level);
+        .upsert(updateData, { onConflict: 'level' });
 
-      if (updateError) {
-        console.error('Update level config error:', updateError);
-        return NextResponse.json({ error: '关卡配置更新失败' }, { status: 500 });
+      if (upsertError) {
+        console.error('Upsert level config error:', upsertError);
+        return NextResponse.json({ error: '关卡配置保存失败', details: upsertError.message }, { status: 500 });
       }
 
       return NextResponse.json({ success: true, message: '关卡配置已保存' });
