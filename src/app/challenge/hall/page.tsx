@@ -38,6 +38,7 @@ export default function ChallengeHallPage() {
   const [participants, setParticipants] = useState<Participant[]>([]);
   const [loading, setLoading] = useState(true);
   const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
+  const [allowViewDetail, setAllowViewDetail] = useState(true);
 
   const fetchData = async () => {
     try {
@@ -45,6 +46,7 @@ export default function ChallengeHallPage() {
       const data = await res.json();
       if (data.success) {
         setParticipants(data.data || []);
+        setAllowViewDetail(data.config?.allow_view_detail !== 'false');
         setLastUpdate(new Date());
       }
     } catch (err) {
@@ -219,15 +221,17 @@ export default function ChallengeHallPage() {
                           ${p.equity.toLocaleString()}
                         </span>
                       </div>
-                      <Button 
-                        size="sm" 
-                        variant="ghost" 
-                        className="mt-1 text-xs h-6"
-                        onClick={() => router.push(`/challenge/hall/detail?id=${p.id}`)}
-                      >
-                        <Eye className="w-3 h-3 mr-1" />
-                        详情
-                      </Button>
+                      {allowViewDetail && (
+                        <Button 
+                          size="sm" 
+                          variant="ghost" 
+                          className="mt-1 text-xs h-6"
+                          onClick={() => router.push(`/challenge/hall/detail?id=${p.id}`)}
+                        >
+                          <Eye className="w-3 h-3 mr-1" />
+                          详情
+                        </Button>
+                      )}
                     </div>
                   </div>
                 ))}

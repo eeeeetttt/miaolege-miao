@@ -23,6 +23,7 @@ async function ensureDefaultConfig(supabase: NonNullable<ReturnType<typeof getSu
         { config_key: 'profit_target', config_value: '1000', description: '通关盈利目标' },
         { config_key: 'show_leaderboard', config_value: 'true', description: '是否显示挑战进度榜' },
         { config_key: 'completion_reward', config_value: '100000', description: '通关奖励金额（U）' },
+        { config_key: 'allow_view_detail', config_value: 'true', description: '是否允许查看选手详情' },
       ];
       await supabase.from('challenge_config').insert(defaultConfigs);
     }

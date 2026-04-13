@@ -771,6 +771,23 @@ export default function ChallengeAdminPage() {
                 </SelectContent>
               </Select>
             </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="allowViewDetail">选手详情查看</Label>
+              <Select
+                defaultValue={config.allow_view_detail || 'true'}
+                onValueChange={(value) => handleUpdateConfig('allow_view_detail', value)}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="true">允许</SelectItem>
+                  <SelectItem value="false">禁止</SelectItem>
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-gray-500">控制排行榜是否显示选手详情按钮</p>
+            </div>
             
             <div className="space-y-2">
               <Label htmlFor="failBalance">失败底线净值</Label>

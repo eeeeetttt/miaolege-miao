@@ -166,9 +166,23 @@ export async function GET() {
       rank: index + 1,
     }));
 
+    // 获取配置
+    const { data: configData } = await supabase
+      .from('challenge_config')
+      .select('config_key, config_value')
+      .in('config_key', ['allow_view_detail', 'show_leaderboard']);
+
+    const configMap: Record<string, string> = {};
+    if (configData) {
+      for (const c of configData) {
+        configMap[c.config_key] = c.config_value;
+      }
+    }
+
     return NextResponse.json({
       success: true,
       data: top10,
+      config: configMap,
     });
   } catch (error) {
     console.error('Get hall data error:', error);

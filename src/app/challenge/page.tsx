@@ -148,6 +148,7 @@ export default function ChallengePage() {
   const isRejected = registrationStatus === 'rejected';
   const isPending = registrationStatus === 'pending';
   const isApproved = registrationStatus === 'approved';
+  const isLevelPassed = registrationStatus === 'level_passed';
   const completedCount = completedLevels.length;
 
   // 获取比赛说明内容
@@ -206,29 +207,40 @@ export default function ChallengePage() {
               <div className={styles.activeChallenge}>
                 <div className={styles.activeHeader}>
                   <span className={styles.levelBadge}>第{currentLevel}关</span>
-                  <span className={styles.challengeTitle}>挑战进行中</span>
-                </div>
-                
-                <div className={styles.accountInfo}>
-                  <i className="fas fa-server"></i>
-                  {equityData?.serverName ? `${equityData.serverName} - ` : ''}
-                  {equityData?.accountNumber || '待分配'}
-                </div>
-
-                <div className={styles.balanceDisplay}>
-                  <span className={styles.balanceLabel}>当前净值</span>
-                  <span className={styles.balanceValue}>
-                    {equityData?.equity !== null && equityData?.equity !== undefined ? (
-                      `$${equityData.equity.toFixed(2)}`
-                    ) : (
-                      equityData?.equitySource === 'no_account' ? '待分配' : '加载中...'
-                    )}
+                  <span className={styles.challengeTitle}>
+                    {isLevelPassed ? '恭喜过关' : '挑战进行中'}
                   </span>
                 </div>
+                
+                {isLevelPassed ? (
+                  <div className={styles.statusMessage}>
+                    <i className="fas fa-check-circle"></i>
+                    <span>审核中，请等待管理员开启下一关...</span>
+                  </div>
+                ) : (
+                  <>
+                    <div className={styles.accountInfo}>
+                      <i className="fas fa-server"></i>
+                      {equityData?.serverName ? `${equityData.serverName} - ` : ''}
+                      {equityData?.accountNumber || '待分配'}
+                    </div>
 
-                <div className={styles.progressInfo}>
-                  已完成 {completedCount}/10 关
-                </div>
+                    <div className={styles.balanceDisplay}>
+                      <span className={styles.balanceLabel}>当前净值</span>
+                      <span className={styles.balanceValue}>
+                        {equityData?.equity !== null && equityData?.equity !== undefined ? (
+                          `$${equityData.equity.toFixed(2)}`
+                        ) : (
+                          equityData?.equitySource === 'no_account' ? '待分配' : '加载中...'
+                        )}
+                      </span>
+                    </div>
+
+                    <div className={styles.progressInfo}>
+                      已完成 {completedCount}/10 关
+                    </div>
+                  </>
+                )}
               </div>
             )}
 
