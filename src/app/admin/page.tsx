@@ -46,6 +46,7 @@ import {
   X,
   MessageSquare,
   Lightbulb,
+  Bot,
 } from 'lucide-react';
 
 // 系统配置
@@ -128,6 +129,7 @@ export default function AdminDashboardPage() {
     category: 'general',
     sortOrder: 0,
     status: 'published' as 'published' | 'draft',
+    publishedAt: '',
   });
 
   // 充值审核状态
@@ -329,6 +331,7 @@ export default function AdminDashboardPage() {
       category: doc.category || 'general',
       sortOrder: doc.sortOrder || 0,
       status: doc.status || 'published',
+      publishedAt: doc.publishedAt ? new Date(doc.publishedAt).toISOString().slice(0, 16) : '',
     });
   };
 
@@ -341,6 +344,7 @@ export default function AdminDashboardPage() {
       category: 'general',
       sortOrder: 0,
       status: 'published',
+      publishedAt: '',
     });
   };
 
@@ -861,6 +865,10 @@ export default function AdminDashboardPage() {
             <TabsTrigger value="challenge" className="flex items-center gap-2" onClick={() => router.push('/admin/challenge')}>
               <TrendingUp className="w-4 h-4" />
               K线征途
+            </TabsTrigger>
+            <TabsTrigger value="virtual" className="flex items-center gap-2">
+              <Bot className="w-4 h-4" />
+              虚拟用户
             </TabsTrigger>
             <TabsTrigger value="ea" className="flex items-center gap-2">
               <FileCode className="w-4 h-4" />
@@ -1519,6 +1527,9 @@ export default function AdminDashboardPage() {
                             </div>
                             <p className="text-sm text-gray-500 mt-1">
                               /{doc.slug} · {doc.viewCount || 0} 次浏览
+                              {doc.publishedAt && (
+                                <span className="ml-2">· 发布日期: {new Date(doc.publishedAt).toLocaleDateString('zh-CN')}</span>
+                              )}
                             </p>
                           </div>
                           <div className="flex items-center gap-2">
@@ -1747,6 +1758,11 @@ export default function AdminDashboardPage() {
               </CardContent>
             </Card>
           </TabsContent>
+
+          {/* 虚拟用户 Tab */}
+          <TabsContent value="virtual">
+            <VirtualUserManagement />
+          </TabsContent>
         </Tabs>
 
         {/* 用户编辑弹窗 */}
@@ -1878,6 +1894,18 @@ export default function AdminDashboardPage() {
                   </div>
                 </div>
 
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>发布日期（可选）</Label>
+                    <Input
+                      type="datetime-local"
+                      value={docForm.publishedAt}
+                      onChange={(e) => setDocForm({ ...docForm, publishedAt: e.target.value })}
+                    />
+                    <p className="text-xs text-gray-500">留空则使用创建时间</p>
+                  </div>
+                </div>
+
                 <div className="space-y-2">
                   <Label>内容 (Markdown)</Label>
                   <textarea
@@ -1968,3 +1996,294 @@ export default function AdminDashboardPage() {
     </div>
   );
 }
+
+// 虚拟用户管理组件
+function VirtualUserManagement() {
+  const [virtualUsers, setVirtualUsers] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [editingUser, setEditingUser] = useState<any>(null);
+  const [saving, setSaving] = useState(false);
+  const [formData, setFormData] = useState({
+    name: '',
+    avatar: '',
+    level: 1,
+    equity: 1000,
+    progress: 50,
+    isActive: true,
+  });
+
+  const fetchVirtualUsers = async () => {
+    try {
+      const res = await fetch('/api/admin/virtual-participant');
+      const data = await res.json();
+      if (data.success) {
+        setVirtualUsers(data.data || []);
+      }
+    } catch (err) {
+      console.error('Failed to fetch virtual users:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchVirtualUsers();
+  }, []);
+
+  const handleAdd = () => {
+    setEditingUser(null);
+    setFormData({
+      name: '',
+      avatar: '',
+      level: 1,
+      equity: 1000,
+      progress: 50,
+      isActive: true,
+    });
+    setDialogOpen(true);
+  };
+
+  const handleEdit = (user: any) => {
+    setEditingUser(user);
+    setFormData({
+      name: user.name,
+      avatar: user.avatar || '',
+      level: user.level,
+      equity: user.equity,
+      progress: user.progress,
+      isActive: user.is_active === 1,
+    });
+    setDialogOpen(true);
+  };
+
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      const url = editingUser
+        ? '/api/admin/virtual-participant'
+        : '/api/admin/virtual-participant';
+      const method = editingUser ? 'PUT' : 'POST';
+      const body = editingUser
+        ? { id: editingUser.id, ...formData }
+        : formData;
+
+      const res = await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setDialogOpen(false);
+        fetchVirtualUsers();
+      } else {
+        alert(data.error || '保存失败');
+      }
+    } catch (err) {
+      console.error('Save error:', err);
+      alert('保存失败');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleDelete = async (id: number) => {
+    if (!confirm('确定要删除这个虚拟用户吗？')) return;
+    try {
+      const res = await fetch(`/api/admin/virtual-participant?id=${id}`, {
+        method: 'DELETE',
+      });
+      const data = await res.json();
+      if (data.success) {
+        fetchVirtualUsers();
+      } else {
+        alert(data.error || '删除失败');
+      }
+    } catch (err) {
+      console.error('Delete error:', err);
+      alert('删除失败');
+    }
+  };
+
+  const getLevelName = (level: number) => {
+    const names = ['', '初出茅庐', '小试牛刀', '渐入佳境', '炉火纯青'];
+    return names[level] || `第${level}关`;
+  };
+
+  return (
+    <div className="space-y-4">
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle className="flex items-center gap-2">
+                <Bot className="w-5 h-5" />
+                虚拟用户管理
+              </CardTitle>
+              <CardDescription>
+                管理排行榜中的虚拟用户数据，用于填充排行榜展示
+              </CardDescription>
+            </div>
+            <Button onClick={handleAdd}>
+              <Plus className="w-4 h-4 mr-2" />
+              添加虚拟用户
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent>
+          {loading ? (
+            <div className="flex justify-center py-12">
+              <Spinner className="w-8 h-8" />
+            </div>
+          ) : virtualUsers.length === 0 ? (
+            <div className="text-center py-12">
+              <Bot className="w-12 h-12 mx-auto mb-4 text-gray-400" />
+              <p className="text-gray-500">暂无虚拟用户</p>
+              <p className="text-sm text-gray-400 mt-1">添加虚拟用户可以填充排行榜展示</p>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead>
+                  <tr className="border-b">
+                    <th className="text-left py-3 px-4 font-medium">名称</th>
+                    <th className="text-left py-3 px-4 font-medium">关卡</th>
+                    <th className="text-left py-3 px-4 font-medium">净值</th>
+                    <th className="text-left py-3 px-4 font-medium">进度</th>
+                    <th className="text-left py-3 px-4 font-medium">状态</th>
+                    <th className="text-right py-3 px-4 font-medium">操作</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {virtualUsers.map((user) => (
+                    <tr key={user.id} className="border-b hover:bg-gray-50 dark:hover:bg-gray-800">
+                      <td className="py-3 px-4">
+                        <div className="flex items-center gap-2">
+                          <Avatar className="w-8 h-8">
+                            <AvatarFallback className="bg-gradient-to-br from-blue-500 to-purple-600 text-white">
+                              <Bot className="w-4 h-4" />
+                            </AvatarFallback>
+                            {user.avatar && <AvatarImage src={user.avatar} />}
+                          </Avatar>
+                          <span>{user.name}</span>
+                        </div>
+                      </td>
+                      <td className="py-3 px-4">
+                        <Badge className="bg-amber-500">第{user.level}关</Badge>
+                        <p className="text-xs text-gray-500 mt-1">{getLevelName(user.level)}</p>
+                      </td>
+                      <td className="py-3 px-4 font-mono">${user.equity}</td>
+                      <td className="py-3 px-4">
+                        <div className="flex items-center gap-2">
+                          <div className="w-16 h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+                            <div
+                              className="h-full bg-green-500 rounded-full"
+                              style={{ width: `${user.progress}%` }}
+                            />
+                          </div>
+                          <span className="text-sm">{user.progress}%</span>
+                        </div>
+                      </td>
+                      <td className="py-3 px-4">
+                        <Badge variant={user.is_active === 1 ? 'default' : 'secondary'}>
+                          {user.is_active === 1 ? '启用' : '禁用'}
+                        </Badge>
+                      </td>
+                      <td className="py-3 px-4 text-right">
+                        <Button size="sm" variant="ghost" onClick={() => handleEdit(user)}>
+                          <Edit className="w-4 h-4" />
+                        </Button>
+                        <Button size="sm" variant="ghost" onClick={() => handleDelete(user.id)} className="text-red-500">
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* 添加/编辑弹窗 */}
+      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{editingUser ? '编辑虚拟用户' : '添加虚拟用户'}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label>名称</Label>
+              <Input
+                value={formData.name}
+                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                placeholder="输入虚拟用户名称"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>头像URL（可选）</Label>
+              <Input
+                value={formData.avatar}
+                onChange={(e) => setFormData({ ...formData, avatar: e.target.value })}
+                placeholder="输入头像URL"
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>关卡</Label>
+                <Input
+                  type="number"
+                  min={1}
+                  max={4}
+                  value={formData.level}
+                  onChange={(e) => setFormData({ ...formData, level: parseInt(e.target.value) || 1 })}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>净值</Label>
+                <Input
+                  type="number"
+                  value={formData.equity}
+                  onChange={(e) => setFormData({ ...formData, equity: parseFloat(e.target.value) || 1000 })}
+                />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label>进度 ({formData.progress}%)</Label>
+              <input
+                type="range"
+                min={0}
+                max={100}
+                value={formData.progress}
+                onChange={(e) => setFormData({ ...formData, progress: parseInt(e.target.value) })}
+                className="w-full"
+              />
+            </div>
+            <div className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                id="isActive"
+                checked={formData.isActive}
+                onChange={(e) => setFormData({ ...formData, isActive: e.target.checked })}
+              />
+              <Label htmlFor="isActive">启用</Label>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDialogOpen(false)}>
+              取消
+            </Button>
+            <Button onClick={handleSave} disabled={saving || !formData.name}>
+              {saving ? <Spinner className="w-4 h-4 mr-2" /> : null}
+              保存
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+
+export default AdminDashboardPage;

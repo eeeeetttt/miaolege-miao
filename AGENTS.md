@@ -35,6 +35,9 @@
 - `GET /api/challenge/balance` - 获取当前账户净值
 - `GET/POST /api/challenge/hall-of-fame` - 名人堂
 - `GET/POST /api/admin/challenge` - 后台管理接口
+- `GET /api/challenge/leaderboard` - 获取排行榜（支持虚拟用户填充）
+- `POST /api/challenge/leaderboard` - 更新排行榜缓存（定时任务调用）
+- `GET/POST/PUT/DELETE /api/admin/virtual-participant` - 虚拟用户管理
 
 #### 数据库表
 - `challenge_registrations` - 挑战赛报名表
@@ -43,6 +46,20 @@
 - `challenge_hall_of_fame` - 名人堂表
 - `challenge_level_records` - 关卡记录表
 - `mt_accounts` - MT交易账户表
+
+#### 排行榜功能
+- **虚拟用户填充**：排行榜支持虚拟用户填充，真实用户优先展示
+- **排序规则**：真实用户 → 关卡降序 → 净值降序
+- **定时更新**：排行榜每日晚上8点自动更新
+- **虚拟用户标识**：虚拟用户显示蓝色机器人图标和"虚拟"标签
+
+#### 虚拟用户管理（Supabase PostgreSQL）
+- `virtual_participants` - 虚拟用户表
+  - name: 用户名称
+  - level: 所在关卡（1-4）
+  - equity: 当前净值
+  - progress: 进度百分比
+  - is_active: 是否启用
 
 #### 状态说明
 - `pending` - 待审核
