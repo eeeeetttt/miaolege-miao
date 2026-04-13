@@ -1,8 +1,8 @@
 import { NextResponse } from 'next/server';
 import { getSupabaseClient } from '@/storage/database/supabase-client';
 import { db } from '@/lib/db';
-import { users } from '@/lib/schema';
-import { eq, inArray } from 'drizzle-orm';
+import { users, signals } from '@/lib/schema';
+import { eq, desc } from 'drizzle-orm';
 
 interface EquityRecord {
   recorded_at: string;
@@ -132,33 +132,32 @@ export async function GET(request: Request) {
       // 忽略解析错误
     }
 
-    // 尝试获取交易历史单子（如果表存在）
+    // 从MySQL的signals表获取交易历史单子
     const tradeHistory: TradeRecord[] = [];
     try {
-      const { data: tradesData } = await supabase
-        .from('mt_account_trades')
-        .select('ticket, symbol, type, volume, open_price, close_price, profit, open_time, close_time')
-        .eq('account_number', tradingAccount)
-        .order('close_time', { ascending: false })
+      const allSignals = await db
+        .select()
+        .from(signals)
+        .where(eq(signals.senderAccount, tradingAccount || ''))
+        .orderBy(desc(signals.createdAt))
         .limit(100);
 
-      if (tradesData) {
-        for (const trade of tradesData) {
-          tradeHistory.push({
-            ticket: trade.ticket,
-            symbol: trade.symbol,
-            type: trade.type,
-            volume: parseFloat(String(trade.volume)),
-            open_price: parseFloat(String(trade.open_price)),
-            close_price: parseFloat(String(trade.close_price)),
-            profit: parseFloat(String(trade.profit)),
-            open_time: trade.open_time,
-            close_time: trade.close_time,
-          });
-        }
+      for (const signal of allSignals) {
+        tradeHistory.push({
+          ticket: signal.ticket || 0,
+          symbol: signal.symbol || '',
+          type: signal.signalType === 'buy' ? 'buy' : (signal.signalType === 'sell' ? 'sell' : signal.signalType || ''),
+          volume: signal.volume ? parseFloat(String(signal.volume)) : 0,
+          open_price: signal.price ? parseFloat(String(signal.price)) : 0,
+          close_price: signal.dealProfit ? parseFloat(String(signal.dealProfit)) : 0,
+          profit: signal.dealProfit ? parseFloat(String(signal.dealProfit)) : 0,
+          open_time: signal.createdAt ? String(signal.createdAt) : '',
+          close_time: signal.createdAt ? String(signal.createdAt) : '',
+        });
       }
-    } catch {
-      // 表可能不存在，忽略错误
+    } catch (tradeErr) {
+      console.error('获取交易历史失败:', tradeErr);
+      // 忽略错误，保持tradeHistory为空数组
     }
 
     // 按关卡分段净值数据
