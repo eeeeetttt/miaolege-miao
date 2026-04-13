@@ -27,27 +27,32 @@ async function ensureDefaultConfig(supabase: NonNullable<ReturnType<typeof getSu
       await supabase.from('challenge_config').insert(defaultConfigs);
     }
   
-    // 检查关卡配置是否存在
-    const { data: levelRows } = await supabase
-      .from('challenge_level_config')
-      .select('level')
-      .limit(1);
+    // 检查并确保所有10个关卡都存在
+    const defaultLevels = [
+      { level: 1, name: '启念', description: '开始你的交易之旅', target_balance: 6000, initial_balance: 1000, fail_balance: 1800, reward: '继续挑战', is_active: 1 },
+      { level: 2, name: '立规', description: '建立交易规则', target_balance: 10000, initial_balance: 1000, fail_balance: 1500, reward: '继续挑战', is_active: 1 },
+      { level: 3, name: '守戒', description: '遵守交易纪律', target_balance: 20000, initial_balance: 1000, fail_balance: 3000, reward: '继续挑战', is_active: 1 },
+      { level: 4, name: '忍痛', description: '学会止损止盈', target_balance: 20000, initial_balance: 1000, fail_balance: 3000, reward: '继续挑战', is_active: 1 },
+      { level: 5, name: '止喜', description: '控制情绪波动', target_balance: 20000, initial_balance: 1000, fail_balance: 3000, reward: '继续挑战', is_active: 1 },
+      { level: 6, name: '观己', description: '认识自我弱点', target_balance: 20000, initial_balance: 1000, fail_balance: 3000, reward: '继续挑战', is_active: 1 },
+      { level: 7, name: '破执', description: '突破固有思维', target_balance: 20000, initial_balance: 1000, fail_balance: 3000, reward: '继续挑战', is_active: 1 },
+      { level: 8, name: '随势', description: '顺势而为', target_balance: 20000, initial_balance: 1000, fail_balance: 3000, reward: '继续挑战', is_active: 1 },
+      { level: 9, name: '忘我', description: '达到交易境界', target_balance: 20000, initial_balance: 1000, fail_balance: 3000, reward: '继续挑战', is_active: 1 },
+      { level: 10, name: '得道', description: '完成终极挑战', target_balance: 20000, initial_balance: 1000, fail_balance: 3000, reward: '通关大奖', is_active: 1 },
+    ];
 
-    // 如果没有关卡配置，初始化默认关卡
-    if (!levelRows || levelRows.length === 0) {
-      const defaultLevels = [
-        { level: 1, name: '启念', description: '开始你的交易之旅', target_balance: 6000, initial_balance: 1000, fail_balance: 1800, reward: '继续挑战', is_active: 1 },
-        { level: 2, name: '立规', description: '建立交易规则', target_balance: 10000, initial_balance: 1000, fail_balance: 1500, reward: '继续挑战', is_active: 1 },
-        { level: 3, name: '守戒', description: '遵守交易纪律', target_balance: 20000, initial_balance: 1000, fail_balance: 3000, reward: '继续挑战', is_active: 1 },
-        { level: 4, name: '忍痛', description: '学会止损止盈', target_balance: 20000, initial_balance: 1000, fail_balance: 3000, reward: '继续挑战', is_active: 1 },
-        { level: 5, name: '止喜', description: '控制情绪波动', target_balance: 20000, initial_balance: 1000, fail_balance: 3000, reward: '继续挑战', is_active: 1 },
-        { level: 6, name: '观己', description: '认识自我弱点', target_balance: 20000, initial_balance: 1000, fail_balance: 3000, reward: '继续挑战', is_active: 1 },
-        { level: 7, name: '破执', description: '突破固有思维', target_balance: 20000, initial_balance: 1000, fail_balance: 3000, reward: '继续挑战', is_active: 1 },
-        { level: 8, name: '随势', description: '顺势而为', target_balance: 20000, initial_balance: 1000, fail_balance: 3000, reward: '继续挑战', is_active: 1 },
-        { level: 9, name: '忘我', description: '达到交易境界', target_balance: 20000, initial_balance: 1000, fail_balance: 3000, reward: '继续挑战', is_active: 1 },
-        { level: 10, name: '得道', description: '完成终极挑战', target_balance: 20000, initial_balance: 1000, fail_balance: 3000, reward: '通关大奖', is_active: 1 },
-      ];
-      await supabase.from('challenge_level_config').insert(defaultLevels);
+    // 获取现有关卡
+    const { data: existingLevels } = await supabase
+      .from('challenge_level_config')
+      .select('level');
+
+    const existingLevelSet = new Set(existingLevels?.map(l => l.level) || []);
+
+    // 插入缺失的关卡
+    for (const levelConfig of defaultLevels) {
+      if (!existingLevelSet.has(levelConfig.level)) {
+        await supabase.from('challenge_level_config').insert(levelConfig);
+      }
     }
   } catch (error) {
     console.error('初始化默认配置失败:', error);
@@ -114,7 +119,7 @@ export async function GET(request: Request) {
     const { data: levelRows, error: levelError } = await supabase
       .from('challenge_level_config')
       .select('level, name, description, target_balance, initial_balance, fail_balance, reward, is_active')
-      .eq('is_active', true)
+      .eq('is_active', 1)  // 数据库字段为 integer 类型，使用 1
       .order('level');
 
     const levelConfigs = levelRows?.map(row => ({
