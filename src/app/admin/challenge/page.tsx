@@ -22,7 +22,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Spinner } from '@/components/ui/spinner';
-import { Check, X, RefreshCw, Settings, AlertCircle, ChevronDown, ChevronUp, Save, Edit3 } from 'lucide-react';
+import { Check, X, RefreshCw, Settings, AlertCircle, Edit3 } from 'lucide-react';
 
 interface ChallengeRegistration {
   registration: {
@@ -59,193 +59,133 @@ interface LevelConfig {
 
 interface LevelConfigCardProps {
   level: LevelConfig;
-  onSave: (level: LevelConfig) => Promise<void>;
-  onEditFull: () => void;
+  onEdit: () => void;
 }
 
-function LevelConfigCard({ level, onSave, onEditFull }: LevelConfigCardProps) {
-  const [isExpanded, setIsExpanded] = useState(false);
-  const [isSaving, setIsSaving] = useState(false);
-  const [form, setForm] = useState({
-    name: level.name,
-    initialBalance: typeof level.initialBalance === 'number' ? level.initialBalance : parseFloat(String(level.initialBalance)) || 1000,
-    targetBalance: typeof level.targetBalance === 'number' ? level.targetBalance : parseFloat(String(level.targetBalance)) || 2000,
-    failBalance: typeof level.failBalance === 'number' ? level.failBalance : parseFloat(String(level.failBalance)) || 100,
-    description: level.description || '',
-    reward: level.reward || '',
-  });
-  const [hasChanges, setHasChanges] = useState(false);
-
-  useEffect(() => {
-    const changed = 
-      form.name !== level.name ||
-      form.initialBalance !== (typeof level.initialBalance === 'number' ? level.initialBalance : parseFloat(String(level.initialBalance))) ||
-      form.targetBalance !== (typeof level.targetBalance === 'number' ? level.targetBalance : parseFloat(String(level.targetBalance))) ||
-      form.failBalance !== (typeof level.failBalance === 'number' ? level.failBalance : parseFloat(String(level.failBalance)));
-    setHasChanges(changed);
-  }, [form, level]);
-
-  const handleSave = async () => {
-    setIsSaving(true);
-    try {
-      await onSave({
-        ...level,
-        name: form.name,
-        initialBalance: form.initialBalance,
-        targetBalance: form.targetBalance,
-        failBalance: form.failBalance,
-        description: form.description,
-        reward: form.reward,
-      });
-      setHasChanges(false);
-    } finally {
-      setIsSaving(false);
-    }
-  };
-
-  const getProfitTarget = () => {
-    return form.targetBalance - form.initialBalance;
-  };
+function LevelConfigCard({ level, onEdit }: LevelConfigCardProps) {
+  const initialBalance = typeof level.initialBalance === 'number' ? level.initialBalance : parseFloat(String(level.initialBalance)) || 1000;
+  const targetBalance = typeof level.targetBalance === 'number' ? level.targetBalance : parseFloat(String(level.targetBalance)) || 2000;
+  const failBalance = typeof level.failBalance === 'number' ? level.failBalance : parseFloat(String(level.failBalance)) || 100;
+  const profitTarget = targetBalance - initialBalance;
+  
+  // 计算进度条位置：初始净值位置设为0%，目标净值为100%
+  // 失败底线用红色标记
+  const maxBalance = Math.max(targetBalance * 1.1, failBalance * 1.5);
+  const initialPos = (initialBalance / maxBalance) * 100;
+  const targetPos = (targetBalance / maxBalance) * 100;
+  const failPos = (failBalance / maxBalance) * 100;
 
   return (
-    <div className="border rounded-lg p-3 bg-white hover:shadow-md transition-all">
-      {/* 主行：关卡信息和核心参数 */}
-      <div className="flex items-center gap-3 flex-wrap">
+    <div 
+      className="border rounded-xl p-4 bg-white hover:shadow-lg transition-all cursor-pointer relative overflow-hidden group"
+      onClick={onEdit}
+    >
+      {/* 背景装饰 */}
+      <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-purple-50 to-transparent rounded-bl-full opacity-60 group-hover:opacity-80 transition-opacity" />
+      
+      {/* 主内容 */}
+      <div className="flex items-center gap-4 relative">
         {/* 关卡标识 */}
-        <div className="flex items-center gap-2 min-w-[80px]">
-          <span className="px-2 py-1 bg-purple-100 text-purple-700 font-bold text-sm rounded">
+        <div className="flex flex-col items-center min-w-[60px]">
+          <span className="px-3 py-1.5 bg-gradient-to-r from-purple-500 to-purple-600 text-white font-bold text-sm rounded-lg shadow-sm">
             第{level.level}关
           </span>
         </div>
 
         {/* 关卡名称 */}
-        <div className="flex-1 min-w-[120px]">
-          <Input
-            value={form.name}
-            onChange={(e) => setForm({ ...form, name: e.target.value })}
-            placeholder="关卡名称"
-            className="h-8 text-sm font-medium"
-          />
+        <div className="flex-1 min-w-[100px]">
+          <p className="font-semibold text-gray-800 group-hover:text-purple-600 transition-colors">
+            {level.name || '未命名'}
+          </p>
+          {level.description && (
+            <p className="text-xs text-gray-400 mt-0.5 truncate max-w-[150px]">{level.description}</p>
+          )}
         </div>
 
-        {/* 初始净值 */}
-        <div className="flex flex-col items-center min-w-[90px]">
-          <span className="text-xs text-gray-500 mb-1">初始净值</span>
-          <div className="flex items-center gap-1">
-            <span className="text-green-600 font-bold">$</span>
-            <Input
-              type="number"
-              value={form.initialBalance}
-              onChange={(e) => setForm({ ...form, initialBalance: parseFloat(e.target.value) || 0 })}
-              className="w-20 h-8 text-sm text-center font-medium"
+        {/* 净值可视化 */}
+        <div className="flex-1 min-w-[200px]">
+          <div className="relative h-8 bg-gray-100 rounded-full overflow-hidden">
+            {/* 盈利区域 */}
+            <div 
+              className="absolute top-0 left-0 h-full bg-gradient-to-r from-green-400 to-green-500 opacity-30"
+              style={{ width: `${targetPos}%` }}
             />
+            {/* 危险区域（失败底线以下） */}
+            <div 
+              className="absolute top-0 right-0 h-full bg-gradient-to-l from-red-400 to-transparent opacity-20"
+              style={{ width: `${100 - failPos}%` }}
+            />
+            
+            {/* 标记点 */}
+            <div className="absolute top-0 h-full flex items-center">
+              {/* 初始净值标记 */}
+              <div 
+                className="absolute w-0.5 h-10 bg-green-600 rounded-full shadow-sm"
+                style={{ left: `${initialPos}%` }}
+              />
+              {/* 目标净值标记 */}
+              <div 
+                className="absolute w-1 h-10 bg-amber-500 rounded-full shadow-sm"
+                style={{ left: `${targetPos}%` }}
+              />
+            </div>
+          </div>
+          
+          {/* 底部标签 */}
+          <div className="flex justify-between mt-1 text-xs">
+            <span className="text-green-600 font-medium">$初始</span>
+            <span className="text-amber-600 font-medium">$目标</span>
+            <span className="text-red-500 font-medium">$底线</span>
           </div>
         </div>
 
-        {/* 目标净值 */}
-        <div className="flex flex-col items-center min-w-[90px]">
-          <span className="text-xs text-gray-500 mb-1">目标净值</span>
-          <div className="flex items-center gap-1">
-            <span className="text-amber-600 font-bold">$</span>
-            <Input
-              type="number"
-              value={form.targetBalance}
-              onChange={(e) => setForm({ ...form, targetBalance: parseFloat(e.target.value) || 0 })}
-              className="w-20 h-8 text-sm text-center font-medium"
-            />
+        {/* 数值展示 */}
+        <div className="flex items-center gap-4">
+          <div className="text-center">
+            <p className="text-xs text-gray-400">初始净值</p>
+            <p className="font-bold text-green-600">${initialBalance.toLocaleString()}</p>
+          </div>
+          <div className="text-center">
+            <p className="text-xs text-gray-400">目标净值</p>
+            <p className="font-bold text-amber-600">${targetBalance.toLocaleString()}</p>
+          </div>
+          <div className="text-center">
+            <p className="text-xs text-gray-400">失败底线</p>
+            <p className="font-bold text-red-500">${failBalance.toLocaleString()}</p>
+          </div>
+          <div className="text-center px-3 py-1 bg-gradient-to-r from-green-50 to-emerald-50 rounded-lg border border-green-200">
+            <p className="text-xs text-gray-400">盈利目标</p>
+            <p className="font-bold text-green-600">+${profitTarget.toLocaleString()}</p>
           </div>
         </div>
 
-        {/* 失败底线 */}
-        <div className="flex flex-col items-center min-w-[90px]">
-          <span className="text-xs text-gray-500 mb-1">失败底线</span>
-          <div className="flex items-center gap-1">
-            <span className="text-red-500 font-bold">$</span>
-            <Input
-              type="number"
-              value={form.failBalance}
-              onChange={(e) => setForm({ ...form, failBalance: parseFloat(e.target.value) || 0 })}
-              className="w-20 h-8 text-sm text-center font-medium"
-            />
-          </div>
-        </div>
-
-        {/* 盈利目标预览 */}
-        <div className="flex flex-col items-center min-w-[80px]">
-          <span className="text-xs text-gray-500 mb-1">盈利目标</span>
-          <span className={`font-bold text-sm ${getProfitTarget() >= 0 ? 'text-green-600' : 'text-red-500'}`}>
-            ${getProfitTarget()}
-          </span>
-        </div>
-
-        {/* 操作按钮 */}
-        <div className="flex items-center gap-2">
-          <Button
-            size="sm"
-            onClick={handleSave}
-            disabled={!hasChanges || isSaving}
-            className={`h-8 ${hasChanges ? 'bg-green-600 hover:bg-green-700' : ''}`}
-          >
-            {isSaving ? (
-              <Spinner className="w-4 h-4" />
-            ) : (
-              <Save className="w-4 h-4" />
-            )}
-          </Button>
-          <Button
-            size="sm"
-            variant="ghost"
-            onClick={() => setIsExpanded(!isExpanded)}
-            className="h-8"
-          >
-            {isExpanded ? (
-              <ChevronUp className="w-4 h-4" />
-            ) : (
-              <ChevronDown className="w-4 h-4" />
-            )}
-          </Button>
-        </div>
+        {/* 编辑按钮 */}
+        <Button
+          size="sm"
+          variant="outline"
+          className="border-purple-200 text-purple-600 hover:bg-purple-50"
+          onClick={(e) => {
+            e.stopPropagation();
+            onEdit();
+          }}
+        >
+          <Edit3 className="w-4 h-4 mr-1" />
+          编辑
+        </Button>
       </div>
 
-      {/* 展开详情 */}
-      {isExpanded && (
-        <div className="mt-3 pt-3 border-t space-y-3">
-          {/* 描述 */}
-          <div className="space-y-1">
-            <Label className="text-xs text-gray-500">关卡描述</Label>
-            <Input
-              value={form.description}
-              onChange={(e) => setForm({ ...form, description: e.target.value })}
-              placeholder="描述该关卡的内容"
-              className="h-8 text-sm"
-            />
-          </div>
-
-          {/* 奖励 */}
-          <div className="space-y-1">
-            <Label className="text-xs text-gray-500">通关奖励</Label>
-            <Input
-              value={form.reward}
-              onChange={(e) => setForm({ ...form, reward: e.target.value })}
-              placeholder="例如：继续挑战、通关大奖"
-              className="h-8 text-sm"
-            />
-          </div>
-
-          {/* 高级编辑 */}
-          <div className="flex justify-end">
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={onEditFull}
-              className="h-8 text-xs"
-            >
-              <Edit3 className="w-3 h-3 mr-1" />
-              高级编辑
-            </Button>
-          </div>
+      {/* 奖励提示 */}
+      {level.reward && (
+        <div className="mt-3 pt-3 border-t border-dashed border-gray-200 flex items-center gap-2">
+          <span className="text-xs text-gray-400">通关奖励：</span>
+          <span className="text-xs font-medium text-purple-600 bg-purple-50 px-2 py-0.5 rounded">
+            {level.reward}
+          </span>
         </div>
       )}
+
+      {/* 悬停提示 */}
+      <div className="absolute inset-0 bg-purple-500 bg-opacity-0 group-hover:bg-opacity-5 transition-all rounded-xl pointer-events-none" />
     </div>
   );
 }
@@ -1027,36 +967,7 @@ export default function ChallengeAdminPage() {
               <LevelConfigCard
                 key={level.id}
                 level={level}
-                onSave={async (updatedLevel) => {
-                  // 更新本地状态
-                  setLevelConfigs(prev => prev.map(l => 
-                    l.level === updatedLevel.level ? { ...l, ...updatedLevel } : l
-                  ));
-                  // 调用API保存
-                  try {
-                    const res = await fetch('/api/admin/challenge', {
-                      method: 'POST',
-                      headers: { 'Content-Type': 'application/json' },
-                      body: JSON.stringify({
-                        action: 'updateLevelConfig',
-                        level: level.level,
-                        name: updatedLevel.name,
-                        description: updatedLevel.description,
-                        initialBalance: updatedLevel.initialBalance,
-                        targetBalance: updatedLevel.targetBalance,
-                        failBalance: updatedLevel.failBalance,
-                        reward: updatedLevel.reward,
-                      }),
-                    });
-                    const data = await res.json();
-                    if (!res.ok || !data.success) {
-                      alert(data.error || '保存失败');
-                    }
-                  } catch {
-                    alert('保存失败');
-                  }
-                }}
-                onEditFull={() => handleEditLevel(level)}
+                onEdit={() => handleEditLevel(level)}
               />
             ))}
           </div>
