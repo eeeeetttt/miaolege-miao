@@ -242,7 +242,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ success: true, message: '比赛说明已保存' });
     }
 
-    // updateLevelConfig - 更新关卡配置（使用 upsert）
+    // updateLevelConfig - 更新关卡配置（先更新，不存在则插入）
     if (action === 'updateLevelConfig') {
       const { level, name, description, targetBalance, initialBalance, failBalance, reward } = body;
       if (!level) {
@@ -250,9 +250,7 @@ export async function POST(request: Request) {
       }
 
       const updateData: Record<string, unknown> = {
-        level,
         is_active: true,
-        updated_at: new Date().toISOString(),
       };
       if (name !== undefined) updateData.name = name;
       if (description !== undefined) updateData.description = description;
@@ -261,14 +259,45 @@ export async function POST(request: Request) {
       if (failBalance !== undefined) updateData.fail_balance = failBalance;
       if (reward !== undefined) updateData.reward = reward;
 
-      // 使用 upsert 插入或更新记录
-      const { error: upsertError } = await supabase
+      // 先尝试更新
+      const { error: updateError } = await supabase
         .from('challenge_level_config')
-        .upsert(updateData, { onConflict: 'level' });
+        .update(updateData)
+        .eq('level', level);
 
-      if (upsertError) {
-        console.error('Upsert level config error:', upsertError);
-        return NextResponse.json({ error: '关卡配置保存失败', details: upsertError.message }, { status: 500 });
+      if (updateError) {
+        console.error('Update level config error:', updateError);
+        return NextResponse.json({ error: '关卡配置保存失败', details: updateError.message }, { status: 500 });
+      }
+
+      // 检查是否真的更新了（通过查询）
+      const { data: checkData } = await supabase
+        .from('challenge_level_config')
+        .select('level')
+        .eq('level', level)
+        .limit(1);
+
+      // 如果没有找到记录，说明不存在，需要插入
+      if (!checkData || checkData.length === 0) {
+        const insertData: Record<string, unknown> = {
+          level,
+          is_active: true,
+        };
+        if (name !== undefined) insertData.name = name;
+        if (description !== undefined) insertData.description = description;
+        if (targetBalance !== undefined) insertData.target_balance = targetBalance;
+        if (initialBalance !== undefined) insertData.initial_balance = initialBalance;
+        if (failBalance !== undefined) insertData.fail_balance = failBalance;
+        if (reward !== undefined) insertData.reward = reward;
+
+        const { error: insertError } = await supabase
+          .from('challenge_level_config')
+          .insert([insertData]);
+
+        if (insertError) {
+          console.error('Insert level config error:', insertError);
+          return NextResponse.json({ error: '关卡配置保存失败', details: insertError.message }, { status: 500 });
+        }
       }
 
       return NextResponse.json({ success: true, message: '关卡配置已保存' });
