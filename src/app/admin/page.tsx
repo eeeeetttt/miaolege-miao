@@ -128,6 +128,7 @@ export default function AdminDashboardPage() {
     category: 'general',
     sortOrder: 0,
     status: 'published' as 'published' | 'draft',
+    publishedAt: new Date().toISOString().split('T')[0], // 默认今天
   });
 
   // 充值审核状态
@@ -156,6 +157,22 @@ export default function AdminDashboardPage() {
   const [suggestionsPage, setSuggestionsPage] = useState(1);
   const [suggestionsTotal, setSuggestionsTotal] = useState(0);
   const [suggestionsStatus, setSuggestionsStatus] = useState<string>('all');
+
+  // 导航配置状态
+  const [navConfig, setNavConfig] = useState<Record<string, { is_visible: number; sort_order: number }>>({});
+
+  // 导航配置映射
+  const navConfigMap: Record<string, string> = {
+    users: 'users',
+    recharge: 'recharge',
+    complaints: 'complaints',
+    suggestions: 'suggestions',
+    docs: 'docs',
+    config: 'config',
+    database: 'database',
+    challenge: 'challenge',
+    ea: 'ea',
+  };
 
   useEffect(() => {
     if (status === 'unauthenticated') {
@@ -195,6 +212,7 @@ export default function AdminDashboardPage() {
       if (data.isAdmin) {
         setIsAdmin(true);
         fetchStats();
+        fetchNavConfig();
       } else {
         setShowInitForm(true);
       }
@@ -203,6 +221,45 @@ export default function AdminDashboardPage() {
     } finally {
       setCheckingAdmin(false);
       setLoading(false);
+    }
+  };
+
+  // 获取导航配置
+  const fetchNavConfig = async () => {
+    try {
+      const res = await fetch('/api/admin/nav-config');
+      const data = await res.json();
+      if (res.ok && data.config) {
+        const configMap: Record<string, { is_visible: number; sort_order: number }> = {};
+        data.config.forEach((item: any) => {
+          configMap[item.nav_key] = {
+            is_visible: item.is_visible,
+            sort_order: item.sort_order,
+          };
+        });
+        setNavConfig(configMap);
+      }
+    } catch (err) {
+      console.error('Fetch nav config error:', err);
+    }
+  };
+
+  // 更新导航配置
+  const updateNavConfig = async (navKey: string, isVisible: boolean) => {
+    try {
+      const res = await fetch('/api/admin/nav-config', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ navKey, isVisible }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        fetchNavConfig(); // 重新加载配置
+      } else {
+        setError(data.error || '更新失败');
+      }
+    } catch (err) {
+      setError('更新失败');
     }
   };
 
@@ -322,6 +379,10 @@ export default function AdminDashboardPage() {
 
   const handleEditDoc = (doc: any) => {
     setEditingDoc(doc);
+    // 解析发布日期，如果没有则使用今天
+    const pubDate = doc.published_at 
+      ? new Date(doc.published_at).toISOString().split('T')[0]
+      : new Date().toISOString().split('T')[0];
     setDocForm({
       title: doc.title,
       slug: doc.slug,
@@ -329,6 +390,7 @@ export default function AdminDashboardPage() {
       category: doc.category || 'general',
       sortOrder: doc.sortOrder || 0,
       status: doc.status || 'published',
+      publishedAt: pubDate,
     });
   };
 
@@ -341,6 +403,7 @@ export default function AdminDashboardPage() {
       category: 'general',
       sortOrder: 0,
       status: 'published',
+      publishedAt: new Date().toISOString().split('T')[0],
     });
   };
 
@@ -830,42 +893,60 @@ export default function AdminDashboardPage() {
         {/* Main Content */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
           <TabsList className="grid w-full grid-cols-9 lg:w-auto lg:inline-grid">
-            <TabsTrigger value="users" className="flex items-center gap-2">
-              <Users className="w-4 h-4" />
-              用户管理
-            </TabsTrigger>
-            <TabsTrigger value="recharge" className="flex items-center gap-2">
-              <DollarSign className="w-4 h-4" />
-              充值审核
-            </TabsTrigger>
-            <TabsTrigger value="complaints" className="flex items-center gap-2">
-              <MessageSquare className="w-4 h-4" />
-              投诉管理
-            </TabsTrigger>
-            <TabsTrigger value="suggestions" className="flex items-center gap-2">
-              <Lightbulb className="w-4 h-4" />
-              建议管理
-            </TabsTrigger>
-            <TabsTrigger value="docs" className="flex items-center gap-2">
-              <FileText className="w-4 h-4" />
-              文档管理
-            </TabsTrigger>
-            <TabsTrigger value="config" className="flex items-center gap-2">
-              <Settings className="w-4 h-4" />
-              系统配置
-            </TabsTrigger>
-            <TabsTrigger value="database" className="flex items-center gap-2">
-              <Database className="w-4 h-4" />
-              数据库
-            </TabsTrigger>
-            <TabsTrigger value="challenge" className="flex items-center gap-2" onClick={() => router.push('/admin/challenge')}>
-              <TrendingUp className="w-4 h-4" />
-              K线征途
-            </TabsTrigger>
-            <TabsTrigger value="ea" className="flex items-center gap-2">
-              <FileCode className="w-4 h-4" />
-              EA管理
-            </TabsTrigger>
+            {navConfig.users?.is_visible !== 0 && (
+              <TabsTrigger value="users" className="flex items-center gap-2">
+                <Users className="w-4 h-4" />
+                用户管理
+              </TabsTrigger>
+            )}
+            {navConfig.recharge?.is_visible !== 0 && (
+              <TabsTrigger value="recharge" className="flex items-center gap-2">
+                <DollarSign className="w-4 h-4" />
+                充值审核
+              </TabsTrigger>
+            )}
+            {navConfig.complaints?.is_visible !== 0 && (
+              <TabsTrigger value="complaints" className="flex items-center gap-2">
+                <MessageSquare className="w-4 h-4" />
+                投诉管理
+              </TabsTrigger>
+            )}
+            {navConfig.suggestions?.is_visible !== 0 && (
+              <TabsTrigger value="suggestions" className="flex items-center gap-2">
+                <Lightbulb className="w-4 h-4" />
+                建议管理
+              </TabsTrigger>
+            )}
+            {navConfig.docs?.is_visible !== 0 && (
+              <TabsTrigger value="docs" className="flex items-center gap-2">
+                <FileText className="w-4 h-4" />
+                文档管理
+              </TabsTrigger>
+            )}
+            {navConfig.config?.is_visible !== 0 && (
+              <TabsTrigger value="config" className="flex items-center gap-2">
+                <Settings className="w-4 h-4" />
+                系统配置
+              </TabsTrigger>
+            )}
+            {navConfig.database?.is_visible !== 0 && (
+              <TabsTrigger value="database" className="flex items-center gap-2">
+                <Database className="w-4 h-4" />
+                数据库
+              </TabsTrigger>
+            )}
+            {navConfig.challenge?.is_visible !== 0 && (
+              <TabsTrigger value="challenge" className="flex items-center gap-2" onClick={() => router.push('/admin/challenge')}>
+                <TrendingUp className="w-4 h-4" />
+                K线征途
+              </TabsTrigger>
+            )}
+            {navConfig.ea?.is_visible !== 0 && (
+              <TabsTrigger value="ea" className="flex items-center gap-2">
+                <FileCode className="w-4 h-4" />
+                EA管理
+              </TabsTrigger>
+            )}
           </TabsList>
 
           {/* Users Tab */}
@@ -1668,6 +1749,157 @@ export default function AdminDashboardPage() {
                 </div>
               </CardContent>
             </Card>
+
+            {/* 导航按钮配置 */}
+            <Card className="mt-6">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <BarChart3 className="w-5 h-5" />
+                  导航按钮显示配置
+                </CardTitle>
+                <CardDescription>
+                  控制后台管理页面各Tab的显示/隐藏
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  <div className="flex items-center justify-between p-4 border rounded-lg">
+                    <div className="flex items-center gap-3">
+                      <Users className="w-5 h-5 text-blue-500" />
+                      <span className="font-medium">用户管理</span>
+                    </div>
+                    <Button
+                      variant={navConfig.users?.is_visible === 0 ? 'outline' : 'default'}
+                      size="sm"
+                      onClick={() => updateNavConfig('users', navConfig.users?.is_visible !== 0)}
+                      className={navConfig.users?.is_visible !== 0 ? '' : 'bg-green-500 hover:bg-green-600'}
+                    >
+                      {navConfig.users?.is_visible !== 0 ? '显示' : '隐藏'}
+                    </Button>
+                  </div>
+
+                  <div className="flex items-center justify-between p-4 border rounded-lg">
+                    <div className="flex items-center gap-3">
+                      <DollarSign className="w-5 h-5 text-green-500" />
+                      <span className="font-medium">充值审核</span>
+                    </div>
+                    <Button
+                      variant={navConfig.recharge?.is_visible === 0 ? 'outline' : 'default'}
+                      size="sm"
+                      onClick={() => updateNavConfig('recharge', navConfig.recharge?.is_visible !== 0)}
+                      className={navConfig.recharge?.is_visible !== 0 ? '' : 'bg-green-500 hover:bg-green-600'}
+                    >
+                      {navConfig.recharge?.is_visible !== 0 ? '显示' : '隐藏'}
+                    </Button>
+                  </div>
+
+                  <div className="flex items-center justify-between p-4 border rounded-lg">
+                    <div className="flex items-center gap-3">
+                      <MessageSquare className="w-5 h-5 text-orange-500" />
+                      <span className="font-medium">投诉管理</span>
+                    </div>
+                    <Button
+                      variant={navConfig.complaints?.is_visible === 0 ? 'outline' : 'default'}
+                      size="sm"
+                      onClick={() => updateNavConfig('complaints', navConfig.complaints?.is_visible !== 0)}
+                      className={navConfig.complaints?.is_visible !== 0 ? '' : 'bg-green-500 hover:bg-green-600'}
+                    >
+                      {navConfig.complaints?.is_visible !== 0 ? '显示' : '隐藏'}
+                    </Button>
+                  </div>
+
+                  <div className="flex items-center justify-between p-4 border rounded-lg">
+                    <div className="flex items-center gap-3">
+                      <Lightbulb className="w-5 h-5 text-yellow-500" />
+                      <span className="font-medium">建议管理</span>
+                    </div>
+                    <Button
+                      variant={navConfig.suggestions?.is_visible === 0 ? 'outline' : 'default'}
+                      size="sm"
+                      onClick={() => updateNavConfig('suggestions', navConfig.suggestions?.is_visible !== 0)}
+                      className={navConfig.suggestions?.is_visible !== 0 ? '' : 'bg-green-500 hover:bg-green-600'}
+                    >
+                      {navConfig.suggestions?.is_visible !== 0 ? '显示' : '隐藏'}
+                    </Button>
+                  </div>
+
+                  <div className="flex items-center justify-between p-4 border rounded-lg">
+                    <div className="flex items-center gap-3">
+                      <FileText className="w-5 h-5 text-purple-500" />
+                      <span className="font-medium">文档管理</span>
+                    </div>
+                    <Button
+                      variant={navConfig.docs?.is_visible === 0 ? 'outline' : 'default'}
+                      size="sm"
+                      onClick={() => updateNavConfig('docs', navConfig.docs?.is_visible !== 0)}
+                      className={navConfig.docs?.is_visible !== 0 ? '' : 'bg-green-500 hover:bg-green-600'}
+                    >
+                      {navConfig.docs?.is_visible !== 0 ? '显示' : '隐藏'}
+                    </Button>
+                  </div>
+
+                  <div className="flex items-center justify-between p-4 border rounded-lg">
+                    <div className="flex items-center gap-3">
+                      <Settings className="w-5 h-5 text-gray-500" />
+                      <span className="font-medium">系统配置</span>
+                    </div>
+                    <Button
+                      variant={navConfig.config?.is_visible === 0 ? 'outline' : 'default'}
+                      size="sm"
+                      onClick={() => updateNavConfig('config', navConfig.config?.is_visible !== 0)}
+                      className={navConfig.config?.is_visible !== 0 ? '' : 'bg-green-500 hover:bg-green-600'}
+                    >
+                      {navConfig.config?.is_visible !== 0 ? '显示' : '隐藏'}
+                    </Button>
+                  </div>
+
+                  <div className="flex items-center justify-between p-4 border rounded-lg">
+                    <div className="flex items-center gap-3">
+                      <Database className="w-5 h-5 text-teal-500" />
+                      <span className="font-medium">数据库</span>
+                    </div>
+                    <Button
+                      variant={navConfig.database?.is_visible === 0 ? 'outline' : 'default'}
+                      size="sm"
+                      onClick={() => updateNavConfig('database', navConfig.database?.is_visible !== 0)}
+                      className={navConfig.database?.is_visible !== 0 ? '' : 'bg-green-500 hover:bg-green-600'}
+                    >
+                      {navConfig.database?.is_visible !== 0 ? '显示' : '隐藏'}
+                    </Button>
+                  </div>
+
+                  <div className="flex items-center justify-between p-4 border rounded-lg">
+                    <div className="flex items-center gap-3">
+                      <TrendingUp className="w-5 h-5 text-red-500" />
+                      <span className="font-medium">K线征途</span>
+                    </div>
+                    <Button
+                      variant={navConfig.challenge?.is_visible === 0 ? 'outline' : 'default'}
+                      size="sm"
+                      onClick={() => updateNavConfig('challenge', navConfig.challenge?.is_visible !== 0)}
+                      className={navConfig.challenge?.is_visible !== 0 ? '' : 'bg-green-500 hover:bg-green-600'}
+                    >
+                      {navConfig.challenge?.is_visible !== 0 ? '显示' : '隐藏'}
+                    </Button>
+                  </div>
+
+                  <div className="flex items-center justify-between p-4 border rounded-lg">
+                    <div className="flex items-center gap-3">
+                      <FileCode className="w-5 h-5 text-cyan-500" />
+                      <span className="font-medium">EA管理</span>
+                    </div>
+                    <Button
+                      variant={navConfig.ea?.is_visible === 0 ? 'outline' : 'default'}
+                      size="sm"
+                      onClick={() => updateNavConfig('ea', navConfig.ea?.is_visible !== 0)}
+                      className={navConfig.ea?.is_visible !== 0 ? '' : 'bg-green-500 hover:bg-green-600'}
+                    >
+                      {navConfig.ea?.is_visible !== 0 ? '显示' : '隐藏'}
+                    </Button>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
           </TabsContent>
 
           {/* Database Tab */}
@@ -1875,6 +2107,16 @@ export default function AdminDashboardPage() {
                       <option value="published">已发布</option>
                       <option value="draft">草稿</option>
                     </select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>发布日期</Label>
+                    <Input
+                      type="date"
+                      value={docForm.publishedAt}
+                      onChange={(e) => setDocForm({ ...docForm, publishedAt: e.target.value })}
+                      className="w-full"
+                    />
+                    <p className="text-xs text-gray-500">留空则使用当前日期</p>
                   </div>
                 </div>
 

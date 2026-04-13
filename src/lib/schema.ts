@@ -228,6 +228,7 @@ export const documents = mysqlTable('documents', {
   category: varchar('category', { length: 100 }).default('general'), // 分类：getting-started, trading, faq, etc.
   sortOrder: int('sort_order').default(0), // 排序权重
   status: mysqlEnum('status', ['published', 'draft']).default('published'),
+  publishedAt: timestamp('published_at'), // 发布日期
   viewCount: int('view_count').default(0),
   createdAt: timestamp('created_at').defaultNow(),
   updatedAt: timestamp('updated_at').defaultNow().onUpdateNow(),

@@ -32,7 +32,9 @@ import {
   TrendingUp,
   Crown,
   Star,
-  Ban
+  Ban,
+  MessageSquare,
+  Lightbulb
 } from 'lucide-react';
 
 interface UserInfo {
@@ -434,6 +436,26 @@ export default function UserCenterPage() {
 
         {/* Tabs */}
         <Tabs defaultValue="profile" className="space-y-6">
+          {/* 快捷入口 */}
+          <div className="grid grid-cols-2 gap-4">
+            <Button
+              variant="outline"
+              className="h-auto py-4 flex-col gap-2 border-amber-200 hover:bg-amber-50 dark:hover:bg-amber-900/20"
+              onClick={() => router.push('/complaint')}
+            >
+              <MessageSquare className="w-6 h-6 text-amber-500" />
+              <span className="text-sm font-medium">意见投诉</span>
+            </Button>
+            <Button
+              variant="outline"
+              className="h-auto py-4 flex-col gap-2 border-purple-200 hover:bg-purple-50 dark:hover:bg-purple-900/20"
+              onClick={() => router.push('/suggestion')}
+            >
+              <Lightbulb className="w-6 h-6 text-purple-500" />
+              <span className="text-sm font-medium">意见建议</span>
+            </Button>
+          </div>
+
           <TabsList className="grid w-full grid-cols-2 lg:w-auto lg:inline-grid">
             <TabsTrigger value="profile" className="flex items-center gap-2">
               <UserIcon className="w-4 h-4" />

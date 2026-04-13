@@ -52,7 +52,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { title, slug, content, category, sortOrder, status } = body;
+    const { title, slug, content, category, sortOrder, status, publishedAt } = body;
 
     if (!title || !slug || !content) {
       return NextResponse.json({ error: '标题、别名和内容为必填项' }, { status: 400 });
@@ -69,6 +69,12 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: '别名已存在，请更换' }, { status: 400 });
     }
 
+    // 解析发布日期
+    let publishedAtValue: Date | undefined;
+    if (publishedAt) {
+      publishedAtValue = new Date(publishedAt);
+    }
+
     await db.insert(documents).values({
       title,
       slug,
@@ -76,6 +82,7 @@ export async function POST(request: NextRequest) {
       category: category || 'general',
       sortOrder: sortOrder || 0,
       status: status || 'published',
+      ...(publishedAtValue && { publishedAt: publishedAtValue }),
     });
 
     // 获取刚创建的文档
@@ -102,7 +109,7 @@ export async function PUT(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { id, title, slug, content, category, sortOrder, status } = body;
+    const { id, title, slug, content, category, sortOrder, status, publishedAt } = body;
 
     if (!id) {
       return NextResponse.json({ error: '文档ID为必填项' }, { status: 400 });
@@ -133,6 +140,12 @@ export async function PUT(request: NextRequest) {
       }
     }
 
+    // 解析发布日期
+    let publishedAtValue: Date | undefined;
+    if (publishedAt) {
+      publishedAtValue = new Date(publishedAt);
+    }
+
     await db
       .update(documents)
       .set({
@@ -142,6 +155,7 @@ export async function PUT(request: NextRequest) {
         ...(category && { category }),
         ...(sortOrder !== undefined && { sortOrder }),
         ...(status && { status }),
+        ...(publishedAtValue && { publishedAt: publishedAtValue }),
       })
       .where(eq(documents.id, id));
 
