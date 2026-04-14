@@ -66,11 +66,11 @@ export function Header() {
                 </Link>
                 <Link href="/suggestion" className="text-gray-600 hover:text-purple-600 dark:text-gray-300 dark:hover:text-purple-400 transition-colors flex items-center gap-1">
                   <MessageSquare className="w-4 h-4" />
-                  建议
+                  意见建议
                 </Link>
                 <Link href="/complaint" className="text-gray-600 hover:text-purple-600 dark:text-gray-300 dark:hover:text-purple-400 transition-colors flex items-center gap-1">
                   <AlertCircle className="w-4 h-4" />
-                  投诉
+                  意见投诉
                 </Link>
                 {/* 软件下载入口暂时隐藏
                 <Link href="/download" className="text-gray-600 hover:text-purple-600 dark:text-gray-300 dark:hover:text-purple-400 transition-colors flex items-center gap-1">
