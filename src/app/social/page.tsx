@@ -1,8 +1,8 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, Suspense } from 'react';
 import { useSession } from 'next-auth/react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -94,7 +94,20 @@ interface UserProfile {
 }
 
 export default function SocialPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
+        <Spinner className="w-8 h-8" />
+      </div>
+    }>
+      <SocialPageContent />
+    </Suspense>
+  );
+}
+
+function SocialPageContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { data: session, status } = useSession();
   const [coinBalance, setCoinBalance] = useState<number>(0);
   const [activeSection, setActiveSection] = useState<'messages' | 'transfer' | 'search' | 'follow' | 'chatHall'>('chatHall');
@@ -132,6 +145,28 @@ export default function SocialPage() {
   const [viewProfileLoading, setViewProfileLoading] = useState(false);
 
   const userId = session?.user?.id || '';
+
+  // 处理 URL 参数（从聊天大厅跳转过来）
+  useEffect(() => {
+    const section = searchParams.get('section');
+    const userIdParam = searchParams.get('userId');
+    const userName = searchParams.get('name');
+
+    if (section === 'messages' && userIdParam && userName) {
+      // 直接打开与该用户的私信对话
+      setActiveSection('messages');
+      setSelectedConversation({
+        userId: userIdParam,
+        userName: decodeURIComponent(userName),
+        userAvatar: null,
+        lastMessage: { id: 0, content: '', senderId: '', createdAt: '' },
+        unreadCount: 0,
+      });
+      loadMessages(userIdParam);
+    } else if (section === 'messages') {
+      setActiveSection('messages');
+    }
+  }, [searchParams]);
 
   useEffect(() => {
     if (status === 'unauthenticated') {

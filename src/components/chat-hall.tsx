@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useSession } from 'next-auth/react';
+import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -22,6 +23,7 @@ interface ChatMessage {
 }
 
 export function ChatHall() {
+  const router = useRouter();
   const { data: session } = useSession();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [newMessage, setNewMessage] = useState('');
@@ -37,6 +39,14 @@ export function ChatHall() {
 
   const userRole = session?.user?.role as string | undefined;
   const isPremium = userRole === 'premium' || userRole === 'vip' || userRole === 'admin';
+  const currentUserId = session?.user?.id as string | undefined;
+
+  // 点击用户头像/昵称进入私信
+  const handleUserClick = (msg: ChatMessage) => {
+    if (msg.user_id !== currentUserId && !msg.is_system) {
+      router.push(`/social?section=messages&userId=${msg.user_id}&name=${encodeURIComponent(msg.user_name)}`);
+    }
+  };
 
   // 加载消息
   const loadMessages = async () => {
@@ -152,7 +162,7 @@ export function ChatHall() {
       <CardHeader className="flex-row items-center justify-between pb-4 border-b">
         <CardTitle className="flex items-center gap-2">
           <Users className="w-5 h-5 text-purple-500" />
-          聊天大厅
+          茶馆·闲聊室
         </CardTitle>
         <span className="text-xs text-gray-400">仅保留最近24小时的聊天记录</span>
       </CardHeader>
@@ -195,22 +205,31 @@ export function ChatHall() {
                 ) : (
                   // 用户消息样式
                   <div className="flex items-start gap-2">
-                    <Avatar className="w-8 h-8 flex-shrink-0">
-                      <AvatarFallback className={msg.is_premium === 1 ? 'bg-gradient-to-br from-purple-500 to-pink-500 text-white text-xs' : 'bg-gray-200 dark:bg-gray-700 text-xs'}>
-                        {msg.user_name.slice(0, 1)}
-                      </AvatarFallback>
-                      {msg.user_avatar && <AvatarImage src={msg.user_avatar} />}
-                    </Avatar>
+                    <button
+                      onClick={() => handleUserClick(msg)}
+                      className="flex-shrink-0 cursor-pointer hover:opacity-80 transition-opacity"
+                      disabled={msg.user_id === currentUserId}
+                    >
+                      <Avatar className="w-8 h-8">
+                        <AvatarFallback className={msg.is_premium === 1 ? 'bg-gradient-to-br from-purple-500 to-pink-500 text-white text-xs' : 'bg-gray-200 dark:bg-gray-700 text-xs'}>
+                          {msg.user_name.slice(0, 1)}
+                        </AvatarFallback>
+                        {msg.user_avatar && <AvatarImage src={msg.user_avatar} />}
+                      </Avatar>
+                    </button>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">
-                        <span className={`text-sm ${getUserNameStyle(msg)}`}>
+                        <button
+                          onClick={() => handleUserClick(msg)}
+                          className={`text-sm ${getUserNameStyle(msg)} cursor-pointer hover:underline ${msg.user_id === currentUserId ? 'pointer-events-none' : ''}`}
+                        >
                           {msg.user_name}
                           {msg.is_premium === 1 && (
                             <Badge variant="secondary" className="ml-1 text-xs py-0 px-1 bg-gradient-to-r from-purple-500 to-pink-500 text-white border-0">
                               VIP
                             </Badge>
                           )}
-                        </span>
+                        </button>
                         <span className="text-xs text-gray-400">
                           {formatTime(msg.created_at)}
                         </span>
