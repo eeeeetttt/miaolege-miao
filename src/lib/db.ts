@@ -31,8 +31,6 @@ const client = connectionString
       ssl: {
         rejectUnauthorized: false,
       },
-      // 懒连接：不在模块加载时立即连接
-      lazy_connect: true,
     })
   : postgres('', { max: 0 });
 
