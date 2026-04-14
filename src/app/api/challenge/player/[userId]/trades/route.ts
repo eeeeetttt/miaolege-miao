@@ -52,7 +52,7 @@ export async function GET(
       });
     }
 
-    // 从PostgreSQL的signals表获取交易历史
+    // 从MySQL的signals表获取交易历史
     const offset = (page - 1) * limit;
     
     // 使用Drizzle查询signals表

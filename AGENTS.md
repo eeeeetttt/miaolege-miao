@@ -8,27 +8,8 @@
 
 - **前端**: Next.js 16 (App Router), React 19, TypeScript 5, Tailwind CSS
 - **后端**: Next.js API Routes, NextAuth.js
-- **数据库**: Supabase PostgreSQL, Drizzle ORM
+- **数据库**: MySQL, Drizzle ORM
 - **样式**: CSS Modules, shadcn/ui
-
-## 数据库迁移
-
-### 从 MySQL 到 PostgreSQL
-
-**时间**: 2024-04-14
-
-**原因**: 统一使用 Supabase PostgreSQL 数据库，简化架构
-
-**关键变更**:
-- 使用 Supabase PostgreSQL 替代腾讯云 MySQL
-- Schema 从 `mysqlTable` 迁移到 `pgTable`
-- Enum 从 `mysqlEnum` 迁移到 `pgEnum`
-- Insert 返回值从 `insertId` 改为 `returning()`
-- 连接池从 mysql2 改为 postgres-js
-
-**数据库表**:
-- 使用 Drizzle ORM 管理表结构
-- 运行 `pnpm drizzle-kit push:pg` 创建/同步表结构
 
 ## 核心功能
 

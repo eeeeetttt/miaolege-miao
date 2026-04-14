@@ -46,7 +46,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: '充值金额需在10-50000之间' }, { status: 400 });
     }
 
-    // 创建充值记录 (PostgreSQL 使用 returning)
+    // 创建充值记录 (MySQL不支持returning，需要先插入再查询)
     const result = await db
       .insert(coinRecharges)
       .values({
@@ -54,10 +54,9 @@ export async function POST(request: NextRequest) {
         amount,
         paymentMethod: paymentMethod || 'manual',
         status: 'pending',
-      })
-      .returning();
+      });
 
-    const rechargeId = result[0].id;
+    const rechargeId = result[0].insertId;
 
     // 模拟支付成功（实际项目中需要对接支付系统）
     // 这里直接将状态改为完成并增加余额

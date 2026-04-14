@@ -115,7 +115,7 @@ export async function POST(request: NextRequest) {
       coins: 0,
       status: 'active',
       forumEnabled: forumEnabled || false,
-    }).returning();
+    }).$returningId();
 
     // 添加创建者为星球所有者
     await db.insert(planetMembers).values({

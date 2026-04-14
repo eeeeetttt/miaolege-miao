@@ -9,10 +9,15 @@ export async function GET() {
       configured: boolean;
       connected: boolean;
       host?: string;
+      port?: string;
+      database?: string;
       error?: string;
     };
     env: {
-      DATABASE_URL: boolean;
+      MYSQL_HOST: boolean;
+      MYSQL_USER: boolean;
+      MYSQL_PASSWORD: boolean;
+      MYSQL_DATABASE: boolean;
     };
   } = {
     status: 'checking',
@@ -22,35 +27,49 @@ export async function GET() {
       connected: false,
     },
     env: {
-      DATABASE_URL: !!process.env.DATABASE_URL,
+      MYSQL_HOST: !!process.env.MYSQL_HOST,
+      MYSQL_USER: !!process.env.MYSQL_USER,
+      MYSQL_PASSWORD: !!process.env.MYSQL_PASSWORD,
+      MYSQL_DATABASE: !!process.env.MYSQL_DATABASE,
     },
   };
 
   // 检查数据库配置
-  diagnostics.database.configured = !!process.env.DATABASE_URL;
-  
-  // 提取 host 信息用于显示
-  if (process.env.DATABASE_URL) {
-    try {
-      const url = new URL(process.env.DATABASE_URL);
-      diagnostics.database.host = url.host;
-    } catch {
-      diagnostics.database.host = '无法解析';
-    }
-  }
+  const dbConfig = {
+    host: process.env.MYSQL_HOST || 'localhost',
+    port: process.env.MYSQL_PORT || '3306',
+    database: process.env.MYSQL_DATABASE || 'trade',
+  };
+
+  diagnostics.database.configured = !!(
+    process.env.MYSQL_HOST &&
+    process.env.MYSQL_USER &&
+    process.env.MYSQL_PASSWORD &&
+    process.env.MYSQL_DATABASE
+  );
+
+  diagnostics.database.host = dbConfig.host;
+  diagnostics.database.port = dbConfig.port;
+  diagnostics.database.database = dbConfig.database;
 
   // 测试数据库连接
   try {
+    const connection = await pool.getConnection();
+    
     // 执行简单查询
-    await pool`SELECT 1`;
+    await connection.execute('SELECT 1');
     
     // 检查 users 表是否存在
-    const result = await pool`SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'users'`;
+    const [tables] = await connection.execute(
+      "SHOW TABLES LIKE 'users'"
+    );
+    
+    connection.release();
     
     diagnostics.database.connected = true;
     diagnostics.status = 'ok';
     
-    if (result.length === 0) {
+    if (Array.isArray(tables) && tables.length === 0) {
       diagnostics.status = 'warning';
       return NextResponse.json({
         ...diagnostics,
@@ -66,7 +85,7 @@ export async function GET() {
     return NextResponse.json({
       ...diagnostics,
       message: '数据库连接失败，请检查环境变量配置',
-      solution: '请确保已配置 DATABASE_URL 环境变量（Supabase PostgreSQL 连接字符串）',
+      solution: '请确保已配置以下环境变量：MYSQL_HOST, MYSQL_USER, MYSQL_PASSWORD, MYSQL_DATABASE',
     }, { status: 500 });
   }
 

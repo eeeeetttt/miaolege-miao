@@ -61,7 +61,7 @@ export async function GET() {
     // 获取用户头像和昵称信息
     let userInfoMap: Record<string, { name: string | null; avatar: string | null }> = {};
     if (userIds.length > 0) {
-      // 使用 drizzle 从 PostgreSQL 获取用户信息
+      // 使用 drizzle 从 MySQL 获取用户信息
       try {
         const usersData = await db
           .select({ 
@@ -79,7 +79,7 @@ export async function GET() {
           };
         }
       } catch (dbErr) {
-        console.error('PostgreSQL query error:', dbErr);
+        console.error('MySQL query error:', dbErr);
         // 尝试从 Supabase 获取
         const { data: supabaseUsers } = await supabase
           .from('users')
@@ -223,7 +223,7 @@ export async function GET() {
           };
         }
       } catch (dbErr) {
-        console.error('PostgreSQL query error for completed users:', dbErr);
+        console.error('MySQL query error for completed users:', dbErr);
       }
     }
 

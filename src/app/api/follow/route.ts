@@ -71,7 +71,7 @@ export async function POST(request: NextRequest) {
       copyVolume: copyVolume || null,
       copyRatio: copyRatio || '1.00',
       status: 'active',
-    }).returning();
+    }).$returningId();
 
     return NextResponse.json({
       success: true,

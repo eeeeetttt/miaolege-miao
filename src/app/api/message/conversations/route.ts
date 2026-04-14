@@ -73,7 +73,7 @@ export async function GET(request: NextRequest) {
         .from(users)
         .where(eq(users.userId, userIds[0])); // 先查第一个
 
-      // 从PostgreSQL获取用户信息
+      // 从MySQL获取用户信息
       for (const uid of userIds) {
         const [user] = await db
           .select({ name: users.name, avatar: users.avatar })

@@ -26,26 +26,26 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: '数据库连接不可用' }, { status: 503 });
     }
 
-    // 尝试从 PostgreSQL 获取用户信息
+    // 尝试从 MySQL 获取用户信息
     let userId: string | null = null;
     let userName: string | null = null;
     
     try {
-      const pgUsers = await db
+      const mysqlUsers = await db
         .select({ userId: users.userId, name: users.name })
         .from(users)
         .where(eq(users.email, email.toLowerCase()))
         .limit(1);
       
-      if (pgUsers && pgUsers.length > 0) {
-        userId = pgUsers[0].userId;
-        userName = pgUsers[0].name;
+      if (mysqlUsers && mysqlUsers.length > 0) {
+        userId = mysqlUsers[0].userId;
+        userName = mysqlUsers[0].name;
       }
     } catch (e) {
-      console.error('PostgreSQL query error:', e);
+      console.error('MySQL query error:', e);
     }
 
-    // 如果 PostgreSQL 没有，从 Supabase 获取
+    // 如果 MySQL 没有，从 Supabase 获取
     if (!userId) {
       const { data: supabaseUsers } = await supabase
         .from('users')

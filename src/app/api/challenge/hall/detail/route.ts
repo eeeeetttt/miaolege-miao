@@ -118,7 +118,7 @@ export async function GET(request: Request) {
       // 忽略解析错误
     }
 
-    // 从PostgreSQL的signals表获取平仓单子（dealProfit不为空的记录）
+    // 从MySQL的signals表获取平仓单子（dealProfit不为空的记录）
     const tradeHistory: TradeRecord[] = [];
     const equityHistory: ProfitPoint[] = [];
     let cumulativeProfit = 0;

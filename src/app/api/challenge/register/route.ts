@@ -278,26 +278,26 @@ export async function POST() {
       .eq('userId', userId)
       .single();
     
-    // 如果 coin_balances 表没有记录，尝试从 PostgreSQL users 表获取
+    // 如果 coin_balances 表没有记录，尝试从 MySQL users 表获取
     let currentBalance = 0;
     if (balanceData && !balanceError) {
       currentBalance = balanceData.balance || 0;
     } else {
-      // 回退：从 PostgreSQL users 表获取余额
+      // 回退：从 MySQL 获取余额
       try {
         const { db } = await import('@/lib/db');
         const { users } = await import('@/lib/schema');
         const { eq } = await import('drizzle-orm');
-        const pgUsers = await db
+        const mysqlUsers = await db
           .select({ coinBalance: users.coinBalance })
           .from(users)
           .where(eq(users.userId, userId))
           .limit(1);
-        if (pgUsers && pgUsers.length > 0) {
-          currentBalance = pgUsers[0].coinBalance || 0;
+        if (mysqlUsers && mysqlUsers.length > 0) {
+          currentBalance = mysqlUsers[0].coinBalance || 0;
         }
       } catch (e) {
-        console.error('Failed to get balance from PostgreSQL:', e);
+        console.error('Failed to get balance from MySQL:', e);
       }
     }
     
@@ -319,7 +319,7 @@ export async function POST() {
       deductSuccess = !updateError;
     }
     
-    // 如果 coin_balances 更新失败，尝试更新 PostgreSQL users 表
+    // 如果 coin_balances 更新失败，尝试更新 MySQL
     if (!deductSuccess) {
       try {
         const { db } = await import('@/lib/db');
@@ -331,7 +331,7 @@ export async function POST() {
           .where(eq(users.userId, userId));
         deductSuccess = true;
       } catch (e) {
-        console.error('Failed to deduct from PostgreSQL:', e);
+        console.error('Failed to deduct from MySQL:', e);
       }
     }
     
