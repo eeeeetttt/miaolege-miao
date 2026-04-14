@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import mysql from 'mysql2/promise';
+import postgres from 'postgres';
 
 // 数据库连接诊断
 export async function GET(request: NextRequest) {
@@ -13,11 +13,10 @@ export async function GET(request: NextRequest) {
   const results: any = {
     timestamp: new Date().toISOString(),
     config: {
-      host: process.env.MYSQL_HOST,
-      port: process.env.MYSQL_PORT,
-      user: process.env.MYSQL_USER,
-      database: process.env.MYSQL_DATABASE,
-      password_set: !!process.env.MYSQL_PASSWORD,
+      host: 'Supabase PostgreSQL',
+      database_url_set: !!process.env.DATABASE_URL,
+      supabase_url_set: !!process.env.COZE_SUPABASE_URL,
+      service_role_key_set: !!process.env.COZE_SUPABASE_SERVICE_ROLE_KEY,
     },
     tests: []
   };
@@ -25,12 +24,9 @@ export async function GET(request: NextRequest) {
   // 测试1: 基本连接
   try {
     const startTime = Date.now();
-    const connection = await mysql.createConnection({
-      host: process.env.MYSQL_HOST,
-      port: parseInt(process.env.MYSQL_PORT || '3306'),
-      user: process.env.MYSQL_USER,
-      password: process.env.MYSQL_PASSWORD,
-      connectTimeout: 10000,
+    const connectionString = process.env.DATABASE_URL || '';
+    const sql = postgres(connectionString, {
+      connect_timeout: 10,
     });
     const connectTime = Date.now() - startTime;
     
@@ -40,98 +36,117 @@ export async function GET(request: NextRequest) {
       connectTime: `${connectTime}ms`,
     });
 
-    // 测试2: 选择数据库
+    // 测试2: 查询版本
     try {
-      await connection.changeUser({ database: process.env.MYSQL_DATABASE });
-      results.tests.push({
-        name: '选择数据库',
-        status: 'success',
-      });
-
-      // 测试3: 查询版本
-      const [versionRows] = await connection.execute('SELECT VERSION() as version');
+      const versionResult = await sql`SELECT version()`;
       results.tests.push({
         name: '查询版本',
         status: 'success',
-        data: versionRows,
+        data: versionResult[0]?.version,
       });
-
-      // 测试4: 查询用户表
-      try {
-        const [tables] = await connection.execute('SHOW TABLES');
-        results.tests.push({
-          name: '查询表列表',
-          status: 'success',
-          tables: tables,
-        });
-      } catch (e: any) {
-        results.tests.push({
-          name: '查询表列表',
-          status: 'failed',
-          error: e.message,
-        });
-      }
-
-      // 测试5: 查询用户数量
-      try {
-        const [countResult] = await connection.execute('SELECT COUNT(*) as count FROM users');
-        results.tests.push({
-          name: '查询用户数量',
-          status: 'success',
-          data: countResult,
-        });
-      } catch (e: any) {
-        results.tests.push({
-          name: '查询用户数量',
-          status: 'failed',
-          error: e.message,
-        });
-      }
-
     } catch (e: any) {
       results.tests.push({
-        name: '选择数据库',
+        name: '查询版本',
         status: 'failed',
         error: e.message,
-        code: e.code,
       });
     }
 
-    await connection.end();
+    // 测试3: 查询表列表
+    try {
+      const tablesResult = await sql`
+        SELECT table_name 
+        FROM information_schema.tables 
+        WHERE table_schema = 'public' 
+        ORDER BY table_name
+      `;
+      results.tests.push({
+        name: '查询表列表',
+        status: 'success',
+        tables: tablesResult,
+      });
+    } catch (e: any) {
+      results.tests.push({
+        name: '查询表列表',
+        status: 'failed',
+        error: e.message,
+      });
+    }
+
+    // 测试4: 查询用户数量
+    try {
+      const countResult = await sql`SELECT COUNT(*) as count FROM users`;
+      results.tests.push({
+        name: '查询用户数量',
+        status: 'success',
+        data: countResult,
+      });
+    } catch (e: any) {
+      results.tests.push({
+        name: '查询用户数量',
+        status: 'failed',
+        error: e.message,
+      });
+    }
+
+    // 测试5: 查询聊天消息数量
+    try {
+      const chatResult = await sql`SELECT COUNT(*) as count FROM chat_hall_messages`;
+      results.tests.push({
+        name: '查询聊天消息数量',
+        status: 'success',
+        data: chatResult,
+      });
+    } catch (e: any) {
+      results.tests.push({
+        name: '查询聊天消息数量',
+        status: 'failed',
+        error: e.message,
+      });
+    }
+
+    await sql.end();
   } catch (e: any) {
     results.tests.push({
       name: '基本连接',
       status: 'failed',
-      error: e.message,
-      code: e.code,
-      errno: e.errno,
-      sqlState: e.sqlState,
+      error: e.message || String(e),
     });
   }
 
-  // 测试6: SSL连接
+  // 测试6: Supabase 客户端连接
   try {
-    const sslConnection = await mysql.createConnection({
-      host: process.env.MYSQL_HOST,
-      port: parseInt(process.env.MYSQL_PORT || '3306'),
-      user: process.env.MYSQL_USER,
-      password: process.env.MYSQL_PASSWORD,
-      database: process.env.MYSQL_DATABASE,
-      ssl: { rejectUnauthorized: false },
-      connectTimeout: 10000,
-    });
+    const { getSupabaseClient } = await import('@/storage/database/supabase-client');
+    const supabase = getSupabaseClient();
     
-    results.tests.push({
-      name: 'SSL连接',
-      status: 'success',
-    });
-    await sslConnection.end();
+    if (!supabase) {
+      results.tests.push({
+        name: 'Supabase 客户端连接',
+        status: 'failed',
+        error: 'Supabase 客户端不可用',
+      });
+    } else {
+      const { data, error } = await supabase.from('users').select('count');
+      
+      if (error) {
+        results.tests.push({
+          name: 'Supabase 客户端连接',
+          status: 'failed',
+          error: error.message,
+        });
+      } else {
+        results.tests.push({
+          name: 'Supabase 客户端连接',
+          status: 'success',
+          count: data,
+        });
+      }
+    }
   } catch (e: any) {
     results.tests.push({
-      name: 'SSL连接',
+      name: 'Supabase 客户端连接',
       status: 'failed',
-      error: e.message,
-      code: e.code,
+      error: e.message || String(e),
     });
   }
 

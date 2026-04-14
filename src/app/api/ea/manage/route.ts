@@ -62,7 +62,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: true, message: '产品更新成功' });
     } else {
       // 创建新产品
-      const [newProduct] = await db
+      const newProduct = await db
         .insert(eaProducts)
         .values({
           name,
@@ -73,12 +73,12 @@ export async function POST(request: NextRequest) {
           category: category || null,
           features: features || null,
           status: 'active',
-        });
+        }).returning();
 
       return NextResponse.json({ 
         success: true, 
         message: '产品创建成功',
-        productId: newProduct.insertId,
+        productId: newProduct[0].id,
       });
     }
   } catch (error) {

@@ -1,20 +1,16 @@
-import { drizzle } from 'drizzle-orm/mysql2';
-import mysql from 'mysql2/promise';
+import { drizzle } from 'drizzle-orm/postgres-js';
+import postgres from 'postgres';
 import * as schema from './schema';
 
-const pool = mysql.createPool({
-  host: process.env.MYSQL_HOST || 'localhost',
-  port: parseInt(process.env.MYSQL_PORT || '3306'),
-  user: process.env.MYSQL_USER || 'root',
-  password: process.env.MYSQL_PASSWORD || '',
-  database: process.env.MYSQL_DATABASE || 'trade',
-  waitForConnections: true,
-  connectionLimit: 10,
-  queueLimit: 0,
-  enableKeepAlive: true,
-  keepAliveInitialDelay: 10000,
-  connectTimeout: 30000,
+// 从环境变量获取 Supabase PostgreSQL 连接信息
+const connectionString = process.env.DATABASE_URL;
+
+// 创建 PostgreSQL 连接池
+const client = postgres(connectionString || '', {
+  max: 10,
+  idle_timeout: 20,
+  connect_timeout: 30,
 });
 
-export const db = drizzle(pool, { schema, mode: 'default' });
-export { pool };
+export const db = drizzle(client, { schema });
+export { client as pool };

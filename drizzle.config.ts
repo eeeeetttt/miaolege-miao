@@ -3,12 +3,8 @@ import type { Config } from 'drizzle-kit';
 export default {
   schema: './src/lib/schema.ts',
   out: './drizzle',
-  dialect: 'mysql',
+  dialect: 'postgresql',
   dbCredentials: {
-    host: process.env.MYSQL_HOST || 'localhost',
-    port: parseInt(process.env.MYSQL_PORT || '3306'),
-    user: process.env.MYSQL_USER || 'root',
-    password: process.env.MYSQL_PASSWORD || '',
-    database: process.env.MYSQL_DATABASE || 'trade',
+    url: process.env.DATABASE_URL || `postgresql://${process.env.DB_USER || 'postgres'}:${process.env.DB_PASSWORD || ''}@${process.env.DB_HOST || 'localhost'}:${process.env.DB_PORT || 5432}/${process.env.DB_NAME || 'aidb'}`,
   },
 } satisfies Config;

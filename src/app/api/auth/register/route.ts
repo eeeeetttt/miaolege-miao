@@ -6,7 +6,6 @@ import bcrypt from 'bcryptjs';
 import { v4 as uuidv4 } from 'uuid';
 
 export async function POST(request: NextRequest) {
-  let connection;
   try {
     const { email, password, name } = await request.json();
 
@@ -34,9 +33,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 测试数据库连接
+    // Test database connection
     try {
-      connection = await pool.getConnection();
+      await pool`SELECT 1`;
     } catch (connError) {
       console.error('Database connection error:', connError);
       return NextResponse.json(
@@ -84,12 +83,10 @@ export async function POST(request: NextRequest) {
     let errorMessage = '注册失败，请稍后重试';
     
     if (error instanceof Error) {
-      if (error.message.includes('connect')) {
+      if (error.message.includes('connect') || error.message.includes('ECONNREFUSED')) {
         errorMessage = '数据库连接失败，请检查数据库配置';
-      } else if (error.message.includes('ER_ACCESS_DENIED_ERROR')) {
-        errorMessage = '数据库访问被拒绝，请检查数据库用户名和密码';
-      } else if (error.message.includes('ER_BAD_DB_ERROR')) {
-        errorMessage = '数据库不存在，请先创建数据库';
+      } else if (error.message.includes('authentication')) {
+        errorMessage = '数据库认证失败，请检查数据库用户名和密码';
       }
     }
     
@@ -97,9 +94,5 @@ export async function POST(request: NextRequest) {
       { error: errorMessage },
       { status: 500 }
     );
-  } finally {
-    if (connection) {
-      connection.release();
-    }
   }
 }

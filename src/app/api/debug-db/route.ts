@@ -1,39 +1,32 @@
 import { NextResponse } from 'next/server';
-import mysql from 'mysql2/promise';
+import postgres from 'postgres';
 
 export async function GET() {
   const diagnostics: {
     timestamp: string;
     environment: {
       NODE_ENV: string;
-      MYSQL_HOST: { set: boolean; value: string };
-      MYSQL_PORT: { set: boolean; value: string };
-      MYSQL_USER: { set: boolean; value: string };
-      MYSQL_PASSWORD: { set: boolean; value: string; length: number };
-      MYSQL_DATABASE: { set: boolean; value: string };
+      DATABASE_URL: { set: boolean; host: string; hasPassword: boolean };
       NEXTAUTH_URL: { set: boolean; value: string };
       NEXTAUTH_SECRET: { set: boolean };
+      SUPABASE_URL: { set: boolean };
+      SUPABASE_SERVICE_ROLE_KEY: { set: boolean };
     };
     connection: {
       success: boolean;
       error?: string;
-      errorCode?: string;
-      errorSqlMessage?: string;
       serverVersion?: string;
-      connectionId?: number;
     };
     suggestions: string[];
   } = {
     timestamp: new Date().toISOString(),
     environment: {
       NODE_ENV: process.env.NODE_ENV || 'development',
-      MYSQL_HOST: { set: false, value: '' },
-      MYSQL_PORT: { set: false, value: '' },
-      MYSQL_USER: { set: false, value: '' },
-      MYSQL_PASSWORD: { set: false, value: '', length: 0 },
-      MYSQL_DATABASE: { set: false, value: '' },
+      DATABASE_URL: { set: false, host: '', hasPassword: false },
       NEXTAUTH_URL: { set: false, value: '' },
       NEXTAUTH_SECRET: { set: false },
+      SUPABASE_URL: { set: false },
+      SUPABASE_SERVICE_ROLE_KEY: { set: false },
     },
     connection: {
       success: false,
@@ -42,103 +35,85 @@ export async function GET() {
   };
 
   // 检查环境变量（隐藏敏感信息）
-  diagnostics.environment.MYSQL_HOST = {
-    set: !!process.env.MYSQL_HOST,
-    value: process.env.MYSQL_HOST ? `${process.env.MYSQL_HOST.substring(0, 10)}...` : '',
+  if (process.env.DATABASE_URL) {
+    try {
+      const url = new URL(process.env.DATABASE_URL);
+      diagnostics.environment.DATABASE_URL = {
+        set: true,
+        host: url.host,
+        hasPassword: !!url.password,
+      };
+    } catch {
+      diagnostics.environment.DATABASE_URL = {
+        set: true,
+        host: '无法解析',
+        hasPassword: false,
+      };
+    }
+  }
+  
+  diagnostics.environment.SUPABASE_URL = {
+    set: !!process.env.COZE_SUPABASE_URL,
   };
-  diagnostics.environment.MYSQL_PORT = {
-    set: !!process.env.MYSQL_PORT,
-    value: process.env.MYSQL_PORT || '未设置',
-  };
-  diagnostics.environment.MYSQL_USER = {
-    set: !!process.env.MYSQL_USER,
-    value: process.env.MYSQL_USER || '未设置',
-  };
-  diagnostics.environment.MYSQL_PASSWORD = {
-    set: !!process.env.MYSQL_PASSWORD,
-    value: '******',
-    length: process.env.MYSQL_PASSWORD?.length || 0,
-  };
-  diagnostics.environment.MYSQL_DATABASE = {
-    set: !!process.env.MYSQL_DATABASE,
-    value: process.env.MYSQL_DATABASE || '未设置',
+  diagnostics.environment.SUPABASE_SERVICE_ROLE_KEY = {
+    set: !!process.env.COZE_SUPABASE_SERVICE_ROLE_KEY,
   };
   diagnostics.environment.NEXTAUTH_URL = {
     set: !!process.env.NEXTAUTH_URL,
-    value: process.env.NEXTAUTH_URL || '未设置',
+    value: process.env.NEXTAUTH_URL || '',
   };
   diagnostics.environment.NEXTAUTH_SECRET = {
     set: !!process.env.NEXTAUTH_SECRET,
   };
 
-  // 尝试直接连接（不使用连接池）
+  // 尝试直接连接
   try {
-    const connection = await mysql.createConnection({
-      host: process.env.MYSQL_HOST,
-      port: parseInt(process.env.MYSQL_PORT || '3306'),
-      user: process.env.MYSQL_USER,
-      password: process.env.MYSQL_PASSWORD,
-      database: process.env.MYSQL_DATABASE,
-      connectTimeout: 10000,
+    const connectionString = process.env.DATABASE_URL || '';
+    const sql = postgres(connectionString, {
+      connect_timeout: 10,
     });
 
     // 获取服务器版本
-    const [rows] = await connection.execute('SELECT VERSION() as version, CONNECTION_ID() as connId');
-    const result = rows as { version: string; connId: number }[];
+    const result = await sql`SELECT version() as version`;
     
     diagnostics.connection.success = true;
     diagnostics.connection.serverVersion = result[0]?.version;
-    diagnostics.connection.connectionId = result[0]?.connId;
 
-    await connection.end();
+    await sql.end();
 
   } catch (error: any) {
     diagnostics.connection.success = false;
-    diagnostics.connection.error = error.message;
-    diagnostics.connection.errorCode = error.code;
-    diagnostics.connection.errorSqlMessage = error.sqlMessage;
+    diagnostics.connection.error = error.message || String(error);
 
     // 根据错误类型提供解决方案
-    switch (error.code) {
-      case 'ETIMEDOUT':
-      case 'ECONNREFUSED':
-        diagnostics.suggestions.push('网络连接超时或被拒绝，请检查：');
-        diagnostics.suggestions.push('1. 数据库服务器地址和端口是否正确');
-        diagnostics.suggestions.push('2. 腾讯云数据库安全组是否允许当前服务器IP访问');
-        diagnostics.suggestions.push('3. 腾讯云数据库白名单是否已配置');
-        diagnostics.suggestions.push('4. 数据库服务器是否已启动');
-        break;
-      case 'ER_ACCESS_DENIED_ERROR':
-        diagnostics.suggestions.push('数据库访问被拒绝，请检查：');
-        diagnostics.suggestions.push('1. 数据库用户名是否正确');
-        diagnostics.suggestions.push('2. 数据库密码是否正确（注意密码中的特殊字符）');
-        diagnostics.suggestions.push('3. 用户是否有访问该数据库的权限');
-        break;
-      case 'ER_BAD_DB_ERROR':
-        diagnostics.suggestions.push('数据库不存在，请检查：');
-        diagnostics.suggestions.push('1. 数据库名称是否正确');
-        diagnostics.suggestions.push('2. 是否已创建该数据库');
-        break;
-      default:
-        diagnostics.suggestions.push(`未知错误: ${error.message}`);
+    if (error.message?.includes('ECONNREFUSED')) {
+      diagnostics.suggestions.push('连接被拒绝，请检查：');
+      diagnostics.suggestions.push('1. Supabase PostgreSQL 服务器地址是否正确');
+      diagnostics.suggestions.push('2. Supabase 数据库是否已启动');
+      diagnostics.suggestions.push('3. 防火墙/网络规则是否允许访问');
+    } else if (error.message?.includes('authentication failed')) {
+      diagnostics.suggestions.push('认证失败，请检查：');
+      diagnostics.suggestions.push('1. 数据库用户名是否正确');
+      diagnostics.suggestions.push('2. 数据库密码是否正确');
+      diagnostics.suggestions.push('3. 用户是否有访问该数据库的权限');
+    } else if (error.message?.includes('does not exist')) {
+      diagnostics.suggestions.push('数据库不存在，请检查：');
+      diagnostics.suggestions.push('1. 数据库名称是否正确');
+      diagnostics.suggestions.push('2. 是否已创建该数据库');
+    } else {
+      diagnostics.suggestions.push(`连接错误: ${error.message}`);
     }
   }
 
   // 检查环境变量完整性
-  if (!diagnostics.environment.MYSQL_HOST.set) {
-    diagnostics.suggestions.push('MYSQL_HOST 环境变量未设置');
+  if (!diagnostics.environment.DATABASE_URL.set) {
+    diagnostics.suggestions.push('DATABASE_URL 环境变量未设置（Supabase PostgreSQL 连接字符串）');
   }
-  if (!diagnostics.environment.MYSQL_PORT.set) {
-    diagnostics.suggestions.push('MYSQL_PORT 环境变量未设置');
+  if (!diagnostics.environment.SUPABASE_URL.set) {
+    diagnostics.suggestions.push('COZE_SUPABASE_URL 环境变量未设置');
   }
-  if (!diagnostics.environment.MYSQL_USER.set) {
-    diagnostics.suggestions.push('MYSQL_USER 环境变量未设置');
-  }
-  if (!diagnostics.environment.MYSQL_PASSWORD.set) {
-    diagnostics.suggestions.push('MYSQL_PASSWORD 环境变量未设置');
-  }
-  if (!diagnostics.environment.MYSQL_DATABASE.set) {
-    diagnostics.suggestions.push('MYSQL_DATABASE 环境变量未设置');
+  if (!diagnostics.environment.SUPABASE_SERVICE_ROLE_KEY.set) {
+    diagnostics.suggestions.push('COZE_SUPABASE_SERVICE_ROLE_KEY 环境变量未设置');
   }
   if (!diagnostics.environment.NEXTAUTH_URL.set) {
     diagnostics.suggestions.push('NEXTAUTH_URL 环境变量未设置，可能导致登录回调失败');

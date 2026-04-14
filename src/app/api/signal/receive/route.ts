@@ -94,9 +94,9 @@ export async function POST(request: NextRequest) {
       planetId: finalPlanetId,
       comment: comment || null,
       userId: null, // 可以关联到用户
-    });
+    }).returning();
 
-    const signalId = insertResult[0].insertId;
+    const signalId = insertResult[0].id;
 
     return NextResponse.json({
       success: true,

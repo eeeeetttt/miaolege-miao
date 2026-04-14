@@ -1,58 +1,79 @@
 import {
-  mysqlTable,
+  pgTable,
   varchar,
-  int,
+  integer,
   text,
   timestamp,
   bigint,
   decimal,
-  mysqlEnum,
+  pgEnum,
   uniqueIndex,
   index,
   boolean,
-} from 'drizzle-orm/mysql-core';
+  serial,
+} from 'drizzle-orm/pg-core';
+import { eq, inArray } from 'drizzle-orm';
+
+// Enum definitions
+export const roleEnum = pgEnum('role', ['user', 'admin']);
+export const statusEnum = pgEnum('status', ['active', 'closed']);
+export const memberRoleEnum = pgEnum('member_role', ['owner', 'publisher', 'follower']);
+export const joinMethodEnum = pgEnum('join_method', ['purchase', 'invite']);
+export const applicationStatusEnum = pgEnum('application_status', ['pending', 'approved', 'rejected']);
+export const ticketEnum = pgEnum('ticket_type', ['ticket']);
+export const platformEnum = pgEnum('platform', ['MT4', 'MT5']);
+export const followStatusEnum = pgEnum('follow_status', ['active', 'paused', 'closed']);
+export const rechargeStatusEnum = pgEnum('recharge_status', ['pending', 'completed', 'failed']);
+export const eaPlatformEnum = pgEnum('ea_platform', ['MT4', 'MT5', 'Both']);
+export const productStatusEnum = pgEnum('product_status', ['active', 'inactive']);
+export const purchaseStatusEnum = pgEnum('purchase_status', ['completed', 'refunded']);
+export const documentStatusEnum = pgEnum('document_status', ['published', 'draft']);
+export const forumStatusEnum = pgEnum('forum_status', ['active', 'hidden', 'deleted']);
+export const targetTypeEnum = pgEnum('target_type', ['post', 'comment']);
+export const challengeStatusEnum = pgEnum('challenge_status', ['pending', 'approved', 'rejected', 'active', 'completed', 'failed']);
+export const levelStatusEnum = pgEnum('level_status', ['active', 'completed', 'failed']);
 
 // Users Table
-export const users = mysqlTable('users', {
+export const users = pgTable('users', {
   userId: varchar('user_id', { length: 255 }).primaryKey(),
   email: varchar('email', { length: 255 }).unique(),
   password: varchar('password', { length: 255 }),
   name: varchar('name', { length: 255 }),
   avatar: varchar('avatar', { length: 500 }),
-  coinBalance: int('coin_balance').default(0),
-  role: mysqlEnum('role', ['user', 'admin']).default('user'), // 用户角色
+  coinBalance: integer('coin_balance').default(0),
+  role: roleEnum('role').default('user'),
   nameUpdatedAt: timestamp('name_updated_at'),
   createdAt: timestamp('created_at').defaultNow(),
-  updatedAt: timestamp('updated_at').defaultNow().onUpdateNow(),
+  updatedAt: timestamp('updated_at').defaultNow(),
 });
 
 // Planets Table
-export const planets = mysqlTable('planets', {
-  id: int('id').autoincrement().primaryKey(),
+export const planets = pgTable('planets', {
+  id: serial('id').primaryKey(),
   name: varchar('name', { length: 255 }).notNull(),
   description: text('description'),
   rules: text('rules'),
   creatorId: varchar('creator_id', { length: 255 }).notNull().references(() => users.userId, { onDelete: 'cascade' }),
-  coins: int('coins').default(0),
+  coins: integer('coins').default(0),
   createdAt: timestamp('created_at').defaultNow(),
-  ticketPrice: int('ticket_price').default(0),
+  ticketPrice: integer('ticket_price').default(0),
   inviteCode: varchar('invite_code', { length: 50 }),
-  maxPublishers: int('max_publishers').default(3),
-  status: mysqlEnum('status', ['active', 'closed']).default('active'),
-  durationDays: int('duration_days').default(365), // 星球时长天数（0表示永久）
-  expireAt: timestamp('expire_at'), // 星球过期时间（null表示永久）
+  maxPublishers: integer('max_publishers').default(3),
+  status: statusEnum('status').default('active'),
+  durationDays: integer('duration_days').default(365),
+  expireAt: timestamp('expire_at'),
   ownerAsPublisher: boolean('owner_as_publisher').default(false),
-  forumEnabled: boolean('forum_enabled').default(false), // 是否开启论坛
+  forumEnabled: boolean('forum_enabled').default(false),
 });
 
 // Planet Members Table
-export const planetMembers = mysqlTable('planet_members', {
-  id: int('id').autoincrement().primaryKey(),
-  planetId: int('planet_id').notNull().references(() => planets.id, { onDelete: 'cascade' }),
+export const planetMembers = pgTable('planet_members', {
+  id: serial('id').primaryKey(),
+  planetId: integer('planet_id').notNull().references(() => planets.id, { onDelete: 'cascade' }),
   userId: varchar('user_id', { length: 255 }).notNull().references(() => users.userId, { onDelete: 'cascade' }),
-  role: mysqlEnum('role', ['owner', 'publisher', 'follower']).notNull(),
-  joinMethod: mysqlEnum('join_method', ['purchase', 'invite']).default('purchase'),
-  ticketPaid: int('ticket_paid').default(0),
+  role: memberRoleEnum('role').notNull(),
+  joinMethod: joinMethodEnum('join_method').default('purchase'),
+  ticketPaid: integer('ticket_paid').default(0),
   joinedAt: timestamp('joined_at').defaultNow(),
   expiryDate: timestamp('expiry_date'),
 }, (table) => ({
@@ -60,11 +81,11 @@ export const planetMembers = mysqlTable('planet_members', {
 }));
 
 // Planet Applications Table
-export const planetApplications = mysqlTable('planet_applications', {
-  id: int('id').autoincrement().primaryKey(),
-  planetId: int('planet_id').notNull().references(() => planets.id, { onDelete: 'cascade' }),
+export const planetApplications = pgTable('planet_applications', {
+  id: serial('id').primaryKey(),
+  planetId: integer('planet_id').notNull().references(() => planets.id, { onDelete: 'cascade' }),
   userId: varchar('user_id', { length: 255 }).notNull().references(() => users.userId, { onDelete: 'cascade' }),
-  status: mysqlEnum('status', ['pending', 'approved', 'rejected']).default('pending'),
+  status: applicationStatusEnum('status').default('pending'),
   appliedAt: timestamp('applied_at').defaultNow(),
   handledAt: timestamp('handled_at'),
 }, (table) => ({
@@ -72,18 +93,18 @@ export const planetApplications = mysqlTable('planet_applications', {
 }));
 
 // Planet Earnings Table
-export const planetEarnings = mysqlTable('planet_earnings', {
-  id: int('id').autoincrement().primaryKey(),
-  planetId: int('planet_id').notNull().references(() => planets.id, { onDelete: 'cascade' }),
+export const planetEarnings = pgTable('planet_earnings', {
+  id: serial('id').primaryKey(),
+  planetId: integer('planet_id').notNull().references(() => planets.id, { onDelete: 'cascade' }),
   userId: varchar('user_id', { length: 255 }).notNull().references(() => users.userId, { onDelete: 'cascade' }),
-  amount: int('amount').notNull(),
-  type: mysqlEnum('type', ['ticket']).default('ticket'),
+  amount: integer('amount').notNull(),
+  type: ticketEnum('type').default('ticket'),
   createdAt: timestamp('created_at').defaultNow(),
 });
 
 // Signals Table
-export const signals = mysqlTable('signals', {
-  id: bigint('id', { mode: 'number' }).autoincrement().primaryKey(),
+export const signals = pgTable('signals', {
+  id: bigint('id', { mode: 'number' }).primaryKey().generatedAlwaysAsIdentity(),
   createdAt: timestamp('created_at').defaultNow(),
   senderAccount: varchar('sender_account', { length: 255 }).notNull(),
   signalType: varchar('signal_type', { length: 50 }).notNull(),
@@ -99,15 +120,15 @@ export const signals = mysqlTable('signals', {
   dealProfit: decimal('deal_profit', { precision: 10, scale: 2 }),
   balance: decimal('balance', { precision: 10, scale: 2 }),
   broker: varchar('broker', { length: 255 }),
-  planetId: int('planet_id').references(() => planets.id, { onDelete: 'set null' }),
+  planetId: integer('planet_id').references(() => planets.id, { onDelete: 'set null' }),
 }, (table) => ({
   senderAccountIdx: index('idx_sender_account').on(table.senderAccount),
   planetIdx: index('idx_planet').on(table.planetId),
 }));
 
 // NextAuth Tables
-export const accounts = mysqlTable('accounts', {
-  id: int('id').autoincrement().primaryKey(),
+export const accounts = pgTable('accounts', {
+  id: serial('id').primaryKey(),
   userId: varchar('userId', { length: 255 }).notNull().references(() => users.userId, { onDelete: 'cascade' }),
   type: varchar('type', { length: 255 }).notNull(),
   provider: varchar('provider', { length: 255 }).notNull(),
@@ -119,46 +140,44 @@ export const accounts = mysqlTable('accounts', {
   scope: varchar('scope', { length: 255 }),
   idToken: text('id_token'),
   sessionState: varchar('session_state', { length: 255 }),
-}, (table) => ({
-  providerIdx: index('').on(table.provider, table.providerAccountId),
-}));
+});
 
-export const sessions = mysqlTable('sessions', {
-  id: int('id').autoincrement().primaryKey(),
+export const sessions = pgTable('sessions', {
+  id: serial('id').primaryKey(),
   userId: varchar('userId', { length: 255 }).notNull().references(() => users.userId, { onDelete: 'cascade' }),
   expires: timestamp('expires').notNull(),
   sessionToken: varchar('sessionToken', { length: 255 }).notNull().unique(),
 });
 
-export const verificationTokens = mysqlTable('verification_tokens', {
+export const verificationTokens = pgTable('verification_tokens', {
   identifier: varchar('identifier', { length: 255 }).notNull(),
   token: varchar('token', { length: 255 }).notNull().unique(),
   expires: timestamp('expires').notNull(),
 });
 
-// MT Accounts Table (MT4/MT5账号绑定)
-export const mtAccounts = mysqlTable('mt_accounts', {
-  id: int('id').autoincrement().primaryKey(),
+// MT Accounts Table
+export const mtAccounts = pgTable('mt_accounts', {
+  id: serial('id').primaryKey(),
   userId: varchar('user_id', { length: 255 }).notNull().references(() => users.userId, { onDelete: 'cascade' }),
   accountNumber: varchar('account_number', { length: 50 }).notNull(),
   broker: varchar('broker', { length: 255 }),
-  platform: mysqlEnum('platform', ['MT4', 'MT5']).notNull(),
+  platform: platformEnum('platform').notNull(),
   isVerified: boolean('is_verified').default(false),
   verifiedAt: timestamp('verified_at'),
   createdAt: timestamp('created_at').defaultNow(),
-  updatedAt: timestamp('updated_at').defaultNow().onUpdateNow(),
+  updatedAt: timestamp('updated_at').defaultNow(),
 }, (table) => ({
   userUnique: uniqueIndex('uk_user_mt_account').on(table.userId),
   accountUnique: uniqueIndex('uk_mt_account_number').on(table.accountNumber, table.platform),
 }));
 
-// Follow Records Table (跟单记录)
-export const followRecords = mysqlTable('follow_records', {
-  id: int('id').autoincrement().primaryKey(),
-  planetId: int('planet_id').notNull().references(() => planets.id, { onDelete: 'cascade' }),
+// Follow Records Table
+export const followRecords = pgTable('follow_records', {
+  id: serial('id').primaryKey(),
+  planetId: integer('planet_id').notNull().references(() => planets.id, { onDelete: 'cascade' }),
   userId: varchar('user_id', { length: 255 }).notNull().references(() => users.userId, { onDelete: 'cascade' }),
   signalId: bigint('signal_id', { mode: 'number' }).notNull().references(() => signals.id, { onDelete: 'cascade' }),
-  status: mysqlEnum('status', ['active', 'paused', 'closed']).default('active'),
+  status: followStatusEnum('status').default('active'),
   copyVolume: decimal('copy_volume', { precision: 10, scale: 2 }),
   copyRatio: decimal('copy_ratio', { precision: 5, scale: 2 }).default('1.00'),
   createdAt: timestamp('created_at').defaultNow(),
@@ -169,14 +188,14 @@ export const followRecords = mysqlTable('follow_records', {
   signalIdx: index('idx_signal_follow').on(table.signalId),
 }));
 
-// Coin Recharges Table (充值记录)
-export const coinRecharges = mysqlTable('coin_recharges', {
-  id: int('id').autoincrement().primaryKey(),
+// Coin Recharges Table
+export const coinRecharges = pgTable('coin_recharges', {
+  id: serial('id').primaryKey(),
   userId: varchar('user_id', { length: 255 }).notNull().references(() => users.userId, { onDelete: 'cascade' }),
-  amount: int('amount').notNull(),
+  amount: integer('amount').notNull(),
   paymentMethod: varchar('payment_method', { length: 50 }),
   transactionId: varchar('transaction_id', { length: 255 }),
-  status: mysqlEnum('status', ['pending', 'completed', 'failed']).default('pending'),
+  status: rechargeStatusEnum('status').default('pending'),
   adminNote: text('admin_note'),
   createdAt: timestamp('created_at').defaultNow(),
   processedAt: timestamp('processed_at'),
@@ -185,33 +204,33 @@ export const coinRecharges = mysqlTable('coin_recharges', {
   statusIdx: index('idx_recharge_status').on(table.status),
 }));
 
-// EA Products Table (EA产品)
-export const eaProducts = mysqlTable('ea_products', {
-  id: int('id').autoincrement().primaryKey(),
+// EA Products Table
+export const eaProducts = pgTable('ea_products', {
+  id: serial('id').primaryKey(),
   name: varchar('name', { length: 255 }).notNull(),
   description: text('description'),
-  price: int('price').notNull(), // 价格（星球币）
+  price: integer('price').notNull(),
   version: varchar('version', { length: 50 }).default('1.0.0'),
-  platform: mysqlEnum('platform', ['MT4', 'MT5', 'Both']).default('Both'),
-  category: varchar('category', { length: 100 }), // 分类：趋势、震荡、马丁等
-  features: text('features'), // 功能特点，JSON格式
-  downloadUrl: varchar('download_url', { length: 500 }), // 下载链接
-  fileName: varchar('file_name', { length: 255 }), // 文件名
-  fileSize: int('file_size'), // 文件大小(KB)
-  imageUrl: varchar('image_url', { length: 500 }), // 产品图片
-  status: mysqlEnum('status', ['active', 'inactive']).default('active'),
-  salesCount: int('sales_count').default(0), // 销售数量
+  platform: eaPlatformEnum('platform').default('Both'),
+  category: varchar('category', { length: 100 }),
+  features: text('features'),
+  downloadUrl: varchar('download_url', { length: 500 }),
+  fileName: varchar('file_name', { length: 255 }),
+  fileSize: integer('file_size'),
+  imageUrl: varchar('image_url', { length: 500 }),
+  status: productStatusEnum('status').default('active'),
+  salesCount: integer('sales_count').default(0),
   createdAt: timestamp('created_at').defaultNow(),
-  updatedAt: timestamp('updated_at').defaultNow().onUpdateNow(),
+  updatedAt: timestamp('updated_at').defaultNow(),
 });
 
-// EA Purchases Table (EA购买记录)
-export const eaPurchases = mysqlTable('ea_purchases', {
-  id: int('id').autoincrement().primaryKey(),
+// EA Purchases Table
+export const eaPurchases = pgTable('ea_purchases', {
+  id: serial('id').primaryKey(),
   userId: varchar('user_id', { length: 255 }).notNull().references(() => users.userId, { onDelete: 'cascade' }),
-  productId: int('product_id').notNull().references(() => eaProducts.id, { onDelete: 'cascade' }),
-  price: int('price').notNull(), // 购买时的价格
-  status: mysqlEnum('status', ['completed', 'refunded']).default('completed'),
+  productId: integer('product_id').notNull().references(() => eaProducts.id, { onDelete: 'cascade' }),
+  price: integer('price').notNull(),
+  status: purchaseStatusEnum('status').default('completed'),
   purchasedAt: timestamp('purchased_at').defaultNow(),
 }, (table) => ({
   userProductUnique: uniqueIndex('uk_user_ea_product').on(table.userId, table.productId),
@@ -219,62 +238,62 @@ export const eaPurchases = mysqlTable('ea_purchases', {
   productIdx: index('idx_ea_product_purchase').on(table.productId),
 }));
 
-// Documents Table (文档中心)
-export const documents = mysqlTable('documents', {
-  id: int('id').autoincrement().primaryKey(),
+// Documents Table
+export const documents = pgTable('documents', {
+  id: serial('id').primaryKey(),
   title: varchar('title', { length: 255 }).notNull(),
   slug: varchar('slug', { length: 255 }).notNull().unique(),
   content: text('content').notNull(),
-  category: varchar('category', { length: 100 }).default('general'), // 分类：getting-started, trading, faq, etc.
-  sortOrder: int('sort_order').default(0), // 排序权重
-  status: mysqlEnum('status', ['published', 'draft']).default('published'),
-  viewCount: int('view_count').default(0),
+  category: varchar('category', { length: 100 }).default('general'),
+  sortOrder: integer('sort_order').default(0),
+  status: documentStatusEnum('status').default('published'),
+  viewCount: integer('view_count').default(0),
   createdAt: timestamp('created_at').defaultNow(),
-  updatedAt: timestamp('updated_at').defaultNow().onUpdateNow(),
+  updatedAt: timestamp('updated_at').defaultNow(),
 }, (table) => ({
   slugUnique: uniqueIndex('uk_document_slug').on(table.slug),
   categoryIdx: index('idx_document_category').on(table.category),
 }));
 
-// System Config Table (系统配置)
-export const systemConfig = mysqlTable('system_config', {
-  id: int('id').autoincrement().primaryKey(),
+// System Config Table
+export const systemConfig = pgTable('system_config', {
+  id: serial('id').primaryKey(),
   configKey: varchar('config_key', { length: 100 }).notNull().unique(),
   configValue: text('config_value').notNull(),
   description: varchar('description', { length: 255 }),
-  updatedAt: timestamp('updated_at').defaultNow().onUpdateNow(),
+  updatedAt: timestamp('updated_at').defaultNow(),
 }, (table) => ({
   keyUnique: uniqueIndex('uk_config_key').on(table.configKey),
 }));
 
-// Forum Posts Table (论坛帖子)
-export const forumPosts = mysqlTable('forum_posts', {
-  id: int('id').autoincrement().primaryKey(),
-  planetId: int('planet_id').notNull().references(() => planets.id, { onDelete: 'cascade' }),
+// Forum Posts Table
+export const forumPosts = pgTable('forum_posts', {
+  id: serial('id').primaryKey(),
+  planetId: integer('planet_id').notNull().references(() => planets.id, { onDelete: 'cascade' }),
   userId: varchar('user_id', { length: 255 }).notNull().references(() => users.userId, { onDelete: 'cascade' }),
   title: varchar('title', { length: 255 }).notNull(),
   content: text('content').notNull(),
-  likeCount: int('like_count').default(0),
-  commentCount: int('comment_count').default(0),
-  isPinned: boolean('is_pinned').default(false), // 是否置顶
-  status: mysqlEnum('status', ['active', 'hidden', 'deleted']).default('active'),
+  likeCount: integer('like_count').default(0),
+  commentCount: integer('comment_count').default(0),
+  isPinned: boolean('is_pinned').default(false),
+  status: forumStatusEnum('status').default('active'),
   createdAt: timestamp('created_at').defaultNow(),
-  updatedAt: timestamp('updated_at').defaultNow().onUpdateNow(),
+  updatedAt: timestamp('updated_at').defaultNow(),
 }, (table) => ({
   planetIdx: index('idx_forum_post_planet').on(table.planetId),
   userIdx: index('idx_forum_post_user').on(table.userId),
   statusIdx: index('idx_forum_post_status').on(table.status),
 }));
 
-// Forum Comments Table (论坛评论)
-export const forumComments = mysqlTable('forum_comments', {
-  id: int('id').autoincrement().primaryKey(),
-  postId: int('post_id').notNull().references(() => forumPosts.id, { onDelete: 'cascade' }),
+// Forum Comments Table
+export const forumComments = pgTable('forum_comments', {
+  id: serial('id').primaryKey(),
+  postId: integer('post_id').notNull().references(() => forumPosts.id, { onDelete: 'cascade' }),
   userId: varchar('user_id', { length: 255 }).notNull().references(() => users.userId, { onDelete: 'cascade' }),
   content: text('content').notNull(),
-  parentId: int('parent_id'), // 回复的评论ID（支持楼中楼）
-  likeCount: int('like_count').default(0),
-  status: mysqlEnum('status', ['active', 'hidden', 'deleted']).default('active'),
+  parentId: integer('parent_id'),
+  likeCount: integer('like_count').default(0),
+  status: forumStatusEnum('status').default('active'),
   createdAt: timestamp('created_at').defaultNow(),
 }, (table) => ({
   postIdx: index('idx_forum_comment_post').on(table.postId),
@@ -282,50 +301,48 @@ export const forumComments = mysqlTable('forum_comments', {
   parentIdx: index('idx_forum_comment_parent').on(table.parentId),
 }));
 
-// Forum Likes Table (论坛点赞)
-export const forumLikes = mysqlTable('forum_likes', {
-  id: int('id').autoincrement().primaryKey(),
+// Forum Likes Table
+export const forumLikes = pgTable('forum_likes', {
+  id: serial('id').primaryKey(),
   userId: varchar('user_id', { length: 255 }).notNull().references(() => users.userId, { onDelete: 'cascade' }),
-  targetType: mysqlEnum('target_type', ['post', 'comment']).notNull(),
-  targetId: int('target_id').notNull(),
+  targetType: targetTypeEnum('target_type').notNull(),
+  targetId: integer('target_id').notNull(),
   createdAt: timestamp('created_at').defaultNow(),
 }, (table) => ({
   userTargetUnique: uniqueIndex('uk_forum_like_user_target').on(table.userId, table.targetType, table.targetId),
   targetIdx: index('idx_forum_like_target').on(table.targetType, table.targetId),
 }));
 
-// Forum Bans Table (论坛禁言)
-export const forumBans = mysqlTable('forum_bans', {
-  id: int('id').autoincrement().primaryKey(),
-  planetId: int('planet_id').notNull().references(() => planets.id, { onDelete: 'cascade' }),
+// Forum Bans Table
+export const forumBans = pgTable('forum_bans', {
+  id: serial('id').primaryKey(),
+  planetId: integer('planet_id').notNull().references(() => planets.id, { onDelete: 'cascade' }),
   userId: varchar('user_id', { length: 255 }).notNull().references(() => users.userId, { onDelete: 'cascade' }),
   bannedBy: varchar('banned_by', { length: 255 }).notNull().references(() => users.userId, { onDelete: 'cascade' }),
   reason: varchar('reason', { length: 500 }),
-  expiresAt: timestamp('expires_at'), // 禁言过期时间（null表示永久）
+  expiresAt: timestamp('expires_at'),
   createdAt: timestamp('created_at').defaultNow(),
 }, (table) => ({
   planetUserUnique: uniqueIndex('uk_forum_ban_planet_user').on(table.planetId, table.userId),
   planetIdx: index('idx_forum_ban_planet').on(table.planetId),
 }));
 
-// K线征途挑战赛报名表
-export const challengeRegistrations = mysqlTable('challenge_registrations', {
-  id: int('id').autoincrement().primaryKey(),
+// Challenge Registrations Table
+export const challengeRegistrations = pgTable('challenge_registrations', {
+  id: serial('id').primaryKey(),
   userId: varchar('user_id', { length: 255 }).notNull().references(() => users.userId, { onDelete: 'cascade' }),
-  status: mysqlEnum('status', ['pending', 'approved', 'rejected', 'active', 'completed', 'failed']).default('pending'), // pending=待审核, approved=已通过待绑定, active=挑战中, completed=已通关, failed=失败, rejected=已拒绝
-  currentLevel: int('current_level').default(1), // 当前关卡（1-10）
-  completedLevels: text('completed_levels'), // 已完成的关卡，JSON格式存储 [1,2,3...]
-  startedAt: timestamp('started_at').defaultNow(), // 开始时间
-  completedAt: timestamp('completed_at'), // 完成时间（通关第10关）
-  failedAt: timestamp('failed_at'), // 失败时间
-  failedLevel: int('failed_level'), // 失败的关卡
-  totalDuration: int('total_duration'), // 总耗时（秒）
-  // 管理员分配的账户信息
-  serverName: varchar('server_name', { length: 255 }), // 服务器名称
-  tradingAccount: varchar('trading_account', { length: 50 }), // 交易账号
-  tradingPassword: varchar('trading_password', { length: 255 }), // 交易密码（加密存储）
-  // 绑定的MT账户ID
-  mtAccountId: int('mt_account_id').references(() => mtAccounts.id, { onDelete: 'set null' }),
+  status: challengeStatusEnum('status').default('pending'),
+  currentLevel: integer('current_level').default(1),
+  completedLevels: text('completed_levels'),
+  startedAt: timestamp('started_at').defaultNow(),
+  completedAt: timestamp('completed_at'),
+  failedAt: timestamp('failed_at'),
+  failedLevel: integer('failed_level'),
+  totalDuration: integer('total_duration'),
+  serverName: varchar('server_name', { length: 255 }),
+  tradingAccount: varchar('trading_account', { length: 50 }),
+  tradingPassword: varchar('trading_password', { length: 255 }),
+  mtAccountId: integer('mt_account_id').references(() => mtAccounts.id, { onDelete: 'set null' }),
   createdAt: timestamp('created_at').defaultNow(),
 }, (table) => ({
   userActiveUnique: uniqueIndex('uk_challenge_user_active').on(table.userId, table.status),
@@ -333,56 +350,56 @@ export const challengeRegistrations = mysqlTable('challenge_registrations', {
   statusIdx: index('idx_challenge_status').on(table.status),
 }));
 
-// K线征途配置表
-export const challengeConfig = mysqlTable('challenge_config', {
-  id: int('id').autoincrement().primaryKey(),
+// Challenge Config Table
+export const challengeConfig = pgTable('challenge_config', {
+  id: serial('id').primaryKey(),
   configKey: varchar('config_key', { length: 100 }).notNull().unique(),
   configValue: text('config_value').notNull(),
   description: varchar('description', { length: 255 }),
-  updatedAt: timestamp('updated_at').defaultNow().onUpdateNow(),
+  updatedAt: timestamp('updated_at').defaultNow(),
 });
 
-// K线征途关卡配置表
-export const challengeLevelConfig = mysqlTable('challenge_level_config', {
-  id: int('id').autoincrement().primaryKey(),
-  level: int('level').notNull().unique(), // 关卡号（1-10）
-  name: varchar('name', { length: 100 }).notNull(), // 关卡名称
-  description: text('description'), // 关卡描述
-  targetBalance: int('target_balance').notNull().default(2000), // 目标净值
-  initialBalance: int('initial_balance').notNull().default(1000), // 初始净值
-  failBalance: int('fail_balance').notNull().default(100), // 失败底线净值
-  reward: varchar('reward', { length: 255 }), // 奖励描述
-  isActive: boolean('is_active').default(true), // 是否启用
+// Challenge Level Config Table
+export const challengeLevelConfig = pgTable('challenge_level_config', {
+  id: serial('id').primaryKey(),
+  level: integer('level').notNull().unique(),
+  name: varchar('name', { length: 100 }).notNull(),
+  description: text('description'),
+  targetBalance: integer('target_balance').notNull().default(2000),
+  initialBalance: integer('initial_balance').notNull().default(1000),
+  failBalance: integer('fail_balance').notNull().default(100),
+  reward: varchar('reward', { length: 255 }),
+  isActive: boolean('is_active').default(true),
   createdAt: timestamp('created_at').defaultNow(),
-  updatedAt: timestamp('updated_at').defaultNow().onUpdateNow(),
+  updatedAt: timestamp('updated_at').defaultNow(),
 });
 
-// K线征途名人堂
-export const challengeHallOfFame = mysqlTable('challenge_hall_of_fame', {
-  id: int('id').autoincrement().primaryKey(),
+// Challenge Hall of Fame Table
+export const challengeHallOfFame = pgTable('challenge_hall_of_fame', {
+  id: serial('id').primaryKey(),
   userId: varchar('user_id', { length: 255 }).notNull().references(() => users.userId, { onDelete: 'cascade' }),
-  registrationId: int('registration_id').notNull().references(() => challengeRegistrations.id, { onDelete: 'cascade' }),
-  displayName: varchar('display_name', { length: 255 }).default('匿名用户'), // 显示昵称
-  isAnonymous: boolean('is_anonymous').default(false), // 是否匿名
-  completedAt: timestamp('completed_at').notNull(), // 通关时间
-  totalDuration: int('total_duration').notNull(), // 总耗时（秒）
-  rewardClaimed: boolean('reward_claimed').default(false), // 奖励是否已领取
-  rewardClaimedAt: timestamp('reward_claimed_at'), // 奖励领取时间
+  registrationId: integer('registration_id').notNull().references(() => challengeRegistrations.id, { onDelete: 'cascade' }),
+  displayName: varchar('display_name', { length: 255 }).default('匿名用户'),
+  isAnonymous: boolean('is_anonymous').default(false),
+  completedAt: timestamp('completed_at').notNull(),
+  totalDuration: integer('total_duration').notNull(),
+  rewardClaimed: boolean('reward_claimed').default(false),
+  rewardClaimedAt: timestamp('reward_claimed_at'),
   createdAt: timestamp('created_at').defaultNow(),
 }, (table) => ({
   userUnique: uniqueIndex('uk_hall_user').on(table.userId),
   completedAtIdx: index('idx_hall_completed_at').on(table.completedAt),
 }));
 
-// K线征途关卡记录
-export const challengeLevelRecords = mysqlTable('challenge_level_records', {
-  id: int('id').autoincrement().primaryKey(),
-  registrationId: int('registration_id').notNull().references(() => challengeRegistrations.id, { onDelete: 'cascade' }),
-  level: int('level').notNull(), // 关卡号（1-10）
-  startedAt: timestamp('started_at').defaultNow(), // 开始时间
-  completedAt: timestamp('completed_at'), // 完成时间
-  duration: int('duration'), // 用时（秒）
-  status: mysqlEnum('status', ['active', 'completed', 'failed']).default('active'),
+// Challenge Level Records Table
+export const challengeLevelRecords = pgTable('challenge_level_records', {
+  id: serial('id').primaryKey(),
+  registrationId: integer('registration_id').notNull().references(() => challengeRegistrations.id, { onDelete: 'cascade' }),
+  level: integer('level').notNull(),
+  startedAt: timestamp('started_at').defaultNow(),
+  completedAt: timestamp('completed_at'),
+  duration: integer('duration'),
+  status: levelStatusEnum('status').default('active'),
 });
 
 // Type exports
