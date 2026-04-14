@@ -1,16 +1,29 @@
 import { NextResponse } from 'next/server';
 import postgres from 'postgres';
 
+function getDatabaseUrl(): string {
+  const url = process.env.COZE_SUPABASE_URL;
+  const key = process.env.COZE_SUPABASE_SERVICE_ROLE_KEY;
+  
+  if (url && key) {
+    const urlObj = new URL(url);
+    const host = urlObj.host;
+    return `postgres://postgres:${key}@${host}:5432/postgres`;
+  }
+  
+  return process.env.DATABASE_URL || '';
+}
+
 export async function GET() {
   const diagnostics: {
     timestamp: string;
     environment: {
       NODE_ENV: string;
-      DATABASE_URL: { set: boolean; host: string; hasPassword: boolean };
+      DATABASE_URL: { set: boolean; hasPassword: boolean };
+      COZE_SUPABASE_URL: { set: boolean; host: string };
+      SUPABASE_SERVICE_ROLE_KEY: { set: boolean };
       NEXTAUTH_URL: { set: boolean; value: string };
       NEXTAUTH_SECRET: { set: boolean };
-      SUPABASE_URL: { set: boolean };
-      SUPABASE_SERVICE_ROLE_KEY: { set: boolean };
     };
     connection: {
       success: boolean;
@@ -22,11 +35,11 @@ export async function GET() {
     timestamp: new Date().toISOString(),
     environment: {
       NODE_ENV: process.env.NODE_ENV || 'development',
-      DATABASE_URL: { set: false, host: '', hasPassword: false },
+      DATABASE_URL: { set: false, hasPassword: false },
+      COZE_SUPABASE_URL: { set: false, host: '' },
+      SUPABASE_SERVICE_ROLE_KEY: { set: false },
       NEXTAUTH_URL: { set: false, value: '' },
       NEXTAUTH_SECRET: { set: false },
-      SUPABASE_URL: { set: false },
-      SUPABASE_SERVICE_ROLE_KEY: { set: false },
     },
     connection: {
       success: false,
@@ -34,27 +47,37 @@ export async function GET() {
     suggestions: [],
   };
 
-  // 检查环境变量（隐藏敏感信息）
+  // 检查环境变量
   if (process.env.DATABASE_URL) {
     try {
       const url = new URL(process.env.DATABASE_URL);
       diagnostics.environment.DATABASE_URL = {
         set: true,
-        host: url.host,
         hasPassword: !!url.password,
       };
     } catch {
       diagnostics.environment.DATABASE_URL = {
         set: true,
-        host: '无法解析',
         hasPassword: false,
       };
     }
   }
   
-  diagnostics.environment.SUPABASE_URL = {
-    set: !!process.env.COZE_SUPABASE_URL,
-  };
+  if (process.env.COZE_SUPABASE_URL) {
+    try {
+      const url = new URL(process.env.COZE_SUPABASE_URL);
+      diagnostics.environment.COZE_SUPABASE_URL = {
+        set: true,
+        host: url.host,
+      };
+    } catch {
+      diagnostics.environment.COZE_SUPABASE_URL = {
+        set: true,
+        host: '无法解析',
+      };
+    }
+  }
+  
   diagnostics.environment.SUPABASE_SERVICE_ROLE_KEY = {
     set: !!process.env.COZE_SUPABASE_SERVICE_ROLE_KEY,
   };
@@ -67,10 +90,17 @@ export async function GET() {
   };
 
   // 尝试直接连接
+  const connectionString = getDatabaseUrl();
+  if (!connectionString) {
+    diagnostics.suggestions.push('DATABASE_URL 和 COZE_SUPABASE_URL 环境变量均未设置');
+  }
+
   try {
-    const connectionString = process.env.DATABASE_URL || '';
     const sql = postgres(connectionString, {
       connect_timeout: 10,
+      ssl: {
+        rejectUnauthorized: false,
+      },
     });
 
     // 获取服务器版本
@@ -96,6 +126,9 @@ export async function GET() {
       diagnostics.suggestions.push('1. 数据库用户名是否正确');
       diagnostics.suggestions.push('2. 数据库密码是否正确');
       diagnostics.suggestions.push('3. 用户是否有访问该数据库的权限');
+    } else if (error.message?.includes('insecure')) {
+      diagnostics.suggestions.push('需要 SSL 连接，请确保已启用 SSL');
+      diagnostics.suggestions.push('解决方案：添加 sslmode=require 到连接字符串');
     } else if (error.message?.includes('does not exist')) {
       diagnostics.suggestions.push('数据库不存在，请检查：');
       diagnostics.suggestions.push('1. 数据库名称是否正确');
@@ -106,10 +139,7 @@ export async function GET() {
   }
 
   // 检查环境变量完整性
-  if (!diagnostics.environment.DATABASE_URL.set) {
-    diagnostics.suggestions.push('DATABASE_URL 环境变量未设置（Supabase PostgreSQL 连接字符串）');
-  }
-  if (!diagnostics.environment.SUPABASE_URL.set) {
+  if (!diagnostics.environment.COZE_SUPABASE_URL.set) {
     diagnostics.suggestions.push('COZE_SUPABASE_URL 环境变量未设置');
   }
   if (!diagnostics.environment.SUPABASE_SERVICE_ROLE_KEY.set) {

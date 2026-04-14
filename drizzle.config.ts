@@ -1,10 +1,24 @@
 import type { Config } from 'drizzle-kit';
 
+function getDatabaseUrl(): string {
+  const url = process.env.COZE_SUPABASE_URL;
+  const key = process.env.COZE_SUPABASE_SERVICE_ROLE_KEY;
+  
+  if (url && key) {
+    const urlObj = new URL(url);
+    const host = urlObj.host;
+    return `postgres://postgres:${key}@${host}:5432/postgres`;
+  }
+  
+  return process.env.DATABASE_URL || '';
+}
+
 export default {
   schema: './src/lib/schema.ts',
   out: './drizzle',
   dialect: 'postgresql',
   dbCredentials: {
-    url: process.env.DATABASE_URL || `postgresql://${process.env.DB_USER || 'postgres'}:${process.env.DB_PASSWORD || ''}@${process.env.DB_HOST || 'localhost'}:${process.env.DB_PORT || 5432}/${process.env.DB_NAME || 'aidb'}`,
+    url: getDatabaseUrl(),
+    ssl: true,
   },
 } satisfies Config;

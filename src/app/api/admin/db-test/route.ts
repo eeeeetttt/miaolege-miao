@@ -1,5 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server';
 import postgres from 'postgres';
+import { getSupabaseClient } from '@/storage/database/supabase-client';
+
+function getDatabaseUrl(): string {
+  const url = process.env.COZE_SUPABASE_URL;
+  const key = process.env.COZE_SUPABASE_SERVICE_ROLE_KEY;
+  
+  if (url && key) {
+    const urlObj = new URL(url);
+    const host = urlObj.host;
+    return `postgres://postgres:${key}@${host}:5432/postgres`;
+  }
+  
+  return process.env.DATABASE_URL || '';
+}
 
 // 数据库连接诊断
 export async function GET(request: NextRequest) {
@@ -14,7 +28,7 @@ export async function GET(request: NextRequest) {
     timestamp: new Date().toISOString(),
     config: {
       host: 'Supabase PostgreSQL',
-      database_url_set: !!process.env.DATABASE_URL,
+      database_url_set: !!(process.env.COZE_SUPABASE_URL && process.env.COZE_SUPABASE_SERVICE_ROLE_KEY),
       supabase_url_set: !!process.env.COZE_SUPABASE_URL,
       service_role_key_set: !!process.env.COZE_SUPABASE_SERVICE_ROLE_KEY,
     },
@@ -24,9 +38,12 @@ export async function GET(request: NextRequest) {
   // 测试1: 基本连接
   try {
     const startTime = Date.now();
-    const connectionString = process.env.DATABASE_URL || '';
+    const connectionString = getDatabaseUrl();
     const sql = postgres(connectionString, {
       connect_timeout: 10,
+      ssl: {
+        rejectUnauthorized: false,
+      },
     });
     const connectTime = Date.now() - startTime;
     
@@ -116,7 +133,6 @@ export async function GET(request: NextRequest) {
 
   // 测试6: Supabase 客户端连接
   try {
-    const { getSupabaseClient } = await import('@/storage/database/supabase-client');
     const supabase = getSupabaseClient();
     
     if (!supabase) {
