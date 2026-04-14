@@ -10,7 +10,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { PasswordStrength } from '@/components/password-strength';
 import { Spinner } from '@/components/ui/spinner';
-import { Eye, EyeOff, User, Mail, Lock, CheckCircle, AlertCircle } from 'lucide-react';
+import { Eye, EyeOff, User, Mail, Lock, CheckCircle, AlertCircle, Send } from 'lucide-react';
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -18,10 +18,60 @@ export default function RegisterPage() {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [name, setName] = useState('');
+  const [code, setCode] = useState('');
   const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
   const [loading, setLoading] = useState(false);
+  const [sendingCode, setSendingCode] = useState(false);
+  const [countdown, setCountdown] = useState(0);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+
+  // 发送验证码
+  const handleSendCode = async () => {
+    if (!email) {
+      setError('请输入邮箱地址');
+      return;
+    }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      setError('请输入有效的邮箱地址');
+      return;
+    }
+
+    setSendingCode(true);
+    setError('');
+
+    try {
+      const res = await fetch('/api/auth/verify-code', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, type: 'register' }),
+      });
+      const data = await res.json();
+
+      if (data.success) {
+        setSuccess(`验证码已发送至 ${email}，10分钟内有效`);
+        setCountdown(60);
+        const timer = setInterval(() => {
+          setCountdown((prev) => {
+            if (prev <= 1) {
+              clearInterval(timer);
+              return 0;
+            }
+            return prev - 1;
+          });
+        }, 1000);
+      } else {
+        setError(data.error || '发送失败');
+      }
+    } catch (err) {
+      setError('发送验证码失败，请稍后重试');
+    } finally {
+      setSendingCode(false);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -32,10 +82,14 @@ export default function RegisterPage() {
       return;
     }
 
-    // 验证邮箱格式
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email)) {
       setError('请输入有效的邮箱地址');
+      return;
+    }
+
+    if (!code) {
+      setError('请输入验证码');
       return;
     }
 
@@ -63,6 +117,21 @@ export default function RegisterPage() {
     setLoading(true);
 
     try {
+      // 先验证验证码
+      const verifyRes = await fetch('/api/auth/verify-code', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, code, type: 'register' }),
+      });
+      const verifyData = await verifyRes.json();
+
+      if (!verifyData.success) {
+        setError(verifyData.error || '验证码验证失败');
+        setLoading(false);
+        return;
+      }
+
+      // 验证码通过后注册
       const res = await fetch('/api/auth/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -117,20 +186,58 @@ export default function RegisterPage() {
                 <AlertDescription>{error}</AlertDescription>
               </Alert>
             )}
+            {success && (
+              <Alert className="border-green-200 bg-green-50">
+                <CheckCircle className="h-4 w-4 text-green-600" />
+                <AlertDescription className="text-green-700">{success}</AlertDescription>
+              </Alert>
+            )}
             <div className="space-y-2">
               <Label htmlFor="email">邮箱 *</Label>
-              <div className="relative">
-                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                <Input
-                  id="email"
-                  type="email"
-                  placeholder="your@email.com"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  required
-                  className="pl-10"
-                />
+              <div className="relative flex gap-2">
+                <div className="relative flex-1">
+                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                  <Input
+                    id="email"
+                    type="email"
+                    placeholder="your@email.com"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    required
+                    className="pl-10"
+                  />
+                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={handleSendCode}
+                  disabled={sendingCode || countdown > 0}
+                  className="whitespace-nowrap"
+                >
+                  {sendingCode ? (
+                    <Spinner className="w-4 h-4" />
+                  ) : countdown > 0 ? (
+                    `${countdown}s`
+                  ) : (
+                    <>
+                      <Send className="w-4 h-4 mr-1" />
+                      获取验证码
+                    </>
+                  )}
+                </Button>
               </div>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="code">验证码 *</Label>
+              <Input
+                id="code"
+                type="text"
+                placeholder="请输入6位验证码"
+                value={code}
+                onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                required
+                className="text-center tracking-widest font-mono"
+              />
             </div>
             <div className="space-y-2">
               <Label htmlFor="name">昵称</Label>

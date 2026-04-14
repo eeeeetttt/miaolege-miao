@@ -1,7 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
+import { db } from '@/lib/db';
+import { users } from '@/lib/schema';
+import { eq } from 'drizzle-orm';
 
+// 获取用户资料
 export async function GET(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
@@ -31,13 +35,13 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ success: false, error: '用户不存在' }, { status: 404 });
     }
 
-    const users = await userRes.json();
+    const usersData = await userRes.json();
     
-    if (!users || users.length === 0) {
+    if (!usersData || usersData.length === 0) {
       return NextResponse.json({ success: false, error: '用户不存在' }, { status: 404 });
     }
 
-    const user = users[0];
+    const user = usersData[0];
 
     // 获取用户星球币余额
     let coinBalance = 0;
@@ -97,5 +101,35 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     console.error('Error fetching user profile:', error);
     return NextResponse.json({ success: false, error: '获取用户资料失败' }, { status: 500 });
+  }
+}
+
+// 更新用户资料（银行卡、钱包等）
+export async function POST(request: NextRequest) {
+  try {
+    const session = await getServerSession(authOptions);
+    
+    if (!session?.user?.id) {
+      return NextResponse.json({ success: false, error: '请先登录' }, { status: 401 });
+    }
+
+    const body = await request.json();
+    const { bankName, bankCardNumber, bankCardName, walletAddress } = body;
+
+    // 更新用户信息
+    await db
+      .update(users)
+      .set({
+        bankName: bankName || null,
+        bankCardNumber: bankCardNumber || null,
+        bankCardName: bankCardName || null,
+        walletAddress: walletAddress || null,
+      })
+      .where(eq(users.userId, session.user.id));
+
+    return NextResponse.json({ success: true, message: '资料更新成功' });
+  } catch (error) {
+    console.error('Update profile error:', error);
+    return NextResponse.json({ success: false, error: '更新资料失败' }, { status: 500 });
   }
 }

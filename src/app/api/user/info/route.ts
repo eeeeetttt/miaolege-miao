@@ -32,6 +32,10 @@ export async function GET(request: NextRequest) {
         coinBalance: user.coinBalance,
         createdAt: user.createdAt,
         nameUpdatedAt: user.nameUpdatedAt,
+        bankName: user.bankName || '',
+        bankCardNumber: user.bankCardNumber || '',
+        bankCardName: user.bankCardName || '',
+        walletAddress: user.walletAddress || '',
       },
     });
   } catch (error) {

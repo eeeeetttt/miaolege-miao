@@ -24,6 +24,12 @@ export const users = mysqlTable('users', {
   nameUpdatedAt: timestamp('name_updated_at'),
   createdAt: timestamp('created_at').defaultNow(),
   updatedAt: timestamp('updated_at').defaultNow().onUpdateNow(),
+  // 银行卡信息
+  bankName: varchar('bank_name', { length: 255 }),
+  bankCardNumber: varchar('bank_card_number', { length: 50 }),
+  bankCardName: varchar('bank_card_name', { length: 100 }),
+  // 钱包地址
+  walletAddress: varchar('wallet_address', { length: 255 }),
 });
 
 // Planets Table

@@ -35,6 +35,8 @@ import {
   Ban,
   MessageSquare,
   Lightbulb,
+  CreditCard,
+  Lock,
 } from 'lucide-react';
 
 interface UserInfo {
@@ -45,6 +47,10 @@ interface UserInfo {
   coinBalance: number;
   createdAt: string;
   nameUpdatedAt: string | null;
+  bankName?: string;
+  bankCardNumber?: string;
+  bankCardName?: string;
+  walletAddress?: string;
 }
 
 interface MTAccount {
@@ -125,6 +131,16 @@ export default function UserCenterPage() {
   const [canChangeName, setCanChangeName] = useState(true);
   const [nextNameChangeDate, setNextNameChangeDate] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // 银行卡和钱包相关状态
+  const [bankInfoLoading, setBankInfoLoading] = useState(false);
+  const [walletLoading, setWalletLoading] = useState(false);
+
+  // 修改密码相关状态
+  const [oldPassword, setOldPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmNewPassword, setConfirmNewPassword] = useState('');
+  const [passwordLoading, setPasswordLoading] = useState(false);
 
   useEffect(() => {
     if (status === 'unauthenticated') {
@@ -400,6 +416,108 @@ export default function UserCenterPage() {
     }
   };
 
+  const handleSaveBankInfo = async () => {
+    setBankInfoLoading(true);
+    setError('');
+    setSuccess('');
+    
+    try {
+      const res = await fetch('/api/user/profile', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          bankName: user?.bankName || '',
+          bankCardNumber: user?.bankCardNumber || '',
+          bankCardName: user?.bankCardName || '',
+        }),
+      });
+      const data = await res.json();
+      
+      if (data.success) {
+        setSuccess('银行卡信息保存成功');
+      } else {
+        setError(data.error || '保存失败');
+      }
+    } catch (error) {
+      setError('保存失败，请稍后重试');
+    } finally {
+      setBankInfoLoading(false);
+    }
+  };
+
+  const handleSaveWalletAddress = async () => {
+    setWalletLoading(true);
+    setError('');
+    setSuccess('');
+    
+    try {
+      const res = await fetch('/api/user/profile', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          walletAddress: user?.walletAddress || '',
+        }),
+      });
+      const data = await res.json();
+      
+      if (data.success) {
+        setSuccess('钱包地址保存成功');
+      } else {
+        setError(data.error || '保存失败');
+      }
+    } catch (error) {
+      setError('保存失败，请稍后重试');
+    } finally {
+      setWalletLoading(false);
+    }
+  };
+
+  const handleChangePassword = async () => {
+    if (!oldPassword || !newPassword || !confirmNewPassword) {
+      setError('请填写所有密码字段');
+      return;
+    }
+
+    if (newPassword.length < 6) {
+      setError('新密码长度至少为6位');
+      return;
+    }
+
+    if (newPassword !== confirmNewPassword) {
+      setError('两次输入的新密码不一致');
+      return;
+    }
+
+    setPasswordLoading(true);
+    setError('');
+    setSuccess('');
+
+    try {
+      const res = await fetch('/api/auth/password', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          oldPassword,
+          newPassword,
+        }),
+      });
+      const data = await res.json();
+
+      if (data.success) {
+        setSuccess('密码修改成功');
+        setOldPassword('');
+        setNewPassword('');
+        setConfirmNewPassword('');
+      } else {
+        setError(data.error || '修改失败');
+      }
+    } catch (error) {
+      setError('修改失败，请稍后重试');
+    } finally {
+      setPasswordLoading(false);
+    }
+  };
+
   const memberLevel = getMemberLevel(totalRecharged);
   const LevelIcon = memberLevel.icon;
 
@@ -546,6 +664,58 @@ export default function UserCenterPage() {
                 </CardContent>
               </Card>
 
+              {/* 修改密码 */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Lock className="w-5 h-5 text-orange-500" />
+                    修改密码
+                  </CardTitle>
+                  <CardDescription>
+                    修改您的登录密码
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="oldPassword">原密码</Label>
+                    <Input
+                      id="oldPassword"
+                      type="password"
+                      value={oldPassword}
+                      onChange={e => setOldPassword(e.target.value)}
+                      placeholder="请输入原密码"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="newPassword">新密码</Label>
+                    <Input
+                      id="newPassword"
+                      type="password"
+                      value={newPassword}
+                      onChange={e => setNewPassword(e.target.value)}
+                      placeholder="请输入新密码（至少6位）"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="confirmNewPassword">确认新密码</Label>
+                    <Input
+                      id="confirmNewPassword"
+                      type="password"
+                      value={confirmNewPassword}
+                      onChange={e => setConfirmNewPassword(e.target.value)}
+                      placeholder="请再次输入新密码"
+                    />
+                  </div>
+                  <Button
+                    onClick={handleChangePassword}
+                    disabled={passwordLoading || !oldPassword || !newPassword || !confirmNewPassword}
+                    className="w-full"
+                  >
+                    {passwordLoading ? '修改中...' : '修改密码'}
+                  </Button>
+                </CardContent>
+              </Card>
+
               {/* MT账号绑定 - 暂时隐藏
               <Card className="lg:col-span-2">
                 <CardHeader>
@@ -665,42 +835,83 @@ export default function UserCenterPage() {
                 </CardContent>
               </Card>
 
-              {/* 投诉和建议入口 */}
-              <Card className="lg:col-span-2">
+              {/* 银行卡信息设置 */}
+              <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
-                    <MessageSquare className="w-5 h-5 text-red-500" />
-                    意见反馈
+                    <CreditCard className="w-5 h-5 text-green-500" />
+                    银行卡信息
                   </CardTitle>
                   <CardDescription>
-                    有问题或建议？我们随时为您服务
+                    设置您的收款银行卡信息
                   </CardDescription>
                 </CardHeader>
-                <CardContent>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <a href="/complaint" className="block">
-                      <div className="flex items-center gap-4 p-4 bg-red-50 dark:bg-red-900/20 rounded-lg hover:bg-red-100 dark:hover:bg-red-900/30 transition-colors cursor-pointer">
-                        <div className="w-12 h-12 bg-red-100 dark:bg-red-900/30 rounded-full flex items-center justify-center">
-                          <MessageSquare className="w-6 h-6 text-red-600" />
-                        </div>
-                        <div>
-                          <p className="font-semibold">意见投诉</p>
-                          <p className="text-sm text-gray-500">提交您遇到的问题</p>
-                        </div>
-                      </div>
-                    </a>
-                    <a href="/suggestion" className="block">
-                      <div className="flex items-center gap-4 p-4 bg-amber-50 dark:bg-amber-900/20 rounded-lg hover:bg-amber-100 dark:hover:bg-amber-900/30 transition-colors cursor-pointer">
-                        <div className="w-12 h-12 bg-amber-100 dark:bg-amber-900/30 rounded-full flex items-center justify-center">
-                          <Lightbulb className="w-6 h-6 text-amber-600" />
-                        </div>
-                        <div>
-                          <p className="font-semibold">意见建议</p>
-                          <p className="text-sm text-gray-500">提出您的宝贵建议</p>
-                        </div>
-                      </div>
-                    </a>
+                <CardContent className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="bankName">开户行</Label>
+                    <Input
+                      id="bankName"
+                      value={user?.bankName || ''}
+                      onChange={e => setUser(prev => prev ? { ...prev, bankName: e.target.value } : null)}
+                      placeholder="如：中国工商银行北京分行"
+                    />
                   </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="bankCardNumber">银行卡号</Label>
+                    <Input
+                      id="bankCardNumber"
+                      value={user?.bankCardNumber || ''}
+                      onChange={e => setUser(prev => prev ? { ...prev, bankCardNumber: e.target.value } : null)}
+                      placeholder="请输入银行卡号"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="bankCardName">持卡人姓名</Label>
+                    <Input
+                      id="bankCardName"
+                      value={user?.bankCardName || ''}
+                      onChange={e => setUser(prev => prev ? { ...prev, bankCardName: e.target.value } : null)}
+                      placeholder="请输入持卡人姓名"
+                    />
+                  </div>
+                  <Button
+                    onClick={handleSaveBankInfo}
+                    disabled={bankInfoLoading}
+                    className="w-full"
+                  >
+                    {bankInfoLoading ? '保存中...' : '保存银行卡信息'}
+                  </Button>
+                </CardContent>
+              </Card>
+
+              {/* 钱包地址设置 */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Wallet className="w-5 h-5 text-blue-500" />
+                    钱包地址
+                  </CardTitle>
+                  <CardDescription>
+                    设置您的USDT (TRC20) 钱包地址，用于收款
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="walletAddress">钱包地址</Label>
+                    <Input
+                      id="walletAddress"
+                      value={user?.walletAddress || ''}
+                      onChange={e => setUser(prev => prev ? { ...prev, walletAddress: e.target.value } : null)}
+                      placeholder="请输入您的钱包地址"
+                    />
+                  </div>
+                  <Button
+                    onClick={handleSaveWalletAddress}
+                    disabled={walletLoading}
+                    className="w-full"
+                  >
+                    {walletLoading ? '保存中...' : '保存钱包地址'}
+                  </Button>
                 </CardContent>
               </Card>
             </div>
