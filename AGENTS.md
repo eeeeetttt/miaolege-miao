@@ -101,6 +101,32 @@
 - `private_messages` - 私信表
 - `coin_transfers` - 星球币转账表
 - `user_follows` - 用户关注表
+- `chat_hall_messages` - 聊天大厅消息表
+- `chat_hall_config` - 聊天大厅配置表
+- `chat_hall_mutes` - 用户禁言表
+
+### 聊天大厅功能
+
+#### 特性
+- 实时聊天大厅，用户可发言讨论
+- 发言频率限制（默认每分钟1条）
+- 用户禁言功能（管理员可禁言/解禁用户）
+- 高级会员彩色字体区分（premium/vip/admin）
+- 系统推送通知（通关/失败等重要事件）
+
+#### 相关页面
+- `/social` - 社交中心（包含聊天大厅Tab）
+
+#### 相关API
+- `GET /api/chat-hall` - 获取消息列表和配置
+- `POST /api/chat-hall` - 发送消息
+- `POST /api/chat-hall/system` - 发送系统通知
+- `GET/POST /api/admin/chat-hall` - 后台管理（配置、禁言/解禁）
+
+#### 数据库表（Supabase）
+- `chat_hall_messages` - 聊天消息（user_id, user_name, content, is_system, is_premium）
+- `chat_hall_config` - 聊天配置（enabled, cooldown_seconds, max_message_length）
+- `chat_hall_mutes` - 禁言记录（user_id, reason, muted_by, expires_at）
 
 ## 开发规范
 

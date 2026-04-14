@@ -11,6 +11,7 @@ import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Spinner } from '@/components/ui/spinner';
+import { ChatHall } from '@/components/chat-hall';
 import { 
   MessageSquare,
   Send,
@@ -30,7 +31,8 @@ import {
   CheckCircle2,
   XCircle,
   Image,
-  Upload
+  Upload,
+  Users
 } from 'lucide-react';
 
 // 类型定义
@@ -94,7 +96,7 @@ export default function SocialPage() {
   const router = useRouter();
   const { data: session, status } = useSession();
   const [coinBalance, setCoinBalance] = useState<number>(0);
-  const [activeSection, setActiveSection] = useState<'messages' | 'transfer' | 'search' | 'follow'>('messages');
+  const [activeSection, setActiveSection] = useState<'messages' | 'transfer' | 'search' | 'follow' | 'chatHall'>('messages');
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [selectedConversation, setSelectedConversation] = useState<Conversation | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -528,6 +530,15 @@ export default function SocialPage() {
               >
                 <Search className="w-5 h-5" />
                 <span>搜索用户</span>
+              </button>
+              <button
+                onClick={() => { setActiveSection('chatHall'); setSelectedConversation(null); }}
+                className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
+                  activeSection === 'chatHall' ? 'bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300' : 'hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-300'
+                }`}
+              >
+                <Users className="w-5 h-5" />
+                <span>聊天大厅</span>
               </button>
             </CardContent>
           </Card>
@@ -1013,6 +1024,20 @@ export default function SocialPage() {
                   )}
                 </CardContent>
               </Card>
+            )}
+
+            {/* 聊天大厅 */}
+            {activeSection === 'chatHall' && (
+              session ? (
+                <ChatHall />
+              ) : (
+                <Card>
+                  <CardContent className="py-12 text-center text-gray-500">
+                    <Users className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                    <p>请先登录后访问聊天大厅</p>
+                  </CardContent>
+                </Card>
+              )
             )}
           </div>
         </div>

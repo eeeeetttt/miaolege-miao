@@ -47,6 +47,7 @@ import {
   MessageSquare,
   Lightbulb,
 } from 'lucide-react';
+import { ChatHallAdmin } from '@/components/chat-hall-admin';
 
 // 系统配置
 interface SystemConfig {
@@ -865,6 +866,10 @@ export default function AdminDashboardPage() {
             <TabsTrigger value="ea" className="flex items-center gap-2">
               <FileCode className="w-4 h-4" />
               EA管理
+            </TabsTrigger>
+            <TabsTrigger value="chatHall" className="flex items-center gap-2">
+              <MessageSquare className="w-4 h-4" />
+              聊天大厅
             </TabsTrigger>
           </TabsList>
 
@@ -1746,6 +1751,11 @@ export default function AdminDashboardPage() {
                 </div>
               </CardContent>
             </Card>
+          </TabsContent>
+
+          {/* 聊天大厅 Tab */}
+          <TabsContent value="chatHall">
+            <ChatHallAdmin />
           </TabsContent>
         </Tabs>
 

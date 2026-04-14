@@ -189,3 +189,49 @@ export const suggestionLikes = pgTable("suggestion_likes", {
 	pgPolicy("suggestion_likes_允许公开插入", { as: "permissive", for: "insert", to: ["public"] }),
 	pgPolicy("suggestion_likes_允许公开删除", { as: "permissive", for: "delete", to: ["public"] }),
 ]);
+
+// 聊天大厅消息表
+export const chatHallMessages = pgTable("chat_hall_messages", {
+	id: serial().primaryKey().notNull(),
+	userId: varchar("user_id", { length: 255 }).notNull(),
+	userName: varchar("user_name", { length: 100 }).notNull(),
+	userAvatar: varchar("user_avatar", { length: 500 }),
+	content: varchar({ length: 500 }).notNull(),
+	isSystem: integer("is_system").default(0).notNull(), // 0=用户消息, 1=系统消息
+	isPremium: integer("is_premium").default(0).notNull(), // 0=普通用户, 1=高级会员
+	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
+}, (table) => [
+	index("idx_chat_hall_created").using("btree", table.createdAt.desc().nullsFirst().op("timestamp_ops")),
+	pgPolicy("chat_hall_messages_允许公开读取", { as: "permissive", for: "select", to: ["public"] }),
+	pgPolicy("chat_hall_messages_允许公开插入", { as: "permissive", for: "insert", to: ["public"] }),
+]);
+
+// 聊天大厅配置表
+export const chatHallConfig = pgTable("chat_hall_config", {
+	id: serial().primaryKey().notNull(),
+	configKey: varchar("config_key", { length: 50 }).notNull(),
+	configValue: varchar("config_value", { length: 500 }).notNull(),
+	description: varchar({ length: 200 }),
+	updatedAt: timestamp("updated_at", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
+}, (table) => [
+	unique("chat_hall_config_key_unique").on(table.configKey),
+	pgPolicy("chat_hall_config_允许公开读取", { as: "permissive", for: "select", to: ["public"] }),
+	pgPolicy("chat_hall_config_允许公开更新", { as: "permissive", for: "update", to: ["public"] }),
+	pgPolicy("chat_hall_config_允许公开插入", { as: "permissive", for: "insert", to: ["public"] }),
+]);
+
+// 用户禁言表
+export const chatHallMutes = pgTable("chat_hall_mutes", {
+	id: serial().primaryKey().notNull(),
+	userId: varchar("user_id", { length: 255 }).notNull(),
+	mutedBy: varchar("muted_by", { length: 255 }), // 管理员ID
+	reason: varchar({ length: 200 }),
+	expiresAt: timestamp("expires_at", { withTimezone: true, mode: 'string' }), // null表示永久禁言
+	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
+}, (table) => [
+	index("idx_chat_hall_mute_user").using("btree", table.userId.asc().nullsLast().op("text_ops")),
+	pgPolicy("chat_hall_mutes_允许公开读取", { as: "permissive", for: "select", to: ["public"] }),
+	pgPolicy("chat_hall_mutes_允许公开插入", { as: "permissive", for: "insert", to: ["public"] }),
+	pgPolicy("chat_hall_mutes_允许公开删除", { as: "permissive", for: "delete", to: ["public"] }),
+	pgPolicy("chat_hall_mutes_允许公开更新", { as: "permissive", for: "update", to: ["public"] }),
+]);
