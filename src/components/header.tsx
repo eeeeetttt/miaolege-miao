@@ -58,7 +58,7 @@ export function Header() {
                 </Link>
                 <Link href="/social" className="text-gray-600 hover:text-purple-600 dark:text-gray-300 dark:hover:text-purple-400 transition-colors flex items-center gap-1">
                   <MessageCircle className="w-4 h-4" />
-                  社交
+                  茶馆
                 </Link>
                 <Link href="/docs" className="text-gray-600 hover:text-purple-600 dark:text-gray-300 dark:hover:text-purple-400 transition-colors flex items-center gap-1">
                   <FileText className="w-4 h-4" />

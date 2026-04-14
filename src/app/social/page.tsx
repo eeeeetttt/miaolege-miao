@@ -535,7 +535,7 @@ function SocialPageContent() {
                 }`}
               >
                 <Users className="w-5 h-5" />
-                <span>聊天大厅</span>
+                <span>茶馆·闲聊室</span>
               </button>
               <button
                 onClick={() => { setActiveSection('messages'); setSelectedConversation(null); }}
@@ -622,7 +622,7 @@ function SocialPageContent() {
                             <div className="flex items-center justify-between">
                               <div className="flex items-center gap-2">
                                 <span className="font-medium truncate">{conv.userName}</span>
-                                {conv.uBalance !== undefined && conv.uBalance > 0 && (
+                                {conv.uBalance !== undefined && (
                                   <Badge variant="outline" className="text-xs bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400 border-green-200 dark:border-green-800">
                                     {conv.uBalance} U
                                   </Badge>
@@ -663,7 +663,7 @@ function SocialPageContent() {
                   </Avatar>
                   <CardTitle className="text-lg flex items-center gap-2">
                     {selectedConversation.userName}
-                    {selectedConversation.uBalance !== undefined && selectedConversation.uBalance > 0 && (
+                    {selectedConversation.uBalance !== undefined && (
                       <Badge variant="outline" className="text-xs bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400 border-green-200 dark:border-green-800">
                         {selectedConversation.uBalance} U
                       </Badge>
