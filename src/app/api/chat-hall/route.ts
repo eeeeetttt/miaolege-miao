@@ -11,15 +11,23 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: '数据库连接不可用' }, { status: 503 });
     }
 
+    // 自动清理24小时之前的消息
+    const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+    await supabase
+      .from('chat_hall_messages')
+      .delete()
+      .lt('created_at', twentyFourHoursAgo);
+
     const { searchParams } = new URL(request.url);
     const page = parseInt(searchParams.get('page') || '1');
     const pageSize = parseInt(searchParams.get('pageSize') || '50');
     const offset = (page - 1) * pageSize;
 
-    // 获取最近的消息
+    // 获取最近24小时的消息
     const { data: messages, error } = await supabase
       .from('chat_hall_messages')
       .select('id, user_id, user_name, user_avatar, content, is_system, is_premium, created_at')
+      .gte('created_at', twentyFourHoursAgo)
       .order('created_at', { ascending: false })
       .range(offset, offset + pageSize - 1);
 

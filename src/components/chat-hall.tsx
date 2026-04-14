@@ -154,9 +154,7 @@ export function ChatHall() {
           <Users className="w-5 h-5 text-purple-500" />
           聊天大厅
         </CardTitle>
-        <Badge variant="outline" className="text-xs">
-          {messages.length} 条消息
-        </Badge>
+        <span className="text-xs text-gray-400">仅保留最近24小时的聊天记录</span>
       </CardHeader>
 
       <CardContent className="flex-1 flex flex-col p-0 overflow-hidden">
