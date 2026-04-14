@@ -48,6 +48,7 @@ import {
   Lightbulb,
 } from 'lucide-react';
 import { ChatHallAdmin } from '@/components/chat-hall-admin';
+import { DatabaseManager } from '@/components/database-manager';
 
 // 系统配置
 interface SystemConfig {
@@ -830,51 +831,106 @@ export default function AdminDashboardPage() {
 
         {/* Main Content */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-9 lg:w-auto lg:inline-grid">
-            <TabsTrigger value="users" className="flex items-center gap-2">
-              <Users className="w-4 h-4" />
-              用户管理
-            </TabsTrigger>
-            <TabsTrigger value="recharge" className="flex items-center gap-2">
-              <DollarSign className="w-4 h-4" />
-              充值审核
-            </TabsTrigger>
-            <TabsTrigger value="complaints" className="flex items-center gap-2">
-              <MessageSquare className="w-4 h-4" />
-              投诉管理
-            </TabsTrigger>
-            <TabsTrigger value="suggestions" className="flex items-center gap-2">
-              <Lightbulb className="w-4 h-4" />
-              建议管理
-            </TabsTrigger>
-            <TabsTrigger value="docs" className="flex items-center gap-2">
-              <FileText className="w-4 h-4" />
-              文档管理
-            </TabsTrigger>
-            <TabsTrigger value="config" className="flex items-center gap-2">
-              <Settings className="w-4 h-4" />
-              系统配置
-            </TabsTrigger>
-            <TabsTrigger value="database" className="flex items-center gap-2">
-              <Database className="w-4 h-4" />
-              数据库
-            </TabsTrigger>
-            <TabsTrigger value="challenge" className="flex items-center gap-2" onClick={() => router.push('/admin/challenge')}>
-              <TrendingUp className="w-4 h-4" />
-              K线征途
-            </TabsTrigger>
-            <TabsTrigger value="ea" className="flex items-center gap-2">
-              <FileCode className="w-4 h-4" />
-              EA管理
-            </TabsTrigger>
-            <TabsTrigger value="chatHall" className="flex items-center gap-2">
-              <MessageSquare className="w-4 h-4" />
-              聊天大厅
-            </TabsTrigger>
-          </TabsList>
+          {/* 优化的Tab导航 - 滚动式布局 */}
+          <div className="overflow-x-auto pb-2">
+            <div className="flex gap-1 min-w-max">
+              <Button
+                size="sm"
+                variant={activeTab === 'users' ? 'default' : 'outline'}
+                onClick={() => setActiveTab('users')}
+                className="gap-2"
+              >
+                <Users className="w-4 h-4" />
+                用户
+              </Button>
+              <Button
+                size="sm"
+                variant={activeTab === 'recharge' ? 'default' : 'outline'}
+                onClick={() => setActiveTab('recharge')}
+                className="gap-2"
+              >
+                <DollarSign className="w-4 h-4" />
+                充值
+              </Button>
+              <Button
+                size="sm"
+                variant={activeTab === 'complaints' ? 'default' : 'outline'}
+                onClick={() => setActiveTab('complaints')}
+                className="gap-2"
+              >
+                <MessageSquare className="w-4 h-4" />
+                投诉
+              </Button>
+              <Button
+                size="sm"
+                variant={activeTab === 'suggestions' ? 'default' : 'outline'}
+                onClick={() => setActiveTab('suggestions')}
+                className="gap-2"
+              >
+                <Lightbulb className="w-4 h-4" />
+                建议
+              </Button>
+              <div className="w-px h-8 bg-gray-300 dark:bg-gray-600 mx-1 self-center" />
+              <Button
+                size="sm"
+                variant={activeTab === 'config' ? 'default' : 'outline'}
+                onClick={() => setActiveTab('config')}
+                className="gap-2"
+              >
+                <Settings className="w-4 h-4" />
+                配置
+              </Button>
+              <Button
+                size="sm"
+                variant={activeTab === 'docs' ? 'default' : 'outline'}
+                onClick={() => setActiveTab('docs')}
+                className="gap-2"
+              >
+                <FileText className="w-4 h-4" />
+                文档
+              </Button>
+              <Button
+                size="sm"
+                variant={activeTab === 'database' ? 'default' : 'outline'}
+                onClick={() => setActiveTab('database')}
+                className="gap-2"
+              >
+                <Database className="w-4 h-4" />
+                数据库
+              </Button>
+              <Button
+                size="sm"
+                variant={activeTab === 'chatHall' ? 'default' : 'outline'}
+                onClick={() => setActiveTab('chatHall')}
+                className="gap-2"
+              >
+                <MessageSquare className="w-4 h-4" />
+                聊天
+              </Button>
+              <Button
+                size="sm"
+                variant={activeTab === 'ea' ? 'default' : 'outline'}
+                onClick={() => setActiveTab('ea')}
+                className="gap-2"
+              >
+                <FileCode className="w-4 h-4" />
+                EA
+              </Button>
+              <div className="w-px h-8 bg-gray-300 dark:bg-gray-600 mx-1 self-center" />
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => router.push('/admin/challenge')}
+                className="gap-2"
+              >
+                <TrendingUp className="w-4 h-4" />
+                K线征途
+              </Button>
+            </div>
+          </div>
 
           {/* Users Tab */}
-          <TabsContent value="users">
+          <TabsContent value="users" className="mt-0">
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
@@ -1677,57 +1733,7 @@ export default function AdminDashboardPage() {
 
           {/* Database Tab */}
           <TabsContent value="database">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Database className="w-5 h-5" />
-                  数据库管理
-                </CardTitle>
-                <CardDescription>
-                  初始化和管理数据库表结构
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <Alert>
-                  <Shield className="h-4 w-4" />
-                  <AlertDescription>
-                    数据库操作可能会影响现有数据，请谨慎操作。建议在操作前备份数据库。
-                  </AlertDescription>
-                </Alert>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <Card className="border">
-                    <CardContent className="pt-6">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <h3 className="font-bold">初始化数据库表</h3>
-                          <p className="text-sm text-gray-500 mt-1">创建缺失的数据库表结构</p>
-                        </div>
-                        <Button onClick={handleInitDatabase} variant="outline">
-                          <RefreshCw className="w-4 h-4 mr-2" />
-                          执行
-                        </Button>
-                      </div>
-                    </CardContent>
-                  </Card>
-
-                  <Card className="border">
-                    <CardContent className="pt-6">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <h3 className="font-bold">初始化EA产品表</h3>
-                          <p className="text-sm text-gray-500 mt-1">创建EA产品和购买记录表</p>
-                        </div>
-                        <Button onClick={handleInitEA} variant="outline">
-                          <RefreshCw className="w-4 h-4 mr-2" />
-                          执行
-                        </Button>
-                      </div>
-                    </CardContent>
-                  </Card>
-                </div>
-              </CardContent>
-            </Card>
+            <DatabaseManager />
           </TabsContent>
 
           {/* EA Tab */}
