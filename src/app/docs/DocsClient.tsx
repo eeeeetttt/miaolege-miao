@@ -28,6 +28,19 @@ interface Document {
   updatedAt: string;
 }
 
+// 文档发布日期覆盖配置
+const PUBLISH_DATE_OVERRIDES: Record<string, string> = {
+  // K线征途·伦敦金挑战赛赛事文档 -> 2023/1/15
+  'challenge-rules': '2023-01-15',
+  'challenge-guide': '2023-01-15',
+  'kline-challenge': '2023-01-15',
+  'london-gold-challenge': '2023-01-15',
+  // U获取方式说明 -> 2025/6/14
+  'u-earning-guide': '2025-06-14',
+  'u-get-guide': '2025-06-14',
+  'u-guide': '2025-06-14',
+};
+
 const CATEGORY_CONFIG: Record<string, { name: string; icon: any; color: string }> = {
   'getting-started': { name: '新手入门', icon: BookOpen, color: 'text-blue-500' },
   'trading': { name: '交易指南', icon: TrendingUp, color: 'text-green-500' },
@@ -45,6 +58,18 @@ export default function DocsClient() {
   const [docLoading, setDocLoading] = useState(false);
 
   const slug = searchParams.get('slug');
+
+  // 获取文档发布日期（优先使用覆盖配置）
+  const getDocumentDate = (doc: Document | null): string => {
+    if (!doc) return '';
+    const overrideDate = PUBLISH_DATE_OVERRIDES[doc.slug];
+    if (overrideDate) {
+      // 格式化为 YYYY/M/D 格式
+      const [year, month, day] = overrideDate.split('-');
+      return `${year}/${parseInt(month)}/${parseInt(day)}`;
+    }
+    return new Date(doc.updatedAt).toLocaleDateString('zh-CN');
+  };
 
   useEffect(() => {
     fetchDocuments();
@@ -216,7 +241,7 @@ export default function DocsClient() {
                 <div className="flex items-center gap-3 text-xs text-gray-500">
                   <span className="flex items-center gap-1">
                     <Clock className="w-3 h-3" />
-                    {new Date(selectedDoc.updatedAt).toLocaleDateString()}
+                    {getDocumentDate(selectedDoc)}
                   </span>
                 </div>
               </div>
