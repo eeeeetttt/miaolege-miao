@@ -26,16 +26,15 @@ export async function GET(request: NextRequest) {
     if (error) throw new Error(`获取消息失败: ${error.message}`);
 
     // 获取聊天配置
-    const { data: configs } = await supabase
+    const { data: config } = await supabase
       .from('chat_hall_config')
-      .select('config_key, config_value');
+      .select('enabled, cooldown_seconds, max_message_length')
+      .eq('id', 1)
+      .maybeSingle();
 
-    const configMap: Record<string, string> = {};
-    if (configs) {
-      configs.forEach(c => {
-        configMap[c.config_key] = c.config_value;
-      });
-    }
+    const enabled = config?.enabled !== 0;
+    const cooldownSeconds = config?.cooldown_seconds || 60;
+    const maxMessageLength = config?.max_message_length || 200;
 
     // 获取当前用户是否被禁言
     const session = await getServerSession(authOptions);
@@ -72,8 +71,9 @@ export async function GET(request: NextRequest) {
       page,
       pageSize,
       config: {
-        cooldownSeconds: parseInt(configMap.cooldown_seconds || '60'),
-        enabled: configMap.enabled !== 'false',
+        cooldownSeconds,
+        enabled,
+        maxMessageLength,
       },
       userStatus: {
         isMuted,
@@ -111,6 +111,17 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: '消息内容不能超过200字符' }, { status: 400 });
     }
 
+    // 获取聊天配置
+    const { data: config } = await supabase
+      .from('chat_hall_config')
+      .select('enabled, cooldown_seconds, max_message_length')
+      .eq('id', 1)
+      .maybeSingle();
+
+    const enabled = config?.enabled !== 0;
+    const cooldownSeconds = config?.cooldown_seconds || 60;
+    const maxMessageLength = config?.max_message_length || 200;
+
     // 检查是否被禁言
     const { data: muteData } = await supabase
       .from('chat_hall_mutes')
@@ -124,10 +135,10 @@ export async function POST(request: NextRequest) {
 
       if (!expiresAt || expiresAt > now) {
         const remainingTime = expiresAt
-          ? Math.ceil((expiresAt.getTime() - now.getTime()) / 1000 / 60)
-          : '永久';
+          ? Math.ceil((expiresAt.getTime() - now.getTime()) / 1000)
+          : 0;
         return NextResponse.json({
-          error: `您已被禁言${remainingTime !== '永久' ? `，剩余 ${remainingTime} 分钟` : ''}`,
+          error: `您已被禁言，剩余 ${remainingTime} 秒`,
           reason: muteData.reason,
         }, { status: 403 });
       } else {
@@ -139,25 +150,16 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // 获取聊天配置
-    const { data: configs } = await supabase
-      .from('chat_hall_config')
-      .select('config_key, config_value');
-
-    const configMap: Record<string, string> = {};
-    if (configs) {
-      configs.forEach(c => {
-        configMap[c.config_key] = c.config_value;
-      });
-    }
-
     // 检查聊天是否已开启
-    if (configMap.enabled === 'false') {
+    if (!enabled) {
       return NextResponse.json({ error: '聊天大厅已关闭' }, { status: 403 });
     }
 
+    if (content.length > maxMessageLength) {
+      return NextResponse.json({ error: `消息内容不能超过${maxMessageLength}字符` }, { status: 400 });
+    }
+
     // 检查发言冷却时间
-    const cooldownSeconds = parseInt(configMap.cooldown_seconds || '60');
     const { data: lastMessage } = await supabase
       .from('chat_hall_messages')
       .select('created_at')
@@ -175,7 +177,8 @@ export async function POST(request: NextRequest) {
       if (elapsed < cooldownSeconds) {
         const remaining = Math.ceil(cooldownSeconds - elapsed);
         return NextResponse.json({
-          error: `发言太频繁，请 ${remaining} 秒后再试`
+          error: `发言太频繁，请 ${remaining} 秒后再试`,
+          cooldownSeconds: remaining,
         }, { status: 429 });
       }
     }

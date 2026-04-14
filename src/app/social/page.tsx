@@ -493,6 +493,15 @@ export default function SocialPage() {
             </CardHeader>
             <CardContent className="space-y-2">
               <button
+                onClick={() => { setActiveSection('chatHall'); setSelectedConversation(null); }}
+                className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
+                  activeSection === 'chatHall' ? 'bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300' : 'hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-300'
+                }`}
+              >
+                <Users className="w-5 h-5" />
+                <span>聊天大厅</span>
+              </button>
+              <button
                 onClick={() => { setActiveSection('messages'); setSelectedConversation(null); }}
                 className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
                   activeSection === 'messages' ? 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300' : 'hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-300'
@@ -545,6 +554,11 @@ export default function SocialPage() {
 
           {/* 右侧内容区 */}
           <div className="lg:col-span-2">
+            {/* 聊天大厅 */}
+            {activeSection === 'chatHall' && (
+              <ChatHall />
+            )}
+
             {/* 私信列表/聊天 */}
             {activeSection === 'messages' && !selectedConversation && (
               <Card>
@@ -1024,20 +1038,6 @@ export default function SocialPage() {
                   )}
                 </CardContent>
               </Card>
-            )}
-
-            {/* 聊天大厅 */}
-            {activeSection === 'chatHall' && (
-              session ? (
-                <ChatHall />
-              ) : (
-                <Card>
-                  <CardContent className="py-12 text-center text-gray-500">
-                    <Users className="w-12 h-12 mx-auto mb-4 opacity-50" />
-                    <p>请先登录后访问聊天大厅</p>
-                  </CardContent>
-                </Card>
-              )
             )}
           </div>
         </div>

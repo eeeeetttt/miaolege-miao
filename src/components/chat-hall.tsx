@@ -31,6 +31,7 @@ export function ChatHall() {
   const [cooldownRemaining, setCooldownRemaining] = useState(0);
   const [isMuted, setIsMuted] = useState(false);
   const [muteExpiresAt, setMuteExpiresAt] = useState<string | null>(null);
+  const [cooldownSeconds, setCooldownSeconds] = useState(60); // 从服务器获取
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -46,6 +47,10 @@ export function ChatHall() {
         setMessages(data.data || []);
         setIsMuted(data.userStatus?.isMuted || false);
         setMuteExpiresAt(data.userStatus?.muteExpiresAt);
+        // 保存服务器配置的冷却时间
+        if (data.config?.cooldownSeconds) {
+          setCooldownSeconds(data.config.cooldownSeconds);
+        }
       } else {
         setError(data.error || '加载消息失败');
       }
@@ -97,11 +102,14 @@ export function ChatHall() {
       if (data.success) {
         setNewMessage('');
         await loadMessages();
-        // 设置冷却时间
-        setCooldownRemaining(60);
+        // 使用服务器配置的冷却时间
+        setCooldownRemaining(cooldownSeconds);
       } else if (res.status === 429) {
         setError(data.error || '发言太频繁');
-        if (data.error) {
+        // 从响应中提取剩余秒数
+        if (data.cooldownSeconds) {
+          setCooldownRemaining(data.cooldownSeconds);
+        } else if (data.error) {
           const match = data.error.match(/(\d+) 秒/);
           if (match) setCooldownRemaining(parseInt(match[1]));
         }
