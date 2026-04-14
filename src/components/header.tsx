@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import Image from 'next/image';
 import { useSession, signOut } from 'next-auth/react';
+import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { 
@@ -14,10 +15,25 @@ import {
   DropdownMenuTrigger 
 } from '@/components/ui/dropdown-menu';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { User, LogOut, Globe, Settings, Download, Home, Shield, FileText, Trophy, MessageCircle, UserCircle, Wallet, MessageSquare, AlertCircle } from 'lucide-react';
+import { User, LogOut, Globe, Settings, Download, Home, Shield, FileText, Trophy, MessageCircle, UserCircle, Wallet, MessageSquare, AlertCircle, Menu, X } from 'lucide-react';
 
 export function Header() {
   const { data: session } = useSession();
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  const navItems = [
+    { href: '/', label: '首页', icon: Home },
+    { href: '/challenge/hall', label: '挑战赛大厅', icon: Globe, requireAuth: true },
+    { href: '/challenge', label: 'K线征途', icon: Trophy, requireAuth: true, highlight: true },
+    { href: '/social', label: '社交', icon: MessageCircle, requireAuth: true },
+    { href: '/docs', label: '文档中心', icon: FileText, requireAuth: true },
+    { href: '/suggestion', label: '意见建议', icon: MessageSquare, requireAuth: true },
+    { href: '/complaint', label: '意见投诉', icon: AlertCircle, requireAuth: true },
+  ];
+
+  const filteredNavItems = session 
+    ? navItems 
+    : navItems.filter(item => !item.requireAuth);
 
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-white/80 dark:bg-gray-900/80 backdrop-blur-md supports-[backdrop-filter]:bg-white/60 dark:supports-[backdrop-filter]:bg-gray-900/60">
@@ -40,50 +56,34 @@ export function Header() {
             </div>
           </Link>
 
-          {/* Navigation */}
-          <nav className="hidden md:flex items-center gap-6">
-            <Link href="/" className="text-gray-600 hover:text-purple-600 dark:text-gray-300 dark:hover:text-purple-400 transition-colors flex items-center gap-1">
-              <Home className="w-4 h-4" />
-              首页
-            </Link>
-            {session && (
-              <>
-                <Link href="/challenge/hall" className="text-gray-600 hover:text-purple-600 dark:text-gray-300 dark:hover:text-purple-400 transition-colors flex items-center gap-1">
-                  <Globe className="w-4 h-4" />
-                  挑战赛大厅
-                </Link>
-                <Link href="/challenge" className="text-amber-600 hover:text-amber-500 dark:text-amber-400 dark:hover:text-amber-300 transition-colors flex items-center gap-1 font-semibold">
-                  <Trophy className="w-4 h-4" />
-                  K线征途
-                </Link>
-                <Link href="/social" className="text-gray-600 hover:text-purple-600 dark:text-gray-300 dark:hover:text-purple-400 transition-colors flex items-center gap-1">
-                  <MessageCircle className="w-4 h-4" />
-                  社交
-                </Link>
-                <Link href="/docs" className="text-gray-600 hover:text-purple-600 dark:text-gray-300 dark:hover:text-purple-400 transition-colors flex items-center gap-1">
-                  <FileText className="w-4 h-4" />
-                  文档中心
-                </Link>
-                <Link href="/suggestion" className="text-gray-600 hover:text-purple-600 dark:text-gray-300 dark:hover:text-purple-400 transition-colors flex items-center gap-1">
-                  <MessageSquare className="w-4 h-4" />
-                  意见建议
-                </Link>
-                <Link href="/complaint" className="text-gray-600 hover:text-purple-600 dark:text-gray-300 dark:hover:text-purple-400 transition-colors flex items-center gap-1">
-                  <AlertCircle className="w-4 h-4" />
-                  意见投诉
-                </Link>
-                {/* 软件下载入口暂时隐藏
-                <Link href="/download" className="text-gray-600 hover:text-purple-600 dark:text-gray-300 dark:hover:text-purple-400 transition-colors flex items-center gap-1">
-                  <Download className="w-4 h-4" />
-                  软件下载
-                </Link>
-                */}
-              </>
-            )}
+          {/* Desktop Navigation */}
+          <nav className="hidden md:flex items-center gap-4 lg:gap-6">
+            {filteredNavItems.map((item) => (
+              <Link 
+                key={item.href}
+                href={item.href} 
+                className={`${item.highlight 
+                  ? 'text-amber-600 hover:text-amber-500 dark:text-amber-400 dark:hover:text-amber-300 font-semibold' 
+                  : 'text-gray-600 hover:text-purple-600 dark:text-gray-300 dark:hover:text-purple-400'
+                } transition-colors flex items-center gap-1.5 text-sm`}
+              >
+                <item.icon className="w-4 h-4" />
+                {item.label}
+              </Link>
+            ))}
           </nav>
 
+          {/* Mobile Menu Button */}
+          <button
+            className="md:hidden p-2 text-gray-600 dark:text-gray-300 hover:text-purple-600 dark:hover:text-purple-400"
+            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+            aria-label="切换菜单"
+          >
+            {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+          </button>
+
           {/* Right Actions */}
-          <div className="flex items-center gap-3">
+          <div className="hidden md:flex items-center gap-3">
             <ThemeToggle />
 
             {session ? (
@@ -165,6 +165,52 @@ export function Header() {
             )}
           </div>
         </div>
+
+        {/* Mobile Menu */}
+        {mobileMenuOpen && (
+          <div className="md:hidden border-t py-4 bg-white dark:bg-gray-900">
+            <nav className="flex flex-col gap-2">
+              {filteredNavItems.map((item) => (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  onClick={() => setMobileMenuOpen(false)}
+                  className={`${item.highlight 
+                    ? 'text-amber-600 dark:text-amber-400 font-semibold' 
+                    : 'text-gray-600 dark:text-gray-300'
+                  } px-4 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 flex items-center gap-2`}
+                >
+                  <item.icon className="w-5 h-5" />
+                  {item.label}
+                </Link>
+              ))}
+            </nav>
+            
+            {/* Mobile Auth */}
+            <div className="mt-4 pt-4 border-t flex items-center justify-between px-4">
+              <ThemeToggle />
+              {session ? (
+                <Button 
+                  variant="outline" 
+                  className="text-red-600 border-red-200 hover:bg-red-50"
+                  onClick={() => signOut({ callbackUrl: '/' })}
+                >
+                  <LogOut className="w-4 h-4 mr-2" />
+                  退出登录
+                </Button>
+              ) : (
+                <div className="flex gap-2">
+                  <Link href="/login">
+                    <Button variant="outline">登录</Button>
+                  </Link>
+                  <Link href="/register">
+                    <Button className="bg-gradient-to-r from-purple-600 to-blue-600">注册</Button>
+                  </Link>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
       </div>
     </header>
   );

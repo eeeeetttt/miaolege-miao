@@ -22,17 +22,19 @@ function getDatabaseUrl(): string {
 // 创建 PostgreSQL 连接池（带 SSL）
 const connectionString = getDatabaseUrl();
 
-// 始终创建连接，即使 URL 为空
+// 连接配置优化：减少超时时间，避免页面加载变慢
 const client = connectionString 
   ? postgres(connectionString, {
-      max: 10,
-      idle_timeout: 20,
-      connect_timeout: 30,
+      max: 5,
+      idle_timeout: 10,
+      connect_timeout: 5, // 5秒超时，避免长时间等待
       ssl: {
         rejectUnauthorized: false,
       },
+      // 懒连接：不在模块加载时立即连接
+      lazy_connect: true,
     })
-  : postgres('', { max: 0 }); // 空连接
+  : postgres('', { max: 0 });
 
 export const db = drizzle(client, { schema });
 export { client as pool };
