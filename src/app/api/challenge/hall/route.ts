@@ -157,8 +157,21 @@ export async function GET() {
       };
     });
 
-    // 按净值排序
-    participants.sort((a, b) => b.equity - a.equity);
+    // 按通关数排名，通关数相同则按净值降序
+    participants.sort((a, b) => {
+      const aCompletedCount = a.completedLevels.length;
+      const bCompletedCount = b.completedLevels.length;
+      // 优先按通关数降序
+      if (bCompletedCount !== aCompletedCount) {
+        return bCompletedCount - aCompletedCount;
+      }
+      // 通关数相同时按当前关卡进度降序
+      if (b.currentLevel !== a.currentLevel) {
+        return b.currentLevel - a.currentLevel;
+      }
+      // 关卡相同时按净值降序
+      return b.equity - a.equity;
+    });
 
     // 只取前10名
     const top10 = participants.slice(0, 10).map((p, index) => ({

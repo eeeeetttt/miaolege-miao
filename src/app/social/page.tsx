@@ -203,14 +203,19 @@ export default function SocialPage() {
         }),
       });
       const data = await res.json();
+      
       if (data.success) {
         setNewMessage('');
         setSelectedImage(null);
-        loadMessages(selectedConversation.userId);
-        loadConversations();
+        setPreviewImage(null);
+        await loadMessages(selectedConversation.userId);
+        await loadConversations();
+      } else {
+        alert(data.error || '发送失败，请重试');
       }
     } catch (err) {
       console.error('Failed to send message:', err);
+      alert('发送失败，请检查网络连接');
     } finally {
       setSendLoading(false);
     }

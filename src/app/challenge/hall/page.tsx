@@ -258,9 +258,6 @@ export default function ChallengeHallPage() {
                           <Badge className="bg-amber-500">
                             第{p.currentLevel}关
                           </Badge>
-                          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                            {getLevelName(p.currentLevel)}
-                          </p>
                         </div>
 
                         {/* Progress */}

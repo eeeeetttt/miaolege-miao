@@ -95,10 +95,10 @@ export default function RootLayout({
             <footer className="border-t bg-white/80 dark:bg-gray-900/80 backdrop-blur-sm py-8">
               <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center text-gray-600 dark:text-gray-400">
                 <p className="mb-2">
-                  © {new Date().getFullYear()} 喵了个喵星球跟单平台. All rights reserved.
+                  © {new Date().getFullYear()} 喵了个喵交易挑战赛平台. All rights reserved.
                 </p>
                 <p className="text-sm">
-                  创建星球 · 发布信号 · 智能跟单
+                  挑战赛选拔 · 交易员培养 · 跟单社区
                 </p>
               </div>
             </footer>

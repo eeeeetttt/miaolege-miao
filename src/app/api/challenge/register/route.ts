@@ -271,8 +271,40 @@ export async function POST() {
     // 检查星球币余额（使用配置中的报名费）
     const registrationFee = parseInt(configMap.registration_fee || '1000');
     
-    // 简化处理：假设余额检查由前端处理，后端直接创建申请记录
-    // 在实际生产环境中，这里应该从用户系统扣除星球币
+    // 获取用户余额
+    const { data: userData, error: userError } = await supabase
+      .from('users')
+      .select('coin_balance')
+      .eq('user_id', userId)
+      .single();
+    
+    if (userError || !userData) {
+      return NextResponse.json({ 
+        error: '获取用户余额失败' 
+      }, { status: 500 });
+    }
+    
+    const currentBalance = userData.coin_balance || 0;
+    
+    // 检查余额是否足够
+    if (currentBalance < registrationFee) {
+      return NextResponse.json({ 
+        error: `余额不足！当前余额 ${currentBalance} U，报名需要 ${registrationFee} U` 
+      }, { status: 400 });
+    }
+    
+    // 扣除报名费
+    const { error: updateError } = await supabase
+      .from('users')
+      .update({ coin_balance: currentBalance - registrationFee })
+      .eq('user_id', userId);
+    
+    if (updateError) {
+      console.error('Failed to deduct balance:', updateError);
+      return NextResponse.json({ 
+        error: '扣除报名费失败，请重试' 
+      }, { status: 500 });
+    }
 
     // 创建申请记录到Supabase
     const { data: insertResult, error: insertError } = await supabase
