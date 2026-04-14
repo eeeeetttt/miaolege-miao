@@ -17,18 +17,27 @@ export async function GET() {
     }
 
     // 获取配置
-    const { data: configs } = await supabase
+    const { data: config } = await supabase
       .from('chat_hall_config')
-      .select('*');
+      .select('*')
+      .eq('id', 1)
+      .maybeSingle();
 
+    // 转换为前端期望的格式
     const configMap: Record<string, { value: string; description: string }> = {};
-    if (configs) {
-      configs.forEach(c => {
-        configMap[c.config_key] = {
-          value: c.config_value,
-          description: c.description || '',
-        };
-      });
+    if (config) {
+      configMap.enabled = {
+        value: config.enabled ? 'true' : 'false',
+        description: '是否开启聊天大厅',
+      };
+      configMap.cooldown_seconds = {
+        value: String(config.cooldown_seconds || 60),
+        description: '普通用户发言冷却时间（秒）',
+      };
+      configMap.max_message_length = {
+        value: String(config.max_message_length || 500),
+        description: '消息最大长度',
+      };
     }
 
     // 获取禁言列表
@@ -93,16 +102,23 @@ export async function POST(request: NextRequest) {
 
     if (action === 'update_config') {
       // 更新配置
-      const { key, value, description } = data;
+      const { key, value } = data;
+
+      // 根据 key 更新对应的配置字段
+      const updateData: Record<string, any> = { id: 1 }; // 只更新 id=1 的记录
+      
+      if (key === 'cooldown_seconds') {
+        updateData.cooldown_seconds = parseInt(value) || 60;
+      } else if (key === 'enabled') {
+        updateData.enabled = value === 'true' || value === '1' ? 1 : 0;
+      } else if (key === 'max_message_length') {
+        updateData.max_message_length = parseInt(value) || 500;
+      }
 
       const { error } = await supabase
         .from('chat_hall_config')
-        .upsert({
-          config_key: key,
-          config_value: value,
-          description: description || null,
-          updated_at: new Date().toISOString(),
-        });
+        .update(updateData)
+        .eq('id', 1);
 
       if (error) throw new Error(`更新配置失败: ${error.message}`);
 
