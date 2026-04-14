@@ -134,7 +134,7 @@ export default function ChallengeHallPage() {
                 {/* Header */}
                 <div className="grid grid-cols-12 gap-4 px-4 py-2 text-sm font-medium text-gray-500 dark:text-gray-400 border-b">
                   <div className="col-span-1 text-center">排名</div>
-                  <div className="col-span-4">选手</div>
+                  <div className="col-span-4 text-center">选手</div>
                   <div className="col-span-3 text-center">关卡</div>
                   <div className="col-span-2 text-center">进度</div>
                   <div className="col-span-2 text-right">净值</div>
@@ -151,21 +151,19 @@ export default function ChallengeHallPage() {
                     }`}
                   >
                     {/* Rank */}
-                    <div className="col-span-1 flex items-center justify-center">
+                    <div className="col-span-1 flex flex-col items-center justify-center">
                       {getRankIcon(p.rank)}
                     </div>
 
-                    {/* User Info */}
-                    <div className="col-span-4 flex items-center gap-3">
+                    {/* User Info - 昵称在头像上方 */}
+                    <div className="col-span-4 flex flex-col items-center gap-2">
+                      <p className="font-medium text-gray-900 dark:text-white text-center">{p.userName}</p>
                       <Avatar className="w-10 h-10">
                         <AvatarFallback className="bg-gradient-to-br from-amber-500 to-orange-600 text-white font-bold">
                           {p.userName[0]?.toUpperCase() || '?'}
                         </AvatarFallback>
                         {p.userAvatar && <AvatarImage src={p.userAvatar} />}
                       </Avatar>
-                      <div>
-                        <p className="font-medium text-gray-900 dark:text-white">{p.userName}</p>
-                      </div>
                     </div>
 
                     {/* Level */}

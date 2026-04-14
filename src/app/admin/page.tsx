@@ -130,6 +130,7 @@ export default function AdminDashboardPage() {
     category: 'general',
     sortOrder: 0,
     status: 'published' as 'published' | 'draft',
+    publishDate: '', // 自定义发布日期
   });
 
   // 充值审核状态
@@ -331,6 +332,7 @@ export default function AdminDashboardPage() {
       category: doc.category || 'general',
       sortOrder: doc.sortOrder || 0,
       status: doc.status || 'published',
+      publishDate: doc.updatedAt ? doc.updatedAt.split('T')[0] : '',
     });
   };
 
@@ -343,6 +345,7 @@ export default function AdminDashboardPage() {
       category: 'general',
       sortOrder: 0,
       status: 'published',
+      publishDate: new Date().toISOString().split('T')[0], // 默认今天
     });
   };
 
@@ -1891,6 +1894,14 @@ export default function AdminDashboardPage() {
                       <option value="published">已发布</option>
                       <option value="draft">草稿</option>
                     </select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>发布日期</Label>
+                    <Input
+                      type="date"
+                      value={docForm.publishDate}
+                      onChange={(e) => setDocForm({ ...docForm, publishDate: e.target.value })}
+                    />
                   </div>
                 </div>
 

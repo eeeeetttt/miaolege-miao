@@ -40,6 +40,7 @@ interface Conversation {
   userId: string;
   userName: string;
   userAvatar: string | null;
+  uBalance?: number; // 用户持有的U数量
   lastMessage: {
     id: number;
     content: string;
@@ -584,7 +585,14 @@ export default function SocialPage() {
                           </Avatar>
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center justify-between">
-                              <span className="font-medium truncate">{conv.userName}</span>
+                              <div className="flex items-center gap-2">
+                                <span className="font-medium truncate">{conv.userName}</span>
+                                {conv.uBalance !== undefined && conv.uBalance > 0 && (
+                                  <Badge variant="outline" className="text-xs bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400 border-green-200 dark:border-green-800">
+                                    {conv.uBalance} U
+                                  </Badge>
+                                )}
+                              </div>
                               <span className="text-xs text-gray-500">
                                 {new Date(conv.lastMessage.createdAt).toLocaleDateString()}
                               </span>
@@ -618,8 +626,15 @@ export default function SocialPage() {
                     </AvatarFallback>
                     {selectedConversation.userAvatar && <AvatarImage src={selectedConversation.userAvatar} />}
                   </Avatar>
-                  <CardTitle className="text-lg flex-1">{selectedConversation.userName}</CardTitle>
-                  <Button variant="outline" size="sm" onClick={() => handleViewProfile(selectedConversation.userId)}>
+                  <CardTitle className="text-lg flex items-center gap-2">
+                    {selectedConversation.userName}
+                    {selectedConversation.uBalance !== undefined && selectedConversation.uBalance > 0 && (
+                      <Badge variant="outline" className="text-xs bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400 border-green-200 dark:border-green-800">
+                        {selectedConversation.uBalance} U
+                      </Badge>
+                    )}
+                  </CardTitle>
+                  <Button variant="outline" size="sm" className="ml-auto" onClick={() => handleViewProfile(selectedConversation.userId)}>
                     查看资料
                   </Button>
                 </CardHeader>

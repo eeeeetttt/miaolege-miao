@@ -52,7 +52,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { title, slug, content, category, sortOrder, status } = body;
+    const { title, slug, content, category, sortOrder, status, publishDate } = body;
 
     if (!title || !slug || !content) {
       return NextResponse.json({ error: '标题、别名和内容为必填项' }, { status: 400 });
@@ -69,14 +69,21 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: '别名已存在，请更换' }, { status: 400 });
     }
 
-    await db.insert(documents).values({
+    // 如果有自定义发布日期，设置 updatedAt
+    const insertData: any = {
       title,
       slug,
       content,
       category: category || 'general',
       sortOrder: sortOrder || 0,
       status: status || 'published',
-    });
+    };
+    
+    if (publishDate) {
+      insertData.updatedAt = new Date(publishDate);
+    }
+
+    await db.insert(documents).values(insertData);
 
     // 获取刚创建的文档
     const [doc] = await db
@@ -102,7 +109,7 @@ export async function PUT(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { id, title, slug, content, category, sortOrder, status } = body;
+    const { id, title, slug, content, category, sortOrder, status, publishDate } = body;
 
     if (!id) {
       return NextResponse.json({ error: '文档ID为必填项' }, { status: 400 });
@@ -133,16 +140,24 @@ export async function PUT(request: NextRequest) {
       }
     }
 
+    // 构建更新对象
+    const updateData: any = {
+      ...(title && { title }),
+      ...(slug && { slug }),
+      ...(content && { content }),
+      ...(category && { category }),
+      ...(sortOrder !== undefined && { sortOrder }),
+      ...(status && { status }),
+    };
+    
+    // 如果有自定义发布日期，更新 updatedAt
+    if (publishDate) {
+      updateData.updatedAt = new Date(publishDate);
+    }
+
     await db
       .update(documents)
-      .set({
-        ...(title && { title }),
-        ...(slug && { slug }),
-        ...(content && { content }),
-        ...(category && { category }),
-        ...(sortOrder !== undefined && { sortOrder }),
-        ...(status && { status }),
-      })
+      .set(updateData)
       .where(eq(documents.id, id));
 
     // 获取更新后的文档

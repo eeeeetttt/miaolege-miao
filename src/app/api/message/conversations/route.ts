@@ -65,18 +65,13 @@ export async function GET(request: NextRequest) {
 
     // 获取对方用户信息
     const userIds = conversations.map(c => c.userId);
-    const userInfoMap = new Map<string, { name: string; avatar: string | null }>();
+    const userInfoMap = new Map<string, { name: string; avatar: string | null; coinBalance: number }>();
 
     if (userIds.length > 0) {
-      const userRecords = await db
-        .select({ userId: users.userId, name: users.name, avatar: users.avatar })
-        .from(users)
-        .where(eq(users.userId, userIds[0])); // 先查第一个
-
-      // 从MySQL获取用户信息
+      // 从MySQL获取用户信息（包含coinBalance）
       for (const uid of userIds) {
         const [user] = await db
-          .select({ name: users.name, avatar: users.avatar })
+          .select({ name: users.name, avatar: users.avatar, coinBalance: users.coinBalance })
           .from(users)
           .where(eq(users.userId, uid))
           .limit(1);
@@ -85,6 +80,7 @@ export async function GET(request: NextRequest) {
           userInfoMap.set(uid, {
             name: user.name || '未知用户',
             avatar: user.avatar || null,
+            coinBalance: user.coinBalance || 0,
           });
         }
       }
@@ -95,6 +91,7 @@ export async function GET(request: NextRequest) {
       userId: conv.userId,
       userName: userInfoMap.get(conv.userId)?.name || '未知用户',
       userAvatar: userInfoMap.get(conv.userId)?.avatar || null,
+      uBalance: userInfoMap.get(conv.userId)?.coinBalance || 0,
       lastMessage: {
         id: conv.lastMessage.id,
         content: conv.lastMessage.content,
