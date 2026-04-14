@@ -28,7 +28,16 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: '消息内容不能为空' }, { status: 400 });
     }
 
-    if (content && content.length > 2000) {
+    // 组合消息内容：如果有图片，将图片URL附加到内容中
+    let messageContent = content || '';
+    if (imageUrl) {
+      // 在内容中嵌入图片标记
+      messageContent = messageContent 
+        ? `${messageContent}\n[图片]${imageUrl}` 
+        : `[图片]${imageUrl}`;
+    }
+
+    if (messageContent.length > 2000) {
       return NextResponse.json({ error: '私信内容不能超过2000字符' }, { status: 400 });
     }
 
@@ -38,8 +47,7 @@ export async function POST(request: NextRequest) {
       .insert({
         sender_id: session.user.id,
         receiver_id: receiverId,
-        content: content || '[图片]',
-        image_url: imageUrl || null,
+        content: messageContent,
         is_read: 0,
       })
       .select('id, created_at')

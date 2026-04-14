@@ -615,35 +615,42 @@ export default function SocialPage() {
                   ) : messages.length === 0 ? (
                     <div className="text-center py-8 text-gray-500">暂无消息，开始对话吧</div>
                   ) : (
-                    messages.map(msg => (
-                      <div
-                        key={msg.id}
-                        className={`flex ${msg.sender_id === userId ? 'justify-end' : 'justify-start'}`}
-                      >
+                    messages.map(msg => {
+                      // 解析消息内容，提取图片 URL
+                      const imageUrlMatch = msg.content?.match(/\[图片\](https?:\/\/[^\s]+)/);
+                      const imageUrl = imageUrlMatch ? imageUrlMatch[1] : null;
+                      const textContent = msg.content?.replace(/\[图片\]https?:\/\/[^\s]+/, '').trim() || '';
+                      
+                      return (
                         <div
-                          className={`max-w-[70%] px-4 py-2 rounded-lg ${
-                            msg.sender_id === userId
-                              ? 'bg-amber-500 text-white'
-                              : 'bg-gray-100 dark:bg-gray-800'
-                          }`}
+                          key={msg.id}
+                          className={`flex ${msg.sender_id === userId ? 'justify-end' : 'justify-start'}`}
                         >
-                          {msg.image_url && (
-                            <img 
-                              src={msg.image_url} 
-                              alt="图片消息" 
-                              className="rounded-lg mb-2 max-w-full cursor-pointer hover:opacity-90"
-                              onClick={() => msg.image_url && window.open(msg.image_url, '_blank')}
-                            />
-                          )}
-                          {msg.content && msg.content !== '[图片]' && <p>{msg.content}</p>}
-                          <p className={`text-xs mt-1 ${
-                            msg.sender_id === userId ? 'text-amber-200' : 'text-gray-500'
-                          }`}>
-                            {new Date(msg.created_at).toLocaleString()}
-                          </p>
+                          <div
+                            className={`max-w-[70%] px-4 py-2 rounded-lg ${
+                              msg.sender_id === userId
+                                ? 'bg-amber-500 text-white'
+                                : 'bg-gray-100 dark:bg-gray-800'
+                            }`}
+                          >
+                            {imageUrl && (
+                              <img 
+                                src={imageUrl} 
+                                alt="图片消息" 
+                                className="rounded-lg mb-2 max-w-full cursor-pointer hover:opacity-90"
+                                onClick={() => window.open(imageUrl, '_blank')}
+                              />
+                            )}
+                            {textContent && <p>{textContent}</p>}
+                            <p className={`text-xs mt-1 ${
+                              msg.sender_id === userId ? 'text-amber-200' : 'text-gray-500'
+                            }`}>
+                              {new Date(msg.created_at).toLocaleString()}
+                            </p>
+                          </div>
                         </div>
-                      </div>
-                    ))
+                      );
+                    })
                   )}
                 </CardContent>
                 <div className="p-4 border-t space-y-3">
