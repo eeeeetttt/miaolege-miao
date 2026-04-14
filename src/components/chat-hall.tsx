@@ -28,10 +28,10 @@ export function ChatHall() {
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [error, setError] = useState('');
-  const [cooldownRemaining, setCooldownRemaining] = useState(0);
   const [isMuted, setIsMuted] = useState(false);
   const [muteExpiresAt, setMuteExpiresAt] = useState<string | null>(null);
-  const [cooldownSeconds, setCooldownSeconds] = useState(60); // 从服务器获取
+  const [remainingCount, setRemainingCount] = useState(3);
+  const [hourlyLimit, setHourlyLimit] = useState(3);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -47,9 +47,9 @@ export function ChatHall() {
         setMessages(data.data || []);
         setIsMuted(data.userStatus?.isMuted || false);
         setMuteExpiresAt(data.userStatus?.muteExpiresAt);
-        // 保存服务器配置的冷却时间
-        if (data.config?.cooldownSeconds) {
-          setCooldownSeconds(data.config.cooldownSeconds);
+        setRemainingCount(data.remainingCount ?? 3);
+        if (data.config?.hourlyLimit) {
+          setHourlyLimit(data.config.hourlyLimit);
         }
       } else {
         setError(data.error || '加载消息失败');
@@ -74,19 +74,9 @@ export function ChatHall() {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  // 冷却时间倒计时
-  useEffect(() => {
-    if (cooldownRemaining > 0) {
-      const timer = setTimeout(() => {
-        setCooldownRemaining(cooldownRemaining - 1);
-      }, 1000);
-      return () => clearTimeout(timer);
-    }
-  }, [cooldownRemaining]);
-
   // 发送消息
   const handleSend = async () => {
-    if (!newMessage.trim() || sending || isMuted || cooldownRemaining > 0) return;
+    if (!newMessage.trim() || sending || isMuted || remainingCount <= 0) return;
 
     setSending(true);
     setError('');
@@ -102,17 +92,9 @@ export function ChatHall() {
       if (data.success) {
         setNewMessage('');
         await loadMessages();
-        // 使用服务器配置的冷却时间
-        setCooldownRemaining(cooldownSeconds);
       } else if (res.status === 429) {
-        setError(data.error || '发言太频繁');
-        // 从响应中提取剩余秒数
-        if (data.cooldownSeconds) {
-          setCooldownRemaining(data.cooldownSeconds);
-        } else if (data.error) {
-          const match = data.error.match(/(\d+) 秒/);
-          if (match) setCooldownRemaining(parseInt(match[1]));
-        }
+        setError(data.error || '发言次数已用完');
+        setRemainingCount(0);
       } else if (res.status === 403) {
         setIsMuted(true);
         setError(data.error || '您已被禁言');
@@ -277,33 +259,34 @@ export function ChatHall() {
               )}
             </div>
           ) : (
-            <div className="flex gap-2">
-              <Input
-                ref={inputRef}
-                value={newMessage}
-                onChange={e => setNewMessage(e.target.value)}
-                placeholder={cooldownRemaining > 0 ? `请 ${cooldownRemaining} 秒后再试` : '输入消息...'}
-                disabled={sending || cooldownRemaining > 0}
-                maxLength={200}
-                onKeyDown={e => e.key === 'Enter' && handleSend()}
-                className="flex-1"
-              />
-              <Button
-                onClick={handleSend}
-                disabled={sending || !newMessage.trim() || cooldownRemaining > 0}
-                className={isPremium ? 'bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600' : ''}
-              >
-                {sending ? <Spinner className="w-4 h-4" /> : <Send className="w-4 h-4" />}
-              </Button>
+            <div className="space-y-2">
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-gray-500">
+                  剩余发言次数: <span className={remainingCount <= 0 ? 'text-red-500 font-bold' : remainingCount <= 1 ? 'text-amber-500 font-bold' : 'text-green-500 font-bold'}>{remainingCount}</span> / {hourlyLimit} 条
+                </span>
+                <span className="text-xs text-gray-400">每小时重置</span>
+              </div>
+              <div className="flex gap-2">
+                <Input
+                  ref={inputRef}
+                  value={newMessage}
+                  onChange={e => setNewMessage(e.target.value)}
+                  placeholder={remainingCount <= 0 ? '今日发言次数已用完' : '输入消息...'}
+                  disabled={sending || remainingCount <= 0}
+                  maxLength={200}
+                  onKeyDown={e => e.key === 'Enter' && handleSend()}
+                  className="flex-1"
+                />
+                <Button
+                  onClick={handleSend}
+                  disabled={sending || !newMessage.trim() || remainingCount <= 0}
+                  className={isPremium ? 'bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600' : ''}
+                >
+                  {sending ? <Spinner className="w-4 h-4" /> : <Send className="w-4 h-4" />}
+                </Button>
+              </div>
             </div>
           )}
-          <p className="text-xs text-gray-400 mt-2 text-center">
-            {isPremium ? (
-              <span className="text-purple-500">🌟 高级会员发言，无需等待冷却</span>
-            ) : (
-              <span>普通用户每60秒可发言1次</span>
-            )}
-          </p>
         </div>
       </CardContent>
     </Card>

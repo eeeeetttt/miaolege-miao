@@ -28,20 +28,22 @@ export async function GET(request: NextRequest) {
     // 获取聊天配置
     const { data: config } = await supabase
       .from('chat_hall_config')
-      .select('enabled, cooldown_seconds, max_message_length')
+      .select('enabled, max_message_length, hourly_limit')
       .eq('id', 1)
       .maybeSingle();
 
     const enabled = config?.enabled !== 0;
-    const cooldownSeconds = config?.cooldown_seconds || 60;
     const maxMessageLength = config?.max_message_length || 200;
+    const hourlyLimit = config?.hourly_limit || 3;
 
-    // 获取当前用户是否被禁言
+    // 获取当前用户是否被禁言，以及剩余发言次数
     const session = await getServerSession(authOptions);
     let isMuted = false;
     let muteExpiresAt: string | null = null;
+    let remainingCount = hourlyLimit;
 
     if (session?.user?.id) {
+      // 检查禁言状态
       const { data: muteData } = await supabase
         .from('chat_hall_mutes')
         .select('expires_at')
@@ -63,6 +65,19 @@ export async function GET(request: NextRequest) {
             .eq('user_id', session.user.id);
         }
       }
+
+      // 计算剩余发言次数
+      if (!isMuted) {
+        const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+        const { count: recentCount } = await supabase
+          .from('chat_hall_messages')
+          .select('*', { count: 'exact', head: true })
+          .eq('user_id', session.user.id)
+          .eq('is_system', 0)
+          .gte('created_at', oneHourAgo);
+        
+        remainingCount = Math.max(0, hourlyLimit - (recentCount || 0));
+      }
     }
 
     return NextResponse.json({
@@ -71,10 +86,11 @@ export async function GET(request: NextRequest) {
       page,
       pageSize,
       config: {
-        cooldownSeconds,
+        hourlyLimit,
         enabled,
         maxMessageLength,
       },
+      remainingCount,
       userStatus: {
         isMuted,
         muteExpiresAt,
@@ -114,13 +130,13 @@ export async function POST(request: NextRequest) {
     // 获取聊天配置
     const { data: config } = await supabase
       .from('chat_hall_config')
-      .select('enabled, cooldown_seconds, max_message_length')
+      .select('enabled, max_message_length, hourly_limit')
       .eq('id', 1)
       .maybeSingle();
 
     const enabled = config?.enabled !== 0;
-    const cooldownSeconds = config?.cooldown_seconds || 60;
     const maxMessageLength = config?.max_message_length || 200;
+    const hourlyLimit = config?.hourly_limit || 3; // 默认每小时3条
 
     // 检查是否被禁言
     const { data: muteData } = await supabase
@@ -159,28 +175,20 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: `消息内容不能超过${maxMessageLength}字符` }, { status: 400 });
     }
 
-    // 检查发言冷却时间
-    const { data: lastMessage } = await supabase
+    // 检查每小时发言次数限制
+    const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+    const { count: recentCount } = await supabase
       .from('chat_hall_messages')
-      .select('created_at')
+      .select('*', { count: 'exact', head: true })
       .eq('user_id', session.user.id)
       .eq('is_system', 0)
-      .order('created_at', { ascending: false })
-      .limit(1)
-      .maybeSingle();
+      .gte('created_at', oneHourAgo);
 
-    if (lastMessage) {
-      const lastTime = new Date(lastMessage.created_at).getTime();
-      const now = Date.now();
-      const elapsed = (now - lastTime) / 1000;
-
-      if (elapsed < cooldownSeconds) {
-        const remaining = Math.ceil(cooldownSeconds - elapsed);
-        return NextResponse.json({
-          error: `发言太频繁，请 ${remaining} 秒后再试`,
-          cooldownSeconds: remaining,
-        }, { status: 429 });
-      }
+    if (recentCount !== null && recentCount >= hourlyLimit) {
+      return NextResponse.json({
+        error: `每小时最多发言 ${hourlyLimit} 条，请稍后再试`,
+        remainingCount: 0,
+      }, { status: 429 });
     }
 
     // 获取用户信息

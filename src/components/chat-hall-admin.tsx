@@ -30,7 +30,7 @@ import {
 } from 'lucide-react';
 
 interface ChatHallConfig {
-  cooldown_seconds: { value: string; description: string };
+  hourly_limit: { value: string; description: string };
   enabled: { value: string; description: string };
 }
 
@@ -72,7 +72,7 @@ export function ChatHallAdmin() {
       const data = await res.json();
       if (data.success) {
         setConfig({
-          cooldown_seconds: { value: data.config?.cooldown_seconds?.value || '60', description: '普通用户发言冷却时间（秒）' },
+          hourly_limit: { value: data.config?.cooldown_seconds?.value || '3', description: '每小时发言限制' },
           enabled: { value: data.config?.enabled?.value || 'true', description: '是否开启聊天大厅' },
         });
         setMutes(data.mutes || []);
@@ -109,7 +109,7 @@ export function ChatHallAdmin() {
       const data = await res.json();
 
       if (data.success) {
-        setSuccess(`${key === 'cooldown_seconds' ? '冷却时间' : '聊天大厅'}已更新`);
+        setSuccess(`${key === 'hourly_limit' ? '每小时发言限制' : '聊天大厅'}已更新`);
         setTimeout(() => setSuccess(''), 3000);
       } else {
         setError(data.error || '保存失败');
@@ -258,29 +258,30 @@ export function ChatHallAdmin() {
             </div>
           </div>
 
-          {/* 发言冷却时间 */}
+          {/* 每小时发言限制 */}
           <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
             <div>
               <div className="flex items-center gap-2">
-                <Label className="font-medium">发言冷却时间</Label>
+                <Label className="font-medium">每小时发言限制</Label>
               </div>
-              <p className="text-sm text-gray-500">普通用户两次发言之间的最小间隔（秒）</p>
+              <p className="text-sm text-gray-500">每位用户每小时可发言的次数</p>
             </div>
             <div className="flex items-center gap-2">
               <Input
                 type="number"
-                value={config?.cooldown_seconds?.value || '60'}
+                value={config?.hourly_limit?.value || '3'}
                 onChange={(e) => setConfig({
                   ...config!,
-                  cooldown_seconds: { ...config!.cooldown_seconds, value: e.target.value }
+                  hourly_limit: { ...config!.hourly_limit, value: e.target.value }
                 })}
                 className="w-24"
                 min={1}
-                max={3600}
+                max={100}
               />
+              <span className="text-gray-500 text-sm">条/小时</span>
               <Button
                 size="sm"
-                onClick={() => handleSaveConfig('cooldown_seconds', config?.cooldown_seconds?.value || '60')}
+                onClick={() => handleSaveConfig('hourly_limit', config?.hourly_limit?.value || '3')}
                 disabled={saving}
               >
                 <Save className="w-4 h-4" />
@@ -289,7 +290,7 @@ export function ChatHallAdmin() {
           </div>
 
           <div className="text-sm text-gray-500 p-3 bg-amber-50 dark:bg-amber-900/20 rounded-lg">
-            <p>💡 提示：高级会员（VIP/管理员）发言不受冷却时间限制。</p>
+            <p>💡 提示：发言次数每小时自动重置。</p>
           </div>
         </CardContent>
       </Card>
