@@ -46,6 +46,7 @@ import {
   X,
   MessageSquare,
   Lightbulb,
+  QrCode,
 } from 'lucide-react';
 import { ChatHallAdmin } from '@/components/chat-hall-admin';
 import { DatabaseManager } from '@/components/database-manager';
@@ -928,6 +929,15 @@ export default function AdminDashboardPage() {
               >
                 <TrendingUp className="w-4 h-4" />
                 K线征途
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => router.push('/admin/wechat-recharge')}
+                className="gap-2"
+              >
+                <QrCode className="w-4 h-4" />
+                微信充值
               </Button>
             </div>
           </div>

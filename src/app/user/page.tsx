@@ -35,6 +35,8 @@ import {
   Ban,
   MessageSquare,
   Lightbulb,
+  QrCode,
+  ArrowRight,
 } from 'lucide-react';
 
 interface UserInfo {
@@ -862,6 +864,23 @@ export default function UserCenterPage() {
                 <p className="text-xs text-gray-500 text-center">
                   * 充值申请提交后，后台将在1-24小时内审核，审核通过后 U 将自动到账
                 </p>
+
+                {/* 微信充值入口 */}
+                <div className="border-t pt-6 mt-6">
+                  <p className="text-sm text-gray-500 text-center mb-4">更多充值方式</p>
+                  <a href="/wechat-recharge" className="block">
+                    <div className="flex items-center justify-center gap-3 p-4 bg-green-50 dark:bg-green-900/20 rounded-lg border-2 border-green-200 dark:border-green-800 hover:bg-green-100 dark:hover:bg-green-900/30 transition-colors cursor-pointer">
+                      <div className="w-12 h-12 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center">
+                        <QrCode className="w-6 h-6 text-green-600" />
+                      </div>
+                      <div className="text-left">
+                        <p className="font-semibold text-green-700 dark:text-green-400">微信扫码充值</p>
+                        <p className="text-xs text-gray-500">使用微信支付，方便快捷</p>
+                      </div>
+                      <ArrowRight className="w-5 h-5 text-green-500 ml-auto" />
+                    </div>
+                  </a>
+                </div>
               </CardContent>
             </Card>
           </TabsContent>
