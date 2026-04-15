@@ -173,17 +173,11 @@ export async function GET() {
       return b.equity - a.equity;
     });
 
-    // 只取前10名
-    const top10 = participants.slice(0, 10).map((p, index) => ({
-      ...p,
-      rank: index + 1,
-    }));
-
-    // 获取配置
+    // 获取配置（包括排行榜展示数量）
     const { data: configData } = await supabase
       .from('challenge_config')
       .select('config_key, config_value')
-      .in('config_key', ['allow_view_detail', 'show_leaderboard']);
+      .in('config_key', ['allow_view_detail', 'show_leaderboard', 'leaderboard_limit']);
 
     const configMap: Record<string, string> = {};
     if (configData) {
@@ -191,6 +185,15 @@ export async function GET() {
         configMap[c.config_key] = c.config_value;
       }
     }
+
+    // 获取排行榜展示数量，默认5
+    const leaderboardLimit = parseInt(configMap['leaderboard_limit'] || '5', 10);
+
+    // 只取配置的排名数量
+    const topParticipants = participants.slice(0, leaderboardLimit).map((p, index) => ({
+      ...p,
+      rank: index + 1,
+    }));
 
     // 获取名人堂数据（已完成挑战的用户）
     const { data: completedRegistrations } = await supabase
@@ -242,9 +245,12 @@ export async function GET() {
 
     return NextResponse.json({
       success: true,
-      data: top10,
+      data: topParticipants,
       hallOfFame,
-      config: configMap,
+      config: {
+        ...configMap,
+        leaderboardLimit,
+      },
     });
   } catch (error) {
     console.error('Get hall data error:', error);

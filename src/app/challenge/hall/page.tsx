@@ -38,6 +38,7 @@ export default function ChallengeHallPage() {
   const [loading, setLoading] = useState(true);
   const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
   const [allowViewDetail, setAllowViewDetail] = useState(true);
+  const [leaderboardLimit, setLeaderboardLimit] = useState(5);
 
   const fetchData = async () => {
     try {
@@ -46,6 +47,7 @@ export default function ChallengeHallPage() {
       if (data.success) {
         setParticipants(data.data || []);
         setAllowViewDetail(data.config?.allow_view_detail !== 'false');
+        setLeaderboardLimit(data.config?.leaderboardLimit || 5);
         setLastUpdate(new Date());
       }
     } catch (err) {
@@ -103,7 +105,7 @@ export default function ChallengeHallPage() {
             <div className="flex items-center justify-between">
               <CardTitle className="flex items-center gap-2">
                 <Medal className="w-5 h-5 text-amber-500" />
-                实时排行榜 TOP 10
+                实时排行榜 TOP {leaderboardLimit}
               </CardTitle>
               {lastUpdate && (
                 <span className="text-sm text-gray-500">
@@ -133,10 +135,9 @@ export default function ChallengeHallPage() {
               <div className="space-y-3">
                 {/* Header */}
                 <div className="grid grid-cols-12 gap-4 px-4 py-2 text-sm font-medium text-gray-500 dark:text-gray-400 border-b">
-                  <div className="col-span-1 text-center">排名</div>
-                  <div className="col-span-4 text-center">选手</div>
+                  <div className="col-span-2 text-center">排名</div>
+                  <div className="col-span-5 text-center">选手</div>
                   <div className="col-span-3 text-center">关卡</div>
-                  <div className="col-span-2 text-center">进度</div>
                   <div className="col-span-2 text-right">净值</div>
                 </div>
 
@@ -151,12 +152,12 @@ export default function ChallengeHallPage() {
                     }`}
                   >
                     {/* Rank */}
-                    <div className="col-span-1 flex flex-col items-center justify-center">
+                    <div className="col-span-2 flex flex-col items-center justify-center">
                       {getRankIcon(p.rank)}
                     </div>
 
                     {/* User Info - 昵称在头像上方 */}
-                    <div className="col-span-4 flex flex-col items-center gap-2">
+                    <div className="col-span-5 flex flex-col items-center gap-2">
                       <p className="font-medium text-gray-900 dark:text-white text-center">{p.userName}</p>
                       <Avatar className="w-10 h-10">
                         <AvatarFallback className="bg-gradient-to-br from-amber-500 to-orange-600 text-white font-bold">
@@ -171,19 +172,6 @@ export default function ChallengeHallPage() {
                       <Badge className="bg-amber-500">
                         第{p.currentLevel}关
                       </Badge>
-                    </div>
-
-                    {/* Progress */}
-                    <div className="col-span-2 text-center">
-                      <div className="flex items-center justify-center gap-2">
-                        <div className="w-16 h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
-                          <div 
-                            className={`h-full rounded-full ${p.progress >= 50 ? 'bg-green-500' : 'bg-amber-500'}`}
-                            style={{ width: `${p.progress}%` }}
-                          />
-                        </div>
-                        <span className="text-xs text-gray-500">{p.progress}%</span>
-                      </div>
                     </div>
 
                     {/* Equity */}

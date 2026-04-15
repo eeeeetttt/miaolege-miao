@@ -773,6 +773,29 @@ export default function ChallengeAdminPage() {
             </div>
 
             <div className="space-y-2">
+              <Label htmlFor="leaderboardLimit">排行榜展示数量</Label>
+              <div className="flex gap-2">
+                <Input
+                  id="leaderboardLimit"
+                  type="number"
+                  min="1"
+                  max="50"
+                  defaultValue={config.leaderboard_limit || '5'}
+                  className="flex-1"
+                />
+                <Button
+                  onClick={(e) => {
+                    const value = (e.target as HTMLButtonElement).parentElement?.querySelector('input')?.value;
+                    if (value) handleUpdateConfig('leaderboard_limit', value);
+                  }}
+                >
+                  保存
+                </Button>
+              </div>
+              <p className="text-xs text-gray-500">排行榜展示的选手数量（默认5名）</p>
+            </div>
+
+            <div className="space-y-2">
               <Label htmlFor="allowViewDetail">选手详情查看</Label>
               <Select
                 defaultValue={config.allow_view_detail || 'true'}
