@@ -3,17 +3,49 @@
 import Link from 'next/link';
 import { useSession } from 'next-auth/react';
 import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { 
   Trophy,
   TrendingUp,
   Users,
+  Shield,
   Zap,
+  Target,
   ArrowRight,
-  CheckCircle2
+  CheckCircle2,
+  BarChart3,
+  MessageSquare
 } from 'lucide-react';
 
 export default function HomePage() {
   const { data: session } = useSession();
+
+  const challengeFeatures = [
+    {
+      icon: Target,
+      title: '挑战目标',
+      description: '通过挑战将净值翻倍，即可通关',
+      color: 'from-amber-500 to-orange-600',
+    },
+    {
+      icon: Shield,
+      title: '风险控制',
+      description: '严格止损，控制回撤风险',
+      color: 'from-red-500 to-pink-600',
+    },
+    {
+      icon: Trophy,
+      title: '丰厚奖励',
+      description: '通关即可获得实盘账户，合作期间无责底薪',
+      color: 'from-yellow-500 to-amber-600',
+    },
+    {
+      icon: BarChart3,
+      title: '实时追踪',
+      description: '随时查看账户净值和交易数据，透明公开',
+      color: 'from-blue-500 to-cyan-600',
+    },
+  ];
 
   const steps = [
     { step: 1, title: '报名参赛', desc: '支付报名费参加挑战' },
@@ -81,6 +113,36 @@ export default function HomePage() {
                 查看挑战大厅
               </Button>
             </Link>
+          </div>
+        </div>
+      </section>
+
+      {/* Features Section */}
+      <section className="py-20 px-4 bg-white dark:bg-gray-900">
+        <div className="max-w-6xl mx-auto">
+          <div className="text-center mb-16">
+            <h2 className="text-3xl md:text-4xl font-bold text-gray-900 dark:text-white mb-4">
+              为什么参加挑战赛？
+            </h2>
+            <p className="text-xl text-gray-600 dark:text-gray-400">
+              专业、公平、奖励丰厚
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            {challengeFeatures.map((feature, idx) => (
+              <Card key={idx} className="group hover:shadow-xl transition-all duration-300 border-0 bg-white dark:bg-gray-800">
+                <CardHeader>
+                  <div className={`w-14 h-14 rounded-xl bg-gradient-to-br ${feature.color} flex items-center justify-center mb-4 group-hover:scale-110 transition-transform`}>
+                    <feature.icon className="w-7 h-7 text-white" />
+                  </div>
+                  <CardTitle className="text-xl">{feature.title}</CardTitle>
+                  <CardDescription className="text-gray-600 dark:text-gray-400">
+                    {feature.description}
+                  </CardDescription>
+                </CardHeader>
+              </Card>
+            ))}
           </div>
         </div>
       </section>
