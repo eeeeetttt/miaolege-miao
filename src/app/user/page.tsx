@@ -35,10 +35,7 @@ import {
   Ban,
   MessageSquare,
   Lightbulb,
-  QrCode,
-  RefreshCw,
 } from 'lucide-react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 
 interface UserInfo {
   userId: string;
@@ -129,19 +126,6 @@ export default function UserCenterPage() {
   const [nextNameChangeDate, setNextNameChangeDate] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // 微信充值相关状态
-  const [wechatRechargeConfig, setWechatRechargeConfig] = useState({
-    exchangeRate: 7,
-    enabled: true,
-    minAmount: 10,
-    maxAmount: 5000,
-  });
-  const [wechatAmount, setWechatAmount] = useState<number | null>(null);
-  const [wechatCustomAmount, setWechatCustomAmount] = useState('');
-  const [wechatDialogOpen, setWechatDialogOpen] = useState(false);
-  const [wechatOrder, setWechatOrder] = useState<any>(null);
-  const [wechatPolling, setWechatPolling] = useState(false);
-
   useEffect(() => {
     if (status === 'unauthenticated') {
       router.push('/login');
@@ -155,27 +139,21 @@ export default function UserCenterPage() {
 
   const fetchData = async () => {
     try {
-      const [userRes, mtRes, followRes, wechatConfigRes] = await Promise.all([
+      const [userRes, mtRes, followRes] = await Promise.all([
         fetch('/api/user/info'),
         fetch('/api/mt-account'),
         fetch('/api/follow/my'),
-        fetch('/api/recharge/wechat/config'),
       ]);
       
       const userData = await userRes.json();
       const mtData = await mtRes.json();
       const followData = await followRes.json();
-      const wechatConfigData = await wechatConfigRes.json();
       
       setUser(userData.user);
       setMtAccount(mtData.account);
       setFollowInfo(followData.follows || []);
       setTotalRecharged(userData.totalRecharged || 0);
       setNewName(userData.user?.name || '');
-      
-      if (wechatConfigData.success) {
-        setWechatRechargeConfig(wechatConfigData.data);
-      }
       
       // 检查昵称修改限制
       checkNameChangeLimit(userData.user);
@@ -349,105 +327,6 @@ export default function UserCenterPage() {
       setError('充值申请提交失败，请稍后重试');
     } finally {
       setRechargeLoading(false);
-    }
-  };
-
-  // 微信充值 - 创建订单
-  const handleWechatRecharge = async () => {
-    setError('');
-    setSuccess('');
-    
-    const amount = wechatAmount || parseInt(wechatCustomAmount);
-    if (!amount || amount <= 0) {
-      setError('请选择或输入有效充值金额');
-      return;
-    }
-
-    if (amount < wechatRechargeConfig.minAmount) {
-      setError(`最低充值金额为 ${wechatRechargeConfig.minAmount} U`);
-      return;
-    }
-
-    if (amount > wechatRechargeConfig.maxAmount) {
-      setError(`最高充值金额为 ${wechatRechargeConfig.maxAmount} U`);
-      return;
-    }
-
-    setRechargeLoading(true);
-    try {
-      const res = await fetch('/api/recharge/wechat', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ amount }),
-      });
-      const data = await res.json();
-      
-      if (data.success) {
-        setWechatOrder(data.data);
-        setWechatDialogOpen(true);
-        setWechatPolling(true);
-      } else {
-        setError(data.error || '创建订单失败');
-      }
-    } catch (error) {
-      setError('创建订单失败，请稍后重试');
-    } finally {
-      setRechargeLoading(false);
-    }
-  };
-
-  // 轮询订单状态
-  useEffect(() => {
-    if (!wechatPolling || !wechatOrder) return;
-
-    const pollOrder = async () => {
-      try {
-        const res = await fetch(`/api/recharge/wechat?orderId=${wechatOrder.orderId}`);
-        const data = await res.json();
-        
-        if (data.success && data.data.status === 'paid') {
-          setWechatPolling(false);
-          setSuccess(`充值成功！${data.data.amountU} U 已到账`);
-          setWechatDialogOpen(false);
-          setWechatAmount(null);
-          setWechatCustomAmount('');
-          setWechatOrder(null);
-          fetchData(); // 刷新用户信息
-        }
-      } catch (error) {
-        console.error('轮询订单状态失败:', error);
-      }
-    };
-
-    const interval = setInterval(pollOrder, 3000);
-    return () => clearInterval(interval);
-  }, [wechatPolling, wechatOrder]);
-
-  // 模拟支付回调（沙箱测试用）
-  const handleSimulatePay = async () => {
-    if (!wechatOrder) return;
-
-    try {
-      const res = await fetch('/api/recharge/wechat/callback', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ orderId: wechatOrder.orderId }),
-      });
-      const data = await res.json();
-      
-      if (data.success) {
-        setWechatPolling(false);
-        setSuccess(`充值成功！${data.data.amountU} U 已到账`);
-        setWechatDialogOpen(false);
-        setWechatAmount(null);
-        setWechatCustomAmount('');
-        setWechatOrder(null);
-        fetchData();
-      } else {
-        setError(data.error || '支付失败');
-      }
-    } catch (error) {
-      setError('支付失败，请稍后重试');
     }
   };
 
@@ -829,107 +708,17 @@ export default function UserCenterPage() {
 
           {/* Recharge Tab */}
           <TabsContent value="recharge">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {/* 微信充值卡片 */}
-              {wechatRechargeConfig.enabled && (
-                <Card className="border-green-200 dark:border-green-800">
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <QrCode className="w-5 h-5 text-green-500" />
-                      微信充值
-                    </CardTitle>
-                    <CardDescription>
-                      扫码支付，汇率 1 U = {wechatRechargeConfig.exchangeRate} 元
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent className="space-y-6">
-                    {success && (
-                      <Alert className="border-green-200 bg-green-50">
-                        <CheckCircle2 className="h-4 w-4 text-green-600" />
-                        <AlertDescription className="text-green-700">{success}</AlertDescription>
-                      </Alert>
-                    )}
-                    {error && (
-                      <Alert className="border-red-200 bg-red-50">
-                        <XCircle className="h-4 w-4 text-red-600" />
-                        <AlertDescription className="text-red-700">{error}</AlertDescription>
-                      </Alert>
-                    )}
-
-                    <div className="space-y-3">
-                      <Label>选择充值金额 (U)</Label>
-                      <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-                        {[50, 100, 200, 500, 1000, 2000].map(option => (
-                          <button
-                            key={option}
-                            type="button"
-                            onClick={() => {
-                              setWechatAmount(option);
-                              setWechatCustomAmount('');
-                            }}
-                            className={`p-3 rounded-lg border-2 transition-colors ${
-                              wechatAmount === option
-                                ? 'border-green-500 bg-green-50 dark:bg-green-900/20'
-                                : 'border-gray-200 dark:border-gray-700 hover:border-green-300'
-                            }`}
-                          >
-                            <p className="font-bold">{option}</p>
-                            <p className="text-xs text-gray-500">
-                              ¥{option * wechatRechargeConfig.exchangeRate}
-                            </p>
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label>或输入自定义金额</Label>
-                      <div className="flex gap-2">
-                        <Input
-                          type="number"
-                          value={wechatCustomAmount}
-                          onChange={e => {
-                            setWechatCustomAmount(e.target.value);
-                            setWechatAmount(null);
-                          }}
-                          placeholder={`${wechatRechargeConfig.minAmount} - ${wechatRechargeConfig.maxAmount}`}
-                          min={wechatRechargeConfig.minAmount}
-                          max={wechatRechargeConfig.maxAmount}
-                          className="flex-1"
-                        />
-                        <span className="self-center text-gray-500">
-                          = ¥{wechatCustomAmount ? (parseInt(wechatCustomAmount) || 0) * wechatRechargeConfig.exchangeRate : 0}
-                        </span>
-                      </div>
-                    </div>
-
-                    <div className="text-sm text-gray-500">
-                      限额: {wechatRechargeConfig.minAmount} - {wechatRechargeConfig.maxAmount} U
-                    </div>
-
-                    <Button
-                      onClick={handleWechatRecharge}
-                      disabled={rechargeLoading || (!wechatAmount && !wechatCustomAmount)}
-                      className="w-full bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700"
-                    >
-                      {rechargeLoading ? '生成订单中...' : '生成支付二维码'}
-                    </Button>
-                  </CardContent>
-                </Card>
-              )}
-
-              {/* 加密货币充值卡片 */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Coins className="w-5 h-5 text-amber-500" />
-                    加密货币充值
-                  </CardTitle>
-                  <CardDescription>
-                    使用USDT (TRC20) 进行充值，1 USDT = 1 U
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Coins className="w-5 h-5 text-amber-500" />
+                  加密货币充值
+                </CardTitle>
+                <CardDescription>
+                  使用USDT (TRC20) 进行充值，1 USDT = 1 U
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
                 {success && (
                   <Alert className="border-green-200 bg-green-50">
                     <CheckCircle2 className="h-4 w-4 text-green-600" />
@@ -1075,67 +864,8 @@ export default function UserCenterPage() {
                 </p>
               </CardContent>
             </Card>
-            </div>
           </TabsContent>
         </Tabs>
-
-        {/* 微信支付对话框 */}
-        <Dialog open={wechatDialogOpen} onOpenChange={setWechatDialogOpen}>
-          <DialogContent className="sm:max-w-md">
-            <DialogHeader>
-              <DialogTitle className="flex items-center gap-2">
-                <QrCode className="w-5 h-5 text-green-500" />
-                微信扫码支付
-              </DialogTitle>
-            </DialogHeader>
-            {wechatOrder && (
-              <div className="space-y-4 py-4">
-                <div className="text-center">
-                  <p className="text-sm text-gray-500 mb-2">请使用微信扫描下方二维码支付</p>
-                  <div className="bg-white p-4 rounded-lg inline-block">
-                    <img 
-                      src={wechatOrder.qrCodeUrl} 
-                      alt="支付二维码" 
-                      className="w-48 h-48 mx-auto"
-                    />
-                  </div>
-                </div>
-                
-                <div className="bg-green-50 dark:bg-green-900/20 rounded-lg p-4 space-y-2">
-                  <div className="flex justify-between">
-                    <span className="text-gray-600 dark:text-gray-400">充值金额</span>
-                    <span className="font-bold text-green-600">{wechatOrder.amountU} U</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-600 dark:text-gray-400">支付金额</span>
-                    <span className="font-bold text-xl text-green-600">¥{wechatOrder.amountCny}</span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-500">汇率</span>
-                    <span className="text-gray-500">1 U = {wechatOrder.exchangeRate} 元</span>
-                  </div>
-                </div>
-
-                {wechatPolling && (
-                  <div className="flex items-center justify-center gap-2 text-sm text-gray-500">
-                    <RefreshCw className="w-4 h-4 animate-spin" />
-                    等待支付中...
-                  </div>
-                )}
-
-                <div className="text-center">
-                  <p className="text-xs text-gray-400 mb-2">测试环境：点击下方按钮模拟支付</p>
-                  <Button
-                    onClick={handleSimulatePay}
-                    className="w-full bg-green-500 hover:bg-green-600"
-                  >
-                    模拟支付（测试用）
-                  </Button>
-                </div>
-              </div>
-            )}
-          </DialogContent>
-        </Dialog>
       </div>
     </div>
   );
