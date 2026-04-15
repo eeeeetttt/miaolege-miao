@@ -132,19 +132,18 @@ export default function ChallengeHallPage() {
             ) : (
               <div className="space-y-3">
                 {/* Header */}
-                <div className="grid grid-cols-12 gap-4 px-4 py-2 text-sm font-medium text-gray-500 dark:text-gray-400 border-b">
+                <div className="grid grid-cols-10 gap-4 px-4 py-2 text-sm font-medium text-gray-500 dark:text-gray-400 border-b">
                   <div className="col-span-1 text-center">排名</div>
                   <div className="col-span-4 text-center">选手</div>
-                  <div className="col-span-3 text-center">关卡</div>
-                  <div className="col-span-2 text-center">进度</div>
-                  <div className="col-span-2 text-right">净值</div>
+                  <div className="col-span-2 text-center">关卡</div>
+                  <div className="col-span-3 text-right">净值</div>
                 </div>
 
                 {/* Participants */}
                 {participants.map((p) => (
                   <div
                     key={p.id}
-                    className={`grid grid-cols-12 gap-4 px-4 py-4 rounded-lg border items-center ${
+                    className={`grid grid-cols-10 gap-4 px-4 py-4 rounded-lg border items-center ${
                       p.rank <= 3
                         ? 'bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-900/20 dark:to-orange-900/20 border-amber-200 dark:border-amber-800' 
                         : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700'
@@ -167,27 +166,14 @@ export default function ChallengeHallPage() {
                     </div>
 
                     {/* Level */}
-                    <div className="col-span-3 text-center">
+                    <div className="col-span-2 text-center">
                       <Badge className="bg-amber-500">
                         第{p.currentLevel}关
                       </Badge>
                     </div>
 
-                    {/* Progress */}
-                    <div className="col-span-2 text-center">
-                      <div className="flex items-center justify-center gap-2">
-                        <div className="w-16 h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
-                          <div 
-                            className={`h-full rounded-full ${p.progress >= 50 ? 'bg-green-500' : 'bg-amber-500'}`}
-                            style={{ width: `${p.progress}%` }}
-                          />
-                        </div>
-                        <span className="text-xs text-gray-500">{p.progress}%</span>
-                      </div>
-                    </div>
-
                     {/* Equity */}
-                    <div className="col-span-2 text-right">
+                    <div className="col-span-3 text-right">
                       <div className="flex items-center justify-end gap-1">
                         {p.equity >= 1000 ? (
                           <TrendingUp className="w-4 h-4 text-green-500" />

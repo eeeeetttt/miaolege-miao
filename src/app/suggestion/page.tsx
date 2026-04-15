@@ -7,15 +7,14 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Textarea } from '@/components/ui/textarea';
 import { Spinner } from '@/components/ui/spinner';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Badge } from '@/components/ui/badge';
 import {
   Lightbulb,
   Send,
-  ThumbsUp,
-  ChevronLeft,
-  CheckCircle,
   Clock,
-  User,
+  CheckCircle,
+  XCircle,
+  ChevronLeft,
 } from 'lucide-react';
 import Link from 'next/link';
 
@@ -25,13 +24,7 @@ interface Suggestion {
   content: string;
   status: 'pending' | 'approved' | 'rejected';
   like_count: number;
-  isLiked?: boolean;
   created_at: string;
-  user?: {
-    userId: string;
-    name: string | null;
-    avatar: string | null;
-  };
 }
 
 export default function SuggestionPage() {
@@ -64,10 +57,12 @@ export default function SuggestionPage() {
   };
 
   useEffect(() => {
+    if (status === 'unauthenticated') {
+      router.push('/login');
+      return;
+    }
     if (status === 'authenticated') {
       fetchSuggestions();
-    } else if (status === 'unauthenticated') {
-      router.push('/login');
     }
   }, [status, router]);
 
@@ -87,7 +82,7 @@ export default function SuggestionPage() {
       });
       const data = await res.json();
       if (data.success) {
-        showToast('建议提交成功，等待审核', 'success');
+        showToast('建议提交成功', 'success');
         setContent('');
         setShowForm(false);
         fetchSuggestions();
@@ -101,35 +96,29 @@ export default function SuggestionPage() {
     }
   };
 
-  const handleLike = async (suggestionId: number) => {
-    if (!session) {
-      router.push('/login');
-      return;
+  const getStatusBadge = (status: string) => {
+    switch (status) {
+      case 'pending':
+        return <Badge className="bg-yellow-500">待审核</Badge>;
+      case 'approved':
+        return <Badge className="bg-green-500">已通过</Badge>;
+      case 'rejected':
+        return <Badge className="bg-red-500">已拒绝</Badge>;
+      default:
+        return <Badge variant="secondary">{status}</Badge>;
     }
+  };
 
-    try {
-      const res = await fetch('/api/suggestion/like', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ suggestionId }),
-      });
-      const data = await res.json();
-      if (data.success) {
-        // 更新本地状态
-        setSuggestions((prev) =>
-          prev.map((s) =>
-            s.id === suggestionId
-              ? {
-                  ...s,
-                  isLiked: data.liked,
-                  like_count: data.liked ? s.like_count + 1 : s.like_count - 1,
-                }
-              : s
-          )
-        );
-      }
-    } catch (err) {
-      showToast('操作失败', 'error');
+  const getStatusIcon = (status: string) => {
+    switch (status) {
+      case 'pending':
+        return <Clock className="w-5 h-5 text-yellow-500" />;
+      case 'approved':
+        return <CheckCircle className="w-5 h-5 text-green-500" />;
+      case 'rejected':
+        return <XCircle className="w-5 h-5 text-red-500" />;
+      default:
+        return null;
     }
   };
 
@@ -154,7 +143,7 @@ export default function SuggestionPage() {
           </Link>
           <div className="flex items-center gap-2">
             <Lightbulb className="w-6 h-6 text-amber-500" />
-            <h1 className="text-2xl font-bold">意见建议</h1>
+            <h1 className="text-2xl font-bold">我的建议</h1>
           </div>
         </div>
 
@@ -175,7 +164,7 @@ export default function SuggestionPage() {
         {showForm ? (
           <Card className="mb-6">
             <CardHeader>
-              <CardTitle>提出建议</CardTitle>
+              <CardTitle>提交建议</CardTitle>
             </CardHeader>
             <CardContent>
               <form onSubmit={handleSubmit} className="space-y-4">
@@ -226,7 +215,7 @@ export default function SuggestionPage() {
             className="w-full mb-6 bg-amber-500 hover:bg-amber-600"
           >
             <Lightbulb className="w-4 h-4 mr-2" />
-            提出建议
+            提交建议
           </Button>
         )}
 
@@ -234,15 +223,15 @@ export default function SuggestionPage() {
         <div className="space-y-4">
           <h2 className="text-lg font-semibold flex items-center gap-2">
             <CheckCircle className="w-5 h-5 text-green-500" />
-            精选建议 ({suggestions.length})
+            我的建议列表 ({suggestions.length})
           </h2>
 
           {suggestions.length === 0 ? (
             <Card>
               <CardContent className="py-12 text-center text-gray-500">
                 <Lightbulb className="w-12 h-12 mx-auto mb-4 opacity-50" />
-                <p>暂无建议</p>
-                <p className="text-sm mt-2">成为第一个提出建议的人吧！</p>
+                <p>您还没有提交过建议</p>
+                <p className="text-sm mt-2">点击上方按钮提交您的建议</p>
               </CardContent>
             </Card>
           ) : (
@@ -251,51 +240,21 @@ export default function SuggestionPage() {
                 <CardHeader>
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
-                      <Avatar className="w-8 h-8">
-                        {suggestion.user?.avatar ? (
-                          <AvatarImage src={suggestion.user.avatar} />
-                        ) : (
-                          <AvatarFallback>
-                            <User className="w-4 h-4" />
-                          </AvatarFallback>
-                        )}
-                      </Avatar>
+                      {getStatusIcon(suggestion.status)}
                       <div>
-                        <p className="font-medium">
-                          {suggestion.user?.name || '匿名用户'}
-                        </p>
+                        <p className="font-medium">建议 #{suggestion.id}</p>
                         <p className="text-xs text-gray-500">
                           {new Date(suggestion.created_at).toLocaleString('zh-CN')}
                         </p>
                       </div>
                     </div>
-                    <div className="flex items-center gap-1 text-gray-500">
-                      <Clock className="w-4 h-4" />
-                      <span className="text-sm">
-                        {suggestion.like_count} 赞
-                      </span>
-                    </div>
+                    {getStatusBadge(suggestion.status)}
                   </div>
                 </CardHeader>
                 <CardContent>
                   <p className="text-gray-700 dark:text-gray-300 whitespace-pre-wrap">
                     {suggestion.content}
                   </p>
-                  <div className="flex items-center gap-2 mt-4 pt-4 border-t">
-                    <Button
-                      variant={suggestion.isLiked ? 'default' : 'outline'}
-                      size="sm"
-                      onClick={() => handleLike(suggestion.id)}
-                      className={
-                        suggestion.isLiked
-                          ? 'bg-amber-500 hover:bg-amber-600'
-                          : ''
-                      }
-                    >
-                      <ThumbsUp className="w-4 h-4 mr-1" />
-                      {suggestion.isLiked ? '已赞' : '点赞'}
-                    </Button>
-                  </div>
                 </CardContent>
               </Card>
             ))
