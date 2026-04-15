@@ -258,7 +258,17 @@ export default function ChallengePage() {
               <div className={styles.statusCard}>
                 <i className="fas fa-check-circle" style={{fontSize: '2rem', color: '#4caf50', marginBottom: '0.5rem'}}></i>
                 <h3>审核已通过</h3>
-                <p>等待管理员分配交易账户并激活挑战</p>
+                {registration?.serverName && registration?.tradingAccount ? (
+                  <>
+                    <div className={styles.accountInfo} style={{marginTop: '0.5rem'}}>
+                      <i className="fas fa-server"></i>
+                      {registration.serverName} - {registration.tradingAccount}
+                    </div>
+                    <p style={{marginTop: '0.5rem', color: '#f59e0b'}}>等待管理员激活挑战</p>
+                  </>
+                ) : (
+                  <p>等待管理员分配交易账户并激活挑战</p>
+                )}
               </div>
             )}
 
