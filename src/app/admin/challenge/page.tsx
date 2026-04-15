@@ -895,6 +895,95 @@ export default function ChallengeAdminPage() {
               </div>
               <p className="text-xs text-gray-500">通关后发放的奖励人民币金额</p>
             </div>
+
+            {/* 微信充值配置分隔 */}
+            <div className="border-t pt-4">
+              <h4 className="font-medium mb-3 text-green-600">微信充值配置</h4>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="wechatEnabled">微信充值开关</Label>
+              <Select
+                defaultValue={config.wechat_recharge_enabled || 'true'}
+                onValueChange={(value) => handleUpdateConfig('wechat_recharge_enabled', value)}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="true">启用</SelectItem>
+                  <SelectItem value="false">禁用</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="exchangeRate">充值汇率</Label>
+              <div className="flex gap-2">
+                <Input
+                  id="exchangeRate"
+                  type="number"
+                  step="0.1"
+                  min="1"
+                  defaultValue={config.exchange_rate || '7'}
+                  className="flex-1"
+                />
+                <Button
+                  onClick={(e) => {
+                    const value = (e.target as HTMLButtonElement).parentElement?.querySelector('input')?.value;
+                    if (value) handleUpdateConfig('exchange_rate', value);
+                  }}
+                >
+                  保存
+                </Button>
+              </div>
+              <p className="text-xs text-gray-500">1 U 等于多少人民币（例如：7 表示 1 U = 7 元）</p>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="wechatMinAmount">最低充值限额</Label>
+                <div className="flex gap-2">
+                  <Input
+                    id="wechatMinAmount"
+                    type="number"
+                    min="1"
+                    defaultValue={config.wechat_min_amount || '10'}
+                    className="flex-1"
+                  />
+                  <Button
+                    size="sm"
+                    onClick={(e) => {
+                      const value = (e.target as HTMLButtonElement).parentElement?.querySelector('input')?.value;
+                      if (value) handleUpdateConfig('wechat_min_amount', value);
+                    }}
+                  >
+                    保存
+                  </Button>
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="wechatMaxAmount">最高充值限额</Label>
+                <div className="flex gap-2">
+                  <Input
+                    id="wechatMaxAmount"
+                    type="number"
+                    min="1"
+                    defaultValue={config.wechat_max_amount || '5000'}
+                    className="flex-1"
+                  />
+                  <Button
+                    size="sm"
+                    onClick={(e) => {
+                      const value = (e.target as HTMLButtonElement).parentElement?.querySelector('input')?.value;
+                      if (value) handleUpdateConfig('wechat_max_amount', value);
+                    }}
+                  >
+                    保存
+                  </Button>
+                </div>
+              </div>
+            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setConfigDialogOpen(false)}>
