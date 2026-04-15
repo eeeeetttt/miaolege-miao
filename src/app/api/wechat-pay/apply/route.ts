@@ -40,7 +40,6 @@ export async function POST(request: NextRequest) {
       .insert({
         user_id: session.user.id,
         amount: amount,
-        currency: 'USDC',
         payment_method: 'wechat',
         exchange_rate: exchangeRate,
         cny_amount: cnyAmount,

@@ -57,7 +57,7 @@ export async function POST(request: NextRequest) {
       if (supabase) {
         await supabase
           .from('recharge_applications')
-          .update({ screenshot_url: key })
+          .update({ screenshot_url: screenshotUrl })
           .eq('id', parseInt(applicationId))
           .eq('user_id', session.user.id);
       }

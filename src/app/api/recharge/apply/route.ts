@@ -30,7 +30,6 @@ export async function POST(request: NextRequest) {
       .insert({
         user_id: session.user.id,
         amount: amount,
-        currency: 'USDC',
         payment_method: 'crypto',
         status: 'pending',
         screenshot_url: screenshotUrl || '',

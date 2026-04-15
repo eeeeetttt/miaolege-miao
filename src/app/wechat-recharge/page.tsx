@@ -156,25 +156,26 @@ export default function WechatRechargePage() {
     try {
       const formData = new FormData();
       formData.append('file', file);
-      if (applicationId) {
-        formData.append('applicationId', String(applicationId));
-      }
       
-      const res = await fetch('/api/wechat-pay/upload', {
+      const res = await fetch('/api/upload/screenshot', {
         method: 'POST',
         body: formData,
       });
       const data = await res.json();
       
-      if (data.success) {
-        setScreenshot(data.screenshotUrl);
+      if (data.success && data.url) {
+        setScreenshot(data.url);
+        setError('');
       } else {
         setError(data.error || '截图上传失败');
         setScreenshotPreview(null);
+        setScreenshot(null);
       }
     } catch (err) {
+      console.error('截图上传失败:', err);
       setError('截图上传失败，请重试');
       setScreenshotPreview(null);
+      setScreenshot(null);
     } finally {
       setLoading(false);
     }
@@ -213,8 +214,9 @@ export default function WechatRechargePage() {
   };
 
   const handleConfirmPayment = async () => {
-    if (!applicationId) {
-      setError('请先创建订单');
+    const amount = selectedAmount || parseInt(customAmount);
+    if (!amount || amount <= 0) {
+      setError('请选择或输入有效充值金额');
       return;
     }
 
@@ -226,23 +228,38 @@ export default function WechatRechargePage() {
     setSubmitting(true);
     setError('');
     try {
-      // 上传截图（如果还没上传）
-      let screenshotUrl = screenshot;
-      if (!screenshot.startsWith('http')) {
+      // 先创建订单
+      const orderRes = await fetch('/api/wechat-pay/apply', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ amount }),
+      });
+      const orderData = await orderRes.json();
+      
+      if (!orderData.success) {
+        setError(orderData.error || orderData.details || '创建订单失败');
+        setSubmitting(false);
+        return;
+      }
+
+      const newApplicationId = orderData.applicationId;
+
+      // 上传截图
+      if (screenshot && !screenshot.startsWith('http')) {
         const formData = new FormData();
         const res = await fetch(screenshot);
         const blob = await res.blob();
         const file = new File([blob], 'screenshot.png', { type: 'image/png' });
         formData.append('file', file);
-        formData.append('applicationId', String(applicationId));
+        formData.append('applicationId', String(newApplicationId));
         
         const uploadRes = await fetch('/api/wechat-pay/upload', {
           method: 'POST',
           body: formData,
         });
         const uploadData = await uploadRes.json();
-        if (uploadData.success) {
-          screenshotUrl = uploadData.screenshotUrl;
+        if (!uploadData.success) {
+          console.error('截图上传失败:', uploadData.error);
         }
       }
 
@@ -255,6 +272,7 @@ export default function WechatRechargePage() {
       setCnyAmount(0);
       fetchRecords();
     } catch (err) {
+      console.error('确认付款失败:', err);
       setError('确认付款失败，请重试');
     } finally {
       setSubmitting(false);
@@ -411,14 +429,13 @@ export default function WechatRechargePage() {
                     className="w-48 h-48 object-contain"
                   />
                 </div>
-                <p className="text-xs text-gray-400 mt-2">扫码支付后上传截图</p>
               </div>
             )}
 
-            {/* 截图上传 */}
-            {applicationId && (
+            {/* 截图上传 - 只要选择了金额就显示 */}
+            {(selectedAmount || (customAmount && parseInt(customAmount) > 0)) && (
               <div className="space-y-3">
-                <Label>上传付款截图</Label>
+                <Label>上传付款截图 *</Label>
                 <input
                   type="file"
                   ref={screenshotInputRef}
@@ -428,7 +445,7 @@ export default function WechatRechargePage() {
                 />
                 <div 
                   onClick={() => screenshotInputRef.current?.click()}
-                  className={`border-2 border-dashed rounded-lg p-8 text-center cursor-pointer transition-colors ${
+                  className={`border-2 border-dashed rounded-lg p-6 text-center cursor-pointer transition-colors ${
                     screenshotPreview 
                       ? 'border-green-500 bg-green-50' 
                       : 'border-gray-300 hover:border-green-400'
@@ -440,9 +457,14 @@ export default function WechatRechargePage() {
                       <img 
                         src={screenshotPreview} 
                         alt="付款截图预览" 
-                        className="max-h-48 mx-auto rounded"
+                        className="max-h-40 mx-auto rounded"
                       />
                       <p className="text-sm text-green-600">点击重新上传</p>
+                    </div>
+                  ) : loading ? (
+                    <div className="space-y-2">
+                      <Spinner className="w-8 h-8 mx-auto text-gray-400" />
+                      <p className="text-sm text-gray-500">上传中...</p>
                     </div>
                   ) : (
                     <div className="space-y-2">
@@ -452,33 +474,17 @@ export default function WechatRechargePage() {
                     </div>
                   )}
                 </div>
-                {loading && (
-                  <div className="flex items-center justify-center gap-2">
-                    <Spinner className="w-4 h-4" />
-                    <span className="text-sm text-gray-500">上传中...</span>
-                  </div>
-                )}
               </div>
             )}
 
-            {/* 按钮 */}
-            {!applicationId ? (
-              <Button 
-                className="w-full bg-green-600 hover:bg-green-700"
-                disabled={submitting || (!selectedAmount && (!customAmount || parseInt(customAmount) <= 0))}
-                onClick={handleCreateOrder}
-              >
-                {submitting ? '创建订单中...' : '创建订单'}
-              </Button>
-            ) : (
-              <Button 
-                className="w-full bg-green-600 hover:bg-green-700"
-                disabled={submitting || !screenshot}
-                onClick={handleConfirmPayment}
-              >
-                {submitting ? '提交中...' : '确认已付款'}
-              </Button>
-            )}
+            {/* 提交按钮 - 简化流程：直接提交 */}
+            <Button 
+              className="w-full bg-green-600 hover:bg-green-700"
+              disabled={submitting || (!selectedAmount && (!customAmount || parseInt(customAmount) <= 0)) || !screenshot}
+              onClick={handleConfirmPayment}
+            >
+              {submitting ? '提交中...' : '确认充值并提交'}
+            </Button>
           </CardContent>
         </Card>
 
