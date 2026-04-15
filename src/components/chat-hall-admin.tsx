@@ -32,6 +32,9 @@ import {
 interface ChatHallConfig {
   hourly_limit: { value: string; description: string };
   enabled: { value: string; description: string };
+  open_time_start: { value: string; description: string };
+  open_time_end: { value: string; description: string };
+  is_time_limited: { value: string; description: string };
 }
 
 interface MuteUser {
@@ -72,8 +75,11 @@ export function ChatHallAdmin() {
       const data = await res.json();
       if (data.success) {
         setConfig({
-          hourly_limit: { value: data.config?.cooldown_seconds?.value || '3', description: '每小时发言限制' },
+          hourly_limit: { value: data.config?.hourly_limit?.value || '3', description: '每小时发言限制' },
           enabled: { value: data.config?.enabled?.value || 'true', description: '是否开启聊天大厅' },
+          open_time_start: { value: data.config?.open_time_start?.value || '20:00', description: '开放开始时间' },
+          open_time_end: { value: data.config?.open_time_end?.value || '00:00', description: '开放结束时间' },
+          is_time_limited: { value: data.config?.is_time_limited?.value || 'true', description: '是否启用时间限制' },
         });
         setMutes(data.mutes || []);
       } else {
@@ -109,7 +115,14 @@ export function ChatHallAdmin() {
       const data = await res.json();
 
       if (data.success) {
-        setSuccess(`${key === 'hourly_limit' ? '每小时发言限制' : '聊天大厅'}已更新`);
+        const keyNames: Record<string, string> = {
+          hourly_limit: '每小时发言限制',
+          enabled: '聊天大厅开关',
+          open_time_start: '开放开始时间',
+          open_time_end: '开放结束时间',
+          is_time_limited: '时间限制开关',
+        };
+        setSuccess(`${keyNames[key] || key}已更新`);
         setTimeout(() => setSuccess(''), 3000);
       } else {
         setError(data.error || '保存失败');
@@ -289,8 +302,79 @@ export function ChatHallAdmin() {
             </div>
           </div>
 
+          {/* 是否启用时间限制 */}
+          <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
+            <div>
+              <div className="flex items-center gap-2">
+                <Label className="font-medium">启用开放时间限制</Label>
+              </div>
+              <p className="text-sm text-gray-500">开启后仅在指定时间段内可发言</p>
+            </div>
+            <div className="flex items-center gap-2">
+              <Button
+                variant={config?.is_time_limited?.value === 'true' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => handleSaveConfig('is_time_limited', config?.is_time_limited?.value === 'true' ? 'false' : 'true')}
+                disabled={saving}
+                className={config?.is_time_limited?.value === 'true' ? 'bg-green-600 hover:bg-green-700' : ''}
+              >
+                {config?.is_time_limited?.value === 'true' ? '已启用' : '已禁用'}
+              </Button>
+            </div>
+          </div>
+
+          {/* 开放时间设置 */}
+          {config?.is_time_limited?.value === 'true' && (
+            <div className="p-4 bg-amber-50 dark:bg-amber-900/20 rounded-lg border border-amber-200 dark:border-amber-800">
+              <div className="flex items-center gap-2 mb-4">
+                <Clock className="w-4 h-4 text-amber-600" />
+                <Label className="font-medium text-amber-700 dark:text-amber-400">开放时间段设置</Label>
+              </div>
+              <p className="text-sm text-amber-600 dark:text-amber-500 mb-4">
+                设置聊天室开放的时间段（北京时间）
+              </p>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label className="text-sm">开始时间</Label>
+                  <Input
+                    type="time"
+                    value={config?.open_time_start?.value || '20:00'}
+                    onChange={(e) => setConfig({
+                      ...config!,
+                      open_time_start: { ...config!.open_time_start, value: e.target.value }
+                    })}
+                    className="bg-white dark:bg-gray-800"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-sm">结束时间</Label>
+                  <Input
+                    type="time"
+                    value={config?.open_time_end?.value || '00:00'}
+                    onChange={(e) => setConfig({
+                      ...config!,
+                      open_time_end: { ...config!.open_time_end, value: e.target.value }
+                    })}
+                    className="bg-white dark:bg-gray-800"
+                  />
+                </div>
+              </div>
+              <Button
+                className="w-full mt-4 bg-amber-600 hover:bg-amber-700"
+                onClick={() => {
+                  handleSaveConfig('open_time_start', config?.open_time_start?.value || '20:00');
+                  handleSaveConfig('open_time_end', config?.open_time_end?.value || '00:00');
+                }}
+                disabled={saving}
+              >
+                <Save className="w-4 h-4 mr-2" />
+                保存时间段设置
+              </Button>
+            </div>
+          )}
+
           <div className="text-sm text-gray-500 p-3 bg-amber-50 dark:bg-amber-900/20 rounded-lg">
-            <p>💡 提示：发言次数每小时自动重置。</p>
+            <p>💡 提示：发言次数每小时自动重置。时间限制仅在聊天室开启时生效。</p>
           </div>
         </CardContent>
       </Card>

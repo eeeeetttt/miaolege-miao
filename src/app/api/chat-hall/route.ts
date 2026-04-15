@@ -16,6 +16,40 @@ async function cleanupOldMessages(supabase: any) {
   }
 }
 
+// 检查当前时间是否在开放时间内
+function isWithinOpenHours(openTimeStart: string, openTimeEnd: string, timezone: string): boolean {
+  try {
+    // 获取当前北京时间
+    const now = new Date();
+    const formatter = new Intl.DateTimeFormat('zh-CN', {
+      timeZone: timezone || 'Asia/Shanghai',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false,
+    });
+    const currentTimeStr = formatter.format(now);
+    const currentMinutes = parseInt(currentTimeStr.split(':')[0]) * 60 + parseInt(currentTimeStr.split(':')[1]);
+    
+    const startParts = openTimeStart.split(':');
+    const startMinutes = parseInt(startParts[0]) * 60 + parseInt(startParts[1]);
+    
+    const endParts = openTimeEnd.split(':');
+    const endMinutes = parseInt(endParts[0]) * 60 + parseInt(endParts[1]);
+    
+    // 处理跨午夜的情况（如 20:00 到 00:00）
+    if (endMinutes < startMinutes) {
+      // 开放时间跨午夜
+      return currentMinutes >= startMinutes || currentMinutes < endMinutes;
+    } else {
+      // 开放时间在同一天
+      return currentMinutes >= startMinutes && currentMinutes < endMinutes;
+    }
+  } catch (err) {
+    console.error('检查开放时间失败:', err);
+    return false;
+  }
+}
+
 // 获取聊天大厅消息列表
 export async function GET(request: NextRequest) {
   try {
@@ -46,13 +80,20 @@ export async function GET(request: NextRequest) {
     // 获取聊天配置
     const { data: config } = await supabase
       .from('chat_hall_config')
-      .select('enabled, max_message_length, hourly_limit')
+      .select('enabled, max_message_length, hourly_limit, open_time_start, open_time_end, timezone, is_time_limited')
       .eq('id', 1)
       .maybeSingle();
 
     const enabled = config?.enabled !== 0;
     const maxMessageLength = config?.max_message_length || 200;
     const hourlyLimit = config?.hourly_limit || 3;
+    const openTimeStart = config?.open_time_start || '20:00';
+    const openTimeEnd = config?.open_time_end || '00:00';
+    const timezone = config?.timezone || 'Asia/Shanghai';
+    const isTimeLimited = config?.is_time_limited !== false;
+    
+    // 检查是否在开放时间内
+    const isOpen = enabled && (!isTimeLimited || isWithinOpenHours(openTimeStart, openTimeEnd, timezone));
 
     // 获取当前用户是否被禁言，以及剩余发言次数
     const session = await getServerSession(authOptions);
@@ -107,6 +148,11 @@ export async function GET(request: NextRequest) {
         hourlyLimit,
         enabled,
         maxMessageLength,
+        isOpen,
+        openTimeStart: isTimeLimited ? openTimeStart : null,
+        openTimeEnd: isTimeLimited ? openTimeEnd : null,
+        timezone,
+        isTimeLimited,
       },
       userStatus: {
         isMuted,
@@ -136,16 +182,27 @@ export async function POST(request: NextRequest) {
     // 获取聊天配置
     const { data: config } = await supabase
       .from('chat_hall_config')
-      .select('enabled, max_message_length, hourly_limit')
+      .select('enabled, max_message_length, hourly_limit, open_time_start, open_time_end, timezone, is_time_limited')
       .eq('id', 1)
       .maybeSingle();
 
     const enabled = config?.enabled !== 0;
     const maxMessageLength = config?.max_message_length || 200;
     const hourlyLimit = config?.hourly_limit || 3;
+    const openTimeStart = config?.open_time_start || '20:00';
+    const openTimeEnd = config?.open_time_end || '00:00';
+    const timezone = config?.timezone || 'Asia/Shanghai';
+    const isTimeLimited = config?.is_time_limited !== false;
 
     if (!enabled) {
       return NextResponse.json({ error: '聊天室已关闭' }, { status: 403 });
+    }
+
+    // 检查是否在开放时间内
+    if (isTimeLimited && !isWithinOpenHours(openTimeStart, openTimeEnd, timezone)) {
+      return NextResponse.json({ 
+        error: `聊天室仅在 ${openTimeStart} - ${openTimeEnd} 开放` 
+      }, { status: 403 });
     }
 
     // 检查禁言状态

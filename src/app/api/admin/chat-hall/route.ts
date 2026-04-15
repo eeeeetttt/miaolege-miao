@@ -38,6 +38,22 @@ export async function GET() {
         value: String(config.max_message_length || 500),
         description: '消息最大长度',
       };
+      configMap.hourly_limit = {
+        value: String(config.hourly_limit || 3),
+        description: '每小时发言限制',
+      };
+      configMap.open_time_start = {
+        value: config.open_time_start || '20:00',
+        description: '开放开始时间（北京时间）',
+      };
+      configMap.open_time_end = {
+        value: config.open_time_end || '00:00',
+        description: '开放结束时间（北京时间）',
+      };
+      configMap.is_time_limited = {
+        value: config.is_time_limited !== false ? 'true' : 'false',
+        description: '是否启用时间限制',
+      };
     }
 
     // 获取禁言列表
@@ -113,6 +129,14 @@ export async function POST(request: NextRequest) {
         updateData.enabled = value === 'true' || value === '1' ? 1 : 0;
       } else if (key === 'max_message_length') {
         updateData.max_message_length = parseInt(value) || 500;
+      } else if (key === 'hourly_limit') {
+        updateData.hourly_limit = parseInt(value) || 3;
+      } else if (key === 'open_time_start') {
+        updateData.open_time_start = value;
+      } else if (key === 'open_time_end') {
+        updateData.open_time_end = value;
+      } else if (key === 'is_time_limited') {
+        updateData.is_time_limited = value === 'true' || value === '1';
       }
 
       const { error } = await supabase

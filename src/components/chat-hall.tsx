@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Spinner } from '@/components/ui/spinner';
 import { Badge } from '@/components/ui/badge';
-import { Send, Users, Settings, AlertCircle } from 'lucide-react';
+import { Send, Users, Settings, AlertCircle, Clock } from 'lucide-react';
 
 interface ChatMessage {
   id: number;
@@ -34,6 +34,9 @@ export function ChatHall() {
   const [muteExpiresAt, setMuteExpiresAt] = useState<string | null>(null);
   const [remainingCount, setRemainingCount] = useState(3);
   const [hourlyLimit, setHourlyLimit] = useState(3);
+  const [isOpen, setIsOpen] = useState(true);
+  const [openTimeStart, setOpenTimeStart] = useState<string | null>(null);
+  const [openTimeEnd, setOpenTimeEnd] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -58,8 +61,11 @@ export function ChatHall() {
         setIsMuted(data.userStatus?.isMuted || false);
         setMuteExpiresAt(data.userStatus?.muteExpiresAt);
         setRemainingCount(data.remainingCount ?? 3);
-        if (data.config?.hourlyLimit) {
-          setHourlyLimit(data.config.hourlyLimit);
+        if (data.config) {
+          setHourlyLimit(data.config.hourlyLimit || 3);
+          setIsOpen(data.config.isOpen !== false);
+          setOpenTimeStart(data.config.openTimeStart);
+          setOpenTimeEnd(data.config.openTimeEnd);
         }
       } else {
         setError(data.error || '加载消息失败');
@@ -163,8 +169,27 @@ export function ChatHall() {
         <CardTitle className="flex items-center gap-2">
           <Users className="w-5 h-5 text-purple-500" />
           茶馆·闲聊室
+          {isOpen ? (
+            <Badge variant="secondary" className="ml-2 bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400">
+              <span className="w-2 h-2 rounded-full bg-green-500 mr-1"></span>
+              开放中
+            </Badge>
+          ) : (
+            <Badge variant="secondary" className="ml-2 bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400">
+              <span className="w-2 h-2 rounded-full bg-gray-400 mr-1"></span>
+              休息中
+            </Badge>
+          )}
         </CardTitle>
-        <span className="text-xs text-gray-400">仅保留最近24小时的聊天记录</span>
+        <div className="flex items-center gap-2 text-xs text-gray-400">
+          {openTimeStart && openTimeEnd && (
+            <span className="flex items-center gap-1">
+              <Clock className="w-3 h-3" />
+              开放时间: {openTimeStart} - {openTimeEnd}
+            </span>
+          )}
+          <span className="hidden sm:inline">仅保留最近24小时的聊天记录</span>
+        </div>
       </CardHeader>
 
       <CardContent className="flex-1 flex flex-col p-0 overflow-hidden">
@@ -265,8 +290,18 @@ export function ChatHall() {
 
         {/* 输入框 */}
         <div className="p-4 border-t bg-gray-50 dark:bg-gray-800/50">
-          {isMuted ? (
-            <div className="text-center text-gray-500">
+          {!isOpen ? (
+            <div className="text-center text-gray-500 py-4">
+              <Clock className="w-8 h-8 mx-auto mb-2 opacity-50" />
+              <p className="text-sm font-medium">聊天室休息中</p>
+              {openTimeStart && openTimeEnd && (
+                <p className="text-xs mt-1">
+                  开放时间: {openTimeStart} - {openTimeEnd}
+                </p>
+              )}
+            </div>
+          ) : isMuted ? (
+            <div className="text-center text-gray-500 py-4">
               <AlertCircle className="w-8 h-8 mx-auto mb-2 opacity-50" />
               <p className="text-sm">您已被禁言，无法发言</p>
               {muteExpiresAt && (
