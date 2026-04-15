@@ -130,7 +130,7 @@ public class MainActivity extends AppCompatActivity {
         
         // 启用缓存
         settings.setCacheMode(WebSettings.LOAD_DEFAULT);
-        settings.setAppCacheEnabled(true);
+        // setAppCacheEnabled 在 Android 11+ 已弃用，WebView 自动处理
         
         // 支持缩放
         settings.setSupportZoom(true);
