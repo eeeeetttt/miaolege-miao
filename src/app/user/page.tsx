@@ -86,18 +86,6 @@ function getMemberLevel(totalRecharged: number) {
   return MEMBER_LEVELS[0];
 }
 
-const RECHARGE_OPTIONS = [
-  { amount: 100, bonus: 0, popular: false },
-  { amount: 200, bonus: 10, popular: false },
-  { amount: 500, bonus: 30, popular: true },
-  { amount: 1000, bonus: 80, popular: false },
-  { amount: 2000, bonus: 200, popular: false },
-  { amount: 5000, bonus: 600, popular: false },
-];
-
-// 充值功能是否禁用
-const RECHARGE_DISABLED = false;
-
 export default function UserCenterPage() {
   const router = useRouter();
   const { data: session, status } = useSession();
@@ -111,13 +99,6 @@ export default function UserCenterPage() {
     platform: 'MT5',
   });
   const [mtLoading, setMtLoading] = useState(false);
-  const [rechargeLoading, setRechargeLoading] = useState(false);
-  const [screenshotUploading, setScreenshotUploading] = useState(false);
-  const [selectedAmount, setSelectedAmount] = useState<number | null>(null);
-  const [customAmount, setCustomAmount] = useState('');
-  const [rechargeScreenshot, setRechargeScreenshot] = useState<string | null>(null);
-  const [screenshotPreview, setScreenshotPreview] = useState<string | null>(null);
-  const screenshotInputRef = useRef<HTMLInputElement>(null);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   
@@ -236,115 +217,6 @@ export default function UserCenterPage() {
       setError('解绑失败，请稍后重试');
     } finally {
       setMtLoading(false);
-    }
-  };
-
-  const handleScreenshotUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    
-    // 验证文件类型
-    if (!file.type.startsWith('image/')) {
-      setError('请上传图片文件');
-      return;
-    }
-    
-    // 验证文件大小 (最大5MB)
-    if (file.size > 5 * 1024 * 1024) {
-      setError('图片大小不能超过5MB');
-      return;
-    }
-    
-    // 预览图片
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      setScreenshotPreview(e.target?.result as string);
-    };
-    reader.readAsDataURL(file);
-    
-    // 上传图片
-    setScreenshotUploading(true);
-    setError('');
-    
-    try {
-      const formData = new FormData();
-      formData.append('file', file);
-      
-      const res = await fetch('/api/upload/screenshot', {
-        method: 'POST',
-        body: formData,
-      });
-      const data = await res.json();
-      
-      if (data.success && data.url) {
-        setRechargeScreenshot(data.url);
-        setError('');
-      } else {
-        setError(data.error || '截图上传失败');
-        setScreenshotPreview(null);
-        setRechargeScreenshot(null);
-      }
-    } catch (error) {
-      console.error('Screenshot upload error:', error);
-      setError('截图上传失败，请重试');
-      setScreenshotPreview(null);
-      setRechargeScreenshot(null);
-    } finally {
-      setScreenshotUploading(false);
-    }
-  };
-
-  const handleRecharge = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError('');
-    setSuccess('');
-    
-    if (screenshotUploading) {
-      setError('截图正在上传中，请稍候');
-      return;
-    }
-    
-    const amount = selectedAmount || parseInt(customAmount);
-    if (!amount || amount <= 0) {
-      setError('请选择或输入有效充值金额');
-      return;
-    }
-    
-    if (!rechargeScreenshot) {
-      setError('请上传充值截图');
-      return;
-    }
-    
-    setRechargeLoading(true);
-    
-    try {
-      const res = await fetch('/api/recharge/apply', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          amount,
-          paymentMethod: 'crypto',
-          screenshotUrl: rechargeScreenshot,
-        }),
-      });
-      const data = await res.json();
-      
-      if (data.success) {
-        setSuccess(`充值申请已提交！金额: ${amount} USDT，请等待后台审核，审核通过后 U 将自动到账`);
-        setSelectedAmount(null);
-        setCustomAmount('');
-        setRechargeScreenshot(null);
-        setScreenshotPreview(null);
-        // 刷新用户信息
-        fetchData();
-      } else {
-        setError(data.error || data.details || '充值申请提交失败');
-      }
-    } catch (error) {
-      console.error('Recharge error:', error);
-      setError('充值申请提交失败，请稍后重试');
-    } finally {
-      setRechargeLoading(false);
     }
   };
 
@@ -726,212 +598,39 @@ export default function UserCenterPage() {
 
           {/* Recharge Tab */}
           <TabsContent value="recharge">
-            {/* 顶部提示信息 */}
-            {(success || error) && (
-              <div className="mb-4">
-                {success && (
-                  <Alert className="border-green-200 bg-green-50">
-                    <CheckCircle2 className="h-4 w-4 text-green-600" />
-                    <AlertDescription className="text-green-700">{success}</AlertDescription>
-                  </Alert>
-                )}
-                {error && (
-                  <Alert className="border-red-200 bg-red-50">
-                    <XCircle className="h-4 w-4 text-red-600" />
-                    <AlertDescription className="text-red-700">{error}</AlertDescription>
-                  </Alert>
-                )}
-              </div>
-            )}
-            
-            {/* 并排布局：微信充值和加密货币充值 */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-              {/* 微信充值 - 左侧/上方 */}
-              <Card className="border-green-200 dark:border-green-800">
-                <CardHeader className="pb-2">
-                  <CardTitle className="flex items-center gap-2 text-base">
-                    <QrCode className="w-5 h-5 text-green-500" />
-                    微信充值
-                  </CardTitle>
-                  <CardDescription className="text-xs">
-                    使用微信支付，方便快捷
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <a href="/wechat-recharge" className="block">
-                    <Button 
-                      variant="outline" 
-                      className="w-full h-auto py-4 bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800 hover:bg-green-100 dark:hover:bg-green-900/30"
-                    >
-                      <div className="flex flex-col items-center gap-2">
-                        <div className="w-14 h-14 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center">
-                          <QrCode className="w-8 h-8 text-green-600" />
-                        </div>
-                        <div className="text-center">
-                          <p className="font-semibold text-green-700 dark:text-green-400">微信扫码充值</p>
-                          <p className="text-xs text-gray-500 mt-1">点击进入充值页面</p>
-                        </div>
+            {/* 微信充值入口 */}
+            <Card className="border-green-200 dark:border-green-800 max-w-xl mx-auto">
+              <CardHeader className="pb-2">
+                <CardTitle className="flex items-center gap-2 text-base">
+                  <QrCode className="w-5 h-5 text-green-500" />
+                  充值 U
+                </CardTitle>
+                <CardDescription className="text-xs">
+                  使用微信扫码支付，方便快捷
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <a href="/wechat-recharge" className="block">
+                  <Button 
+                    variant="outline" 
+                    className="w-full h-auto py-6 bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800 hover:bg-green-100 dark:hover:bg-green-900/30"
+                  >
+                    <div className="flex flex-col items-center gap-3">
+                      <div className="w-16 h-16 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center">
+                        <QrCode className="w-10 h-10 text-green-600" />
                       </div>
-                    </Button>
-                  </a>
-                </CardContent>
-              </Card>
-
-              {/* 加密货币充值 - 右侧/下方 */}
-              <Card className="border-amber-200 dark:border-amber-800">
-                <CardHeader className="pb-2">
-                  <CardTitle className="flex items-center gap-2 text-base">
-                    <Coins className="w-5 h-5 text-amber-500" />
-                    加密货币充值
-                  </CardTitle>
-                  <CardDescription className="text-xs">
-                    使用USDT (TRC20)，1 USDT = 1 U
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                  {/* 钱包地址 */}
-                  <div className="p-3 bg-amber-50 dark:bg-amber-900/20 rounded-lg">
-                    <p className="text-xs font-medium text-amber-700 dark:text-amber-400 mb-1">
-                      USDT (TRC20) 钱包地址
-                    </p>
-                    <div className="flex items-center gap-2">
-                      <code className="flex-1 p-2 bg-white dark:bg-gray-800 rounded text-xs break-all">
-                        TDvQ63CKLJEmCbeYMbm4HRiS33gjzokJkX
-                      </code>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="text-xs px-2 py-1 h-auto"
-                        onClick={() => {
-                          navigator.clipboard.writeText('TDvQ63CKLJEmCbeYMbm4HRiS33gjzokJkX');
-                        }}
-                      >
-                        复制
-                      </Button>
-                    </div>
-                  </div>
-
-                  {/* 充值金额选择 */}
-                  <form onSubmit={handleRecharge} className="space-y-3">
-                    <div className="space-y-1">
-                      <Label className="text-xs">选择金额</Label>
-                      <div className="grid grid-cols-3 gap-2">
-                        {RECHARGE_OPTIONS.slice(0, 3).map(option => (
-                          <button
-                            key={option.amount}
-                            type="button"
-                            onClick={() => {
-                              setSelectedAmount(option.amount);
-                              setCustomAmount('');
-                            }}
-                            className={`p-2 rounded-lg border-2 transition-colors text-center ${
-                              selectedAmount === option.amount
-                                ? 'border-amber-500 bg-amber-50 dark:bg-amber-900/20'
-                                : 'border-gray-200 dark:border-gray-700 hover:border-amber-300'
-                            }`}
-                          >
-                            <p className="font-bold text-sm">{option.amount}</p>
-                            <p className="text-xs text-gray-500">USDT</p>
-                          </button>
-                        ))}
+                      <div className="text-center">
+                        <p className="font-semibold text-lg text-green-700 dark:text-green-400">微信扫码充值</p>
+                        <p className="text-xs text-gray-500 mt-1">点击进入充值页面 →</p>
                       </div>
                     </div>
-
-                    <div className="space-y-1">
-                      <Label className="text-xs">自定义金额</Label>
-                      <Input
-                        type="number"
-                        value={customAmount}
-                        onChange={e => {
-                          setCustomAmount(e.target.value);
-                          setSelectedAmount(null);
-                        }}
-                        placeholder="输入USDT数量"
-                        min="1"
-                        className="h-8 text-sm"
-                      />
-                    </div>
-
-                    {/* 截图上传 */}
-                    <div className="space-y-1">
-                      <Label className="text-xs">上传截图 *</Label>
-                      <input
-                        type="file"
-                        ref={screenshotInputRef}
-                        onChange={handleScreenshotUpload}
-                        accept="image/*"
-                        className="hidden"
-                      />
-                      {screenshotPreview ? (
-                        <div className="flex items-start gap-2">
-                          <img
-                            src={screenshotPreview}
-                            alt="截图预览"
-                            className="w-16 h-16 object-cover rounded border"
-                          />
-                          <div className="flex-1">
-                            <Button
-                              type="button"
-                              variant="outline"
-                              size="sm"
-                              className="text-xs"
-                              onClick={() => {
-                                setScreenshotPreview(null);
-                                setRechargeScreenshot(null);
-                                setSuccess('');
-                                screenshotInputRef.current?.click();
-                              }}
-                            >
-                              重新上传
-                            </Button>
-                          </div>
-                        </div>
-                      ) : (
-                        <Button
-                          type="button"
-                          variant="outline"
-                          className="w-full h-16 border-dashed"
-                          disabled={screenshotUploading}
-                          onClick={() => screenshotInputRef.current?.click()}
-                        >
-                          <div className="flex flex-col items-center gap-1">
-                            {screenshotUploading ? (
-                              <>
-                                <Spinner className="w-5 h-5" />
-                                <span className="text-xs">上传中...</span>
-                              </>
-                            ) : (
-                              <>
-                                <Camera className="w-5 h-5" />
-                                <span className="text-xs">点击上传截图</span>
-                              </>
-                            )}
-                          </div>
-                        </Button>
-                      )}
-                    </div>
-
-                    <Button
-                      type="submit"
-                      disabled={rechargeLoading || screenshotUploading || RECHARGE_DISABLED || (!selectedAmount && !customAmount) || !rechargeScreenshot}
-                      className="w-full bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-700 hover:to-orange-700 text-sm py-2"
-                    >
-                      {rechargeLoading ? (
-                        '提交中...'
-                      ) : screenshotUploading ? (
-                        '上传中...'
-                      ) : (
-                        '确认充值'
-                      )}
-                    </Button>
-                  </form>
-                </CardContent>
-              </Card>
-            </div>
-            
-            <p className="text-xs text-gray-500 text-center mt-4">
-              * 充值申请提交后，后台将在1-24小时内审核，审核通过后 U 将自动到账
-            </p>
+                  </Button>
+                </a>
+                <p className="text-xs text-gray-500 text-center mt-4">
+                  * 充值申请提交后，后台将在1-24小时内审核，审核通过后 U 将自动到账
+                </p>
+              </CardContent>
+            </Card>
           </TabsContent>
         </Tabs>
       </div>
