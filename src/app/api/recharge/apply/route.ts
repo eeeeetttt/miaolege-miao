@@ -12,7 +12,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: '请先登录' }, { status: 401 });
     }
 
-    const { amount, walletAddress, currency, type } = await request.json();
+    const { amount, screenshotUrl } = await request.json();
 
     if (!amount || amount <= 0) {
       return NextResponse.json({ error: '请输入有效的充值金额' }, { status: 400 });
@@ -30,11 +30,10 @@ export async function POST(request: NextRequest) {
       .insert({
         user_id: session.user.id,
         amount: amount,
-        currency: currency || 'USDC',
-        wallet_address: walletAddress || '',
-        network_type: type || 'TRC20',
+        currency: 'USDC',
+        payment_method: 'crypto',
         status: 'pending',
-        screenshot_url: '', // 截图暂不上传，简化处理
+        screenshot_url: screenshotUrl || '',
       })
       .select('id')
       .single();
