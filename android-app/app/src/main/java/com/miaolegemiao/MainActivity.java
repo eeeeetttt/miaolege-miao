@@ -80,17 +80,25 @@ public class MainActivity extends AppCompatActivity {
     }
     
     /**
-     * 设置显示状态栏和导航栏
+     * 确保系统栏（状态栏和导航栏）始终可见
      */
     private void setupFullscreen() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-            // 显示状态栏
+            // Android 11+ 使用 WindowInsetsController
+            getWindow().setDecorFitsSystemWindows(true);
             WindowInsetsController controller = getWindow().getInsetsController();
             if (controller != null) {
                 controller.show(WindowInsets.Type.statusBars() | WindowInsets.Type.navigationBars());
+                controller.setSystemBarsBehavior(WindowInsetsController.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE);
             }
+        } else {
+            // Android 10 及以下
+            getWindow().getDecorView().setSystemUiVisibility(
+                View.SYSTEM_UI_FLAG_LAYOUT_STABLE
+                | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
+                | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
+            );
         }
-        // 不设置全屏标志，保持正常显示
     }
     
     /**
