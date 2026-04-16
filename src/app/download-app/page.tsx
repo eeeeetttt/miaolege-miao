@@ -121,12 +121,14 @@ export default function DownloadPage() {
               transition: 'transform 0.2s, box-shadow 0.2s'
             }}
             onMouseOver={(e) => {
-              e.target.style.transform = 'translateY(-2px)';
-              e.target.style.boxShadow = '0 8px 20px rgba(102, 126, 234, 0.4)';
+              const target = e.target as HTMLButtonElement;
+              target.style.transform = 'translateY(-2px)';
+              target.style.boxShadow = '0 8px 20px rgba(102, 126, 234, 0.4)';
             }}
             onMouseOut={(e) => {
-              e.target.style.transform = 'translateY(0)';
-              e.target.style.boxShadow = 'none';
+              const target = e.target as HTMLButtonElement;
+              target.style.transform = 'translateY(0)';
+              target.style.boxShadow = 'none';
             }}
           >
             {isMobile ? '立即安装' : '立即下载'}
