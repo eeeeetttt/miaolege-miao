@@ -84,16 +84,18 @@ public class MainActivity extends AppCompatActivity {
     }
     
     /**
-     * 设置全屏显示
+     * 设置沉浸式全屏显示（保留导航栏）
      */
     private void setupFullscreen() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
             WindowInsetsController controller = getWindow().getInsetsController();
             if (controller != null) {
-                controller.hide(WindowInsets.Type.statusBars() | WindowInsets.Type.navigationBars());
+                // 只隐藏状态栏，保留导航栏
+                controller.hide(WindowInsets.Type.statusBars());
                 controller.setSystemBarsBehavior(WindowInsetsController.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE);
             }
         } else {
+            // 使用旧版 API，只隐藏状态栏，保留导航栏
             getWindow().setFlags(
                 WindowManager.LayoutParams.FLAG_FULLSCREEN,
                 WindowManager.LayoutParams.FLAG_FULLSCREEN
