@@ -21,7 +21,6 @@ import android.view.WindowInsetsController;
 import android.view.WindowManager;
 import android.webkit.CookieManager;
 import android.webkit.DownloadListener;
-import android.webkit.JavascriptInterface;
 import android.webkit.URLUtil;
 import android.webkit.ValueCallback;
 import android.webkit.WebChromeClient;
@@ -50,7 +49,7 @@ import androidx.webkit.WebViewFeature;
 public class MainActivity extends AppCompatActivity {
 
     // 网站地址 - 喵了个喵星球跟单平台
-    private static final String BASE_URL = "https://gvbn6hx95b.coze.site";
+    private static final String BASE_URL = "https://d4dfd447-9039-4828-bacb-ea5b9cb03904.dev.coze.site";
     
     private WebView webView;
     private ProgressBar progressBar;
@@ -70,9 +69,6 @@ public class MainActivity extends AppCompatActivity {
         initWebView();
         checkPermissions();
         
-        // 添加 JavaScript Interface 用于与网页通信
-        webView.addJavascriptInterface(new WebAppInterface(this), "Android");
-        
         // 加载网站
         loadUrl(BASE_URL);
     }
@@ -84,18 +80,16 @@ public class MainActivity extends AppCompatActivity {
     }
     
     /**
-     * 设置沉浸式全屏显示（保留导航栏）
+     * 设置全屏显示
      */
     private void setupFullscreen() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
             WindowInsetsController controller = getWindow().getInsetsController();
             if (controller != null) {
-                // 只隐藏状态栏，保留导航栏
-                controller.hide(WindowInsets.Type.statusBars());
+                controller.hide(WindowInsets.Type.statusBars() | WindowInsets.Type.navigationBars());
                 controller.setSystemBarsBehavior(WindowInsetsController.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE);
             }
         } else {
-            // 使用旧版 API，只隐藏状态栏，保留导航栏
             getWindow().setFlags(
                 WindowManager.LayoutParams.FLAG_FULLSCREEN,
                 WindowManager.LayoutParams.FLAG_FULLSCREEN
@@ -163,11 +157,6 @@ public class MainActivity extends AppCompatActivity {
         CookieManager cookieManager = CookieManager.getInstance();
         cookieManager.setAcceptCookie(true);
         cookieManager.setAcceptThirdPartyCookies(webView, true);
-        // 确保 Cookie 跨域访问
-        cookieManager.setCookie(BASE_URL, "SameSite=Lax");
-        
-        // 设置数据存储路径
-        settings.setGeolocationDatabasePath(getFilesDir().getPath());
         
         // 设置WebViewClient
         webView.setWebViewClient(new MiaoWebViewClient());
@@ -395,37 +384,5 @@ public class MainActivity extends AppCompatActivity {
             webView.destroy();
         }
         super.onDestroy();
-    }
-    
-    /**
-     * JavaScript Interface 类
-     * 用于网页与原生 App 之间的通信
-     */
-    public static class WebAppInterface {
-        private Context context;
-        
-        public WebAppInterface(Context context) {
-            this.context = context;
-        }
-        
-        @JavascriptInterface
-        public String getAppVersion() {
-            return "1.0.0";
-        }
-        
-        @JavascriptInterface
-        public String getPlatform() {
-            return "android";
-        }
-        
-        @JavascriptInterface
-        public boolean isAppInstalled() {
-            return true;
-        }
-        
-        @JavascriptInterface
-        public void showToast(String message) {
-            Toast.makeText(context, message, Toast.LENGTH_SHORT).show();
-        }
     }
 }

@@ -45,18 +45,6 @@ export const authOptions = {
   ],
   session: {
     strategy: 'jwt' as const,
-    maxAge: 30 * 24 * 60 * 60, // 30天
-  },
-  cookies: {
-    sessionToken: {
-      name: 'next-auth.session-token',
-      options: {
-        httpOnly: true,
-        sameSite: 'lax' as const,
-        path: '/',
-        secure: process.env.NODE_ENV === 'production',
-      },
-    },
   },
   pages: {
     signIn: '/login',
