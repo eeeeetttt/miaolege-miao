@@ -1,0 +1,449 @@
+.container {
+  min-height: 100vh;
+  background: linear-gradient(180deg, #0f0f1a 0%, #1a1a2e 50%, #0f0f1a 100%);
+  color: #e4e4e7;
+  position: relative;
+}
+
+.bgDecoration {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.rays {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 100%;
+  height: 100%;
+  transform: translate(-50%, -50%);
+  opacity: 0.05;
+}
+
+.ray {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 2px;
+  height: 50vh;
+  background: linear-gradient(to bottom, #fbbf24, transparent);
+  transform-origin: top center;
+  margin-left: -1px;
+}
+
+.main {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 2rem 1.5rem;
+  position: relative;
+  z-index: 1;
+}
+
+/* 头部 */
+.header {
+  text-align: center;
+  margin-bottom: 2rem;
+  padding: 2rem 0;
+  position: relative;
+}
+
+.backButton {
+  position: absolute;
+  top: 2rem;
+  left: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: #a1a1aa;
+  padding: 0.5rem 1rem;
+  border-radius: 0.5rem;
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.backButton:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #f4f4f5;
+}
+
+.backButton svg {
+  width: 1.25rem;
+  height: 1.25rem;
+}
+
+.title {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.75rem;
+  font-size: 2rem;
+  font-weight: 700;
+  color: #fbbf24;
+  margin-bottom: 0.5rem;
+}
+
+.titleIcon {
+  width: 2.5rem;
+  height: 2.5rem;
+  filter: drop-shadow(0 0 10px rgba(251, 191, 36, 0.5));
+}
+
+.subtitle {
+  color: #a1a1aa;
+  font-size: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.stats {
+  display: flex;
+  justify-content: center;
+  gap: 3rem;
+}
+
+.statItem {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.statValue {
+  font-size: 2rem;
+  font-weight: 700;
+  color: #f4f4f5;
+}
+
+.statLabel {
+  font-size: 0.875rem;
+  color: #71717a;
+}
+
+/* 排行榜 */
+.leaderboard {
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 1rem;
+  overflow: hidden;
+}
+
+.loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 4rem 2rem;
+  gap: 1rem;
+}
+
+.spinner {
+  width: 40px;
+  height: 40px;
+  border: 3px solid rgba(251, 191, 36, 0.2);
+  border-top-color: #fbbf24;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.entriesList {
+  padding: 1rem;
+}
+
+.entryCard {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem;
+  border-radius: 0.75rem;
+  transition: background 0.2s ease;
+  position: relative;
+}
+
+.entryCard:hover {
+  background: rgba(255, 255, 255, 0.03);
+}
+
+/* 排名 */
+.rank {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.25rem;
+  min-width: 3rem;
+  position: relative;
+}
+
+.medalIcon {
+  position: absolute;
+  width: 2.5rem;
+  height: 2.5rem;
+  color: #fbbf24;
+  filter: drop-shadow(0 0 5px rgba(251, 191, 36, 0.5));
+}
+
+.rankGold .medalIcon {
+  color: #fbbf24;
+  filter: drop-shadow(0 0 10px rgba(251, 191, 36, 0.6));
+}
+
+.rankSilver .medalIcon {
+  color: #9ca3af;
+  filter: drop-shadow(0 0 10px rgba(156, 163, 175, 0.6));
+}
+
+.rankBronze .medalIcon {
+  color: #d97706;
+  filter: drop-shadow(0 0 10px rgba(217, 119, 6, 0.6));
+}
+
+.rankNumber {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #f4f4f5;
+}
+
+.rankGold .rankNumber,
+.rankSilver .rankNumber,
+.rankBronze .rankNumber {
+  display: none;
+}
+
+/* 头像 */
+.avatar {
+  width: 3rem;
+  height: 3rem;
+  border-radius: 50%;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.defaultAvatar {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #8b5cf6 0%, #6366f1 100%);
+  color: white;
+  font-weight: 700;
+  font-size: 1.125rem;
+}
+
+/* 用户信息 */
+.userInfo {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  min-width: 0;
+}
+
+.displayName {
+  font-weight: 600;
+  color: #f4f4f5;
+  font-size: 1rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.completionDate {
+  font-size: 0.8125rem;
+  color: #71717a;
+}
+
+/* 时长 */
+.duration {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: #fbbf24;
+  font-weight: 600;
+  font-size: 0.9375rem;
+  flex-shrink: 0;
+}
+
+.durationIcon {
+  width: 1.25rem;
+  height: 1.25rem;
+}
+
+/* 奖励徽章 */
+.rewardBadge {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  background: rgba(34, 197, 94, 0.1);
+  color: #22c55e;
+  padding: 0.25rem 0.75rem;
+  border-radius: 1rem;
+  font-size: 0.75rem;
+  flex-shrink: 0;
+}
+
+/* 详情按钮 */
+.detailButton {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  background: rgba(99, 102, 241, 0.15);
+  border: 1px solid rgba(99, 102, 241, 0.3);
+  color: #a5b4fc;
+  padding: 0.375rem 0.875rem;
+  border-radius: 0.5rem;
+  font-size: 0.8125rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+}
+
+.detailButton:hover {
+  background: rgba(99, 102, 241, 0.25);
+  border-color: rgba(99, 102, 241, 0.5);
+  color: #c7d2fe;
+}
+
+.rewardBadge svg {
+  width: 0.875rem;
+  height: 0.875rem;
+}
+
+/* 分页 */
+.pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1.5rem;
+  padding: 1.5rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.pageButton {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: #a1a1aa;
+  padding: 0.5rem 1.25rem;
+  border-radius: 0.5rem;
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.pageButton:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.1);
+  color: #f4f4f5;
+}
+
+.pageButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.pageInfo {
+  color: #71717a;
+  font-size: 0.875rem;
+}
+
+/* 空状态 */
+.empty {
+  text-align: center;
+  padding: 4rem 2rem;
+}
+
+.emptyIcon {
+  width: 4rem;
+  height: 4rem;
+  color: #fbbf24;
+  margin-bottom: 1rem;
+  opacity: 0.5;
+}
+
+.empty h3 {
+  font-size: 1.25rem;
+  color: #f4f4f5;
+  margin-bottom: 0.5rem;
+}
+
+.empty p {
+  color: #71717a;
+  margin-bottom: 1.5rem;
+}
+
+.startButton {
+  background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%);
+  color: #1a1a2e;
+  border: none;
+  padding: 0.75rem 2rem;
+  border-radius: 0.5rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 15px rgba(251, 191, 36, 0.3);
+}
+
+.startButton:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(251, 191, 36, 0.4);
+}
+
+/* 响应式 */
+@media (max-width: 768px) {
+  .header {
+    padding-top: 4rem;
+  }
+
+  .backButton {
+    top: 0.5rem;
+    left: 0.5rem;
+  }
+
+  .title {
+    font-size: 1.5rem;
+  }
+
+  .entryCard {
+    flex-wrap: wrap;
+    gap: 0.75rem;
+  }
+
+  .rank {
+    order: 1;
+  }
+
+  .avatar {
+    order: 2;
+    width: 2.5rem;
+    height: 2.5rem;
+  }
+
+  .userInfo {
+    order: 3;
+    flex: 1;
+    min-width: calc(100% - 6rem);
+  }
+
+  .duration {
+    order: 4;
+    margin-left: auto;
+  }
+
+  .rewardBadge {
+    order: 5;
+  }
+}
