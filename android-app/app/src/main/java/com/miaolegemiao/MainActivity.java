@@ -49,7 +49,7 @@ import androidx.webkit.WebViewFeature;
 public class MainActivity extends AppCompatActivity {
 
     // 网站地址 - 喵了个喵星球跟单平台
-    private static final String BASE_URL = "https://d4dfd447-9039-4828-bacb-ea5b9cb03904.dev.coze.site";
+    private static final String BASE_URL = "https://gvbn6hx95b.coze.site";
     
     private WebView webView;
     private ProgressBar progressBar;
@@ -80,21 +80,17 @@ public class MainActivity extends AppCompatActivity {
     }
     
     /**
-     * 设置全屏显示
+     * 设置显示状态栏和导航栏
      */
     private void setupFullscreen() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            // 显示状态栏
             WindowInsetsController controller = getWindow().getInsetsController();
             if (controller != null) {
-                controller.hide(WindowInsets.Type.statusBars() | WindowInsets.Type.navigationBars());
-                controller.setSystemBarsBehavior(WindowInsetsController.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE);
+                controller.show(WindowInsets.Type.statusBars() | WindowInsets.Type.navigationBars());
             }
-        } else {
-            getWindow().setFlags(
-                WindowManager.LayoutParams.FLAG_FULLSCREEN,
-                WindowManager.LayoutParams.FLAG_FULLSCREEN
-            );
         }
+        // 不设置全屏标志，保持正常显示
     }
     
     /**
