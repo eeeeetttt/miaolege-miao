@@ -21,6 +21,7 @@ import android.view.WindowInsetsController;
 import android.view.WindowManager;
 import android.webkit.CookieManager;
 import android.webkit.DownloadListener;
+import android.webkit.JavascriptInterface;
 import android.webkit.URLUtil;
 import android.webkit.ValueCallback;
 import android.webkit.WebChromeClient;
@@ -68,6 +69,9 @@ public class MainActivity extends AppCompatActivity {
         createNotificationChannel();
         initWebView();
         checkPermissions();
+        
+        // 添加 JavaScript Interface 用于与网页通信
+        webView.addJavascriptInterface(new WebAppInterface(this), "Android");
         
         // 加载网站
         loadUrl(BASE_URL);
@@ -157,6 +161,11 @@ public class MainActivity extends AppCompatActivity {
         CookieManager cookieManager = CookieManager.getInstance();
         cookieManager.setAcceptCookie(true);
         cookieManager.setAcceptThirdPartyCookies(webView, true);
+        // 确保 Cookie 跨域访问
+        cookieManager.setCookie(BASE_URL, "SameSite=Lax");
+        
+        // 设置数据存储路径
+        settings.setGeolocationDatabasePath(getFilesDir().getPath());
         
         // 设置WebViewClient
         webView.setWebViewClient(new MiaoWebViewClient());
@@ -384,5 +393,37 @@ public class MainActivity extends AppCompatActivity {
             webView.destroy();
         }
         super.onDestroy();
+    }
+    
+    /**
+     * JavaScript Interface 类
+     * 用于网页与原生 App 之间的通信
+     */
+    public static class WebAppInterface {
+        private Context context;
+        
+        public WebAppInterface(Context context) {
+            this.context = context;
+        }
+        
+        @JavascriptInterface
+        public String getAppVersion() {
+            return "1.0.0";
+        }
+        
+        @JavascriptInterface
+        public String getPlatform() {
+            return "android";
+        }
+        
+        @JavascriptInterface
+        public boolean isAppInstalled() {
+            return true;
+        }
+        
+        @JavascriptInterface
+        public void showToast(String message) {
+            Toast.makeText(context, message, Toast.LENGTH_SHORT).show();
+        }
     }
 }
