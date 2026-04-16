@@ -24,7 +24,6 @@ export const users = mysqlTable('users', {
   nameUpdatedAt: timestamp('name_updated_at'),
   createdAt: timestamp('created_at').defaultNow(),
   updatedAt: timestamp('updated_at').defaultNow().onUpdateNow(),
-  lastActiveAt: timestamp('last_active_at'), // 最后活跃时间
 });
 
 // Planets Table

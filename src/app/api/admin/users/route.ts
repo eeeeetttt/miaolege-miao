@@ -44,7 +44,6 @@ export async function GET(request: NextRequest) {
         coinBalance: users.coinBalance,
         role: users.role,
         createdAt: users.createdAt,
-        lastActiveAt: users.lastActiveAt,
       })
       .from(users)
       .where(whereConditions.length > 0 ? and(...whereConditions) : undefined)

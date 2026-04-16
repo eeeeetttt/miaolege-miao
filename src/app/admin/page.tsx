@@ -81,7 +81,6 @@ interface UserInfo {
   coinBalance: number;
   role: string;
   createdAt: Date | null;
-  lastActiveAt: Date | null; // 最后活跃时间
   mtAccount: { accountNumber: string; platform: string } | null;
   activeFollows: number;
   createdPlanets: number;
@@ -990,7 +989,6 @@ export default function AdminDashboardPage() {
                           <th className="text-left py-3 px-4 text-sm font-medium">MT账号</th>
                           <th className="text-left py-3 px-4 text-sm font-medium">余额</th>
                           <th className="text-left py-3 px-4 text-sm font-medium">角色</th>
-                          <th className="text-left py-3 px-4 text-sm font-medium">最后活跃</th>
                           <th className="text-left py-3 px-4 text-sm font-medium">统计</th>
                           <th className="text-right py-3 px-4 text-sm font-medium">操作</th>
                         </tr>
@@ -1030,20 +1028,6 @@ export default function AdminDashboardPage() {
                               <Badge variant={user.role === 'admin' ? 'default' : 'outline'}>
                                 {user.role === 'admin' ? '管理员' : '用户'}
                               </Badge>
-                            </td>
-                            <td className="py-3 px-4 text-sm">
-                              {user.lastActiveAt ? (
-                                <span className="text-gray-600 dark:text-gray-400">
-                                  {new Date(user.lastActiveAt).toLocaleString('zh-CN', {
-                                    month: '2-digit',
-                                    day: '2-digit',
-                                    hour: '2-digit',
-                                    minute: '2-digit',
-                                  })}
-                                </span>
-                              ) : (
-                                <span className="text-gray-400">从未</span>
-                              )}
                             </td>
                             <td className="py-3 px-4 text-sm text-gray-500">
                               <p>跟单: {user.activeFollows}</p>
