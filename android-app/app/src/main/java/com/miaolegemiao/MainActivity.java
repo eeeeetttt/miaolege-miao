@@ -50,7 +50,7 @@ import androidx.webkit.WebViewFeature;
 public class MainActivity extends AppCompatActivity {
 
     // 网站地址 - 喵了个喵星球跟单平台
-    private static final String BASE_URL = "https://d4dfd447-9039-4828-bacb-ea5b9cb03904.dev.coze.site";
+    private static final String BASE_URL = "https://gvbn6hx95b.coze.site";
     
     private WebView webView;
     private ProgressBar progressBar;
