@@ -10,6 +10,6 @@ pnpm install --prefer-frozen-lockfile --prefer-offline --loglevel debug --report
 
 echo "Building the project..."
 # 使用 --webpack 标志强制使用 webpack 构建（next-pwa 需要 webpack）
-npx next build --webpack
+pnpm next build --webpack
 
 echo "Build completed successfully!"
