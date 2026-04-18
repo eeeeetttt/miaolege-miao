@@ -5,7 +5,9 @@ import android.annotation.SuppressLint;
 import android.app.DownloadManager;
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
+import android.content.ActivityNotFoundException;
 import android.content.Context;
+import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
 import android.graphics.Color;
@@ -56,7 +58,14 @@ public class MainActivity extends AppCompatActivity {
     private FrameLayout splashScreen;
     
     private static final int PERMISSION_REQUEST_CODE = 1001;
+    private static final int FILE_CHOOSER_REQUEST_CODE = 1002;
+    private static final int FILE_CHOOSER_REQUEST_CODE_LOLLIPOP = 1003;
     private String pendingDownloadUrl = null;
+    
+    // 文件选择相关变量
+    private ValueCallback<Uri> mUploadMessage;
+    private ValueCallback<Uri[]> mFilePathCallback;
+    private String mCameraPhotoPath;
     
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -194,6 +203,25 @@ public class MainActivity extends AppCompatActivity {
      * 检查权限
      */
     private void checkPermissions() {
+        // Android 13+ (API 33) 使用 READ_MEDIA_IMAGES
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            if (ContextCompat.checkSelfPermission(this, Manifest.permission.READ_MEDIA_IMAGES) 
+                    != PackageManager.PERMISSION_GRANTED) {
+                ActivityCompat.requestPermissions(this,
+                    new String[]{Manifest.permission.READ_MEDIA_IMAGES},
+                    PERMISSION_REQUEST_CODE);
+            }
+        } else {
+            // Android 13 以下使用 READ_EXTERNAL_STORAGE
+            if (ContextCompat.checkSelfPermission(this, Manifest.permission.READ_EXTERNAL_STORAGE) 
+                    != PackageManager.PERMISSION_GRANTED) {
+                ActivityCompat.requestPermissions(this,
+                    new String[]{Manifest.permission.READ_EXTERNAL_STORAGE},
+                    PERMISSION_REQUEST_CODE);
+            }
+        }
+        
+        // 通知权限
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             if (ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) 
                     != PackageManager.PERMISSION_GRANTED) {
@@ -209,7 +237,48 @@ public class MainActivity extends AppCompatActivity {
                                            @NonNull int[] grantResults) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults);
         if (requestCode == PERMISSION_REQUEST_CODE) {
-            // 权限请求结果处理
+            boolean allGranted = true;
+            for (int result : grantResults) {
+                if (result != PackageManager.PERMISSION_GRANTED) {
+                    allGranted = false;
+                    break;
+                }
+            }
+            if (!allGranted) {
+                Toast.makeText(this, "部分权限被拒绝，可能影响部分功能", Toast.LENGTH_SHORT).show();
+            }
+        }
+    }
+    
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        
+        if (requestCode == FILE_CHOOSER_REQUEST_CODE || requestCode == FILE_CHOOSER_REQUEST_CODE_LOLLIPOP) {
+            if (null == mFilePathCallback) {
+                super.onActivityResult(requestCode, resultCode, data);
+                return;
+            }
+            
+            Uri[] results = null;
+            
+            // 检查用户是否取消了选择
+            if (resultCode == Activity.RESULT_OK) {
+                if (data != null) {
+                    String dataString = data.getDataString();
+                    if (dataString != null) {
+                        results = new Uri[]{Uri.parse(dataString)};
+                    }
+                }
+                // 如果是从相机返回的
+                if (mCameraPhotoPath != null) {
+                    results = new Uri[]{Uri.parse(mCameraPhotoPath)};
+                    mCameraPhotoPath = null;
+                }
+            }
+            
+            mFilePathCallback.onReceiveValue(results);
+            mFilePathCallback = null;
         }
     }
     
@@ -336,8 +405,40 @@ public class MainActivity extends AppCompatActivity {
         @Override
         public boolean onShowFileChooser(WebView webView, ValueCallback<Uri[]> filePathCallback,
                                          FileChooserParams fileChooserParams) {
-            // 处理文件选择
+            // 确保只有一个文件选择器实例
+            if (mFilePathCallback != null) {
+                mFilePathCallback.onReceiveValue(null);
+            }
+            mFilePathCallback = filePathCallback;
+            
+            Intent intent = fileChooserParams.createIntent();
+            try {
+                startActivityForResult(intent, FILE_CHOOSER_REQUEST_CODE_LOLLIPOP);
+            } catch (ActivityNotFoundException e) {
+                mFilePathCallback = null;
+                Toast.makeText(MainActivity.this, "无法打开文件选择器", Toast.LENGTH_SHORT).show();
+            }
             return true;
+        }
+        
+        // 兼容旧版 Android (API < 21)
+        @SuppressWarnings("unused")
+        public void openFileChooser(ValueCallback<Uri> uploadMsg, String acceptType, String capture) {
+            mUploadMessage = uploadMsg;
+            Intent intent = new Intent(Intent.ACTION_GET_CONTENT);
+            intent.addCategory(Intent.CATEGORY_OPENABLE);
+            intent.setType("image/*");
+            startActivityForResult(Intent.createChooser(intent, "选择图片"), FILE_CHOOSER_REQUEST_CODE);
+        }
+        
+        // 兼容旧版 Android (API < 21) - 简单版本
+        @SuppressWarnings("unused")
+        public void openFileChooser(ValueCallback<Uri> uploadMsg) {
+            mUploadMessage = uploadMsg;
+            Intent intent = new Intent(Intent.ACTION_GET_CONTENT);
+            intent.addCategory(Intent.CATEGORY_OPENABLE);
+            intent.setType("image/*");
+            startActivityForResult(Intent.createChooser(intent, "选择图片"), FILE_CHOOSER_REQUEST_CODE);
         }
     }
     
