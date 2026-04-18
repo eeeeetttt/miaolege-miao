@@ -436,43 +436,45 @@ export default function WechatRechargePage() {
             {(selectedAmount || (customAmount && parseInt(customAmount) > 0)) && (
               <div className="space-y-3">
                 <Label>上传付款截图 *</Label>
-                <input
-                  type="file"
-                  ref={screenshotInputRef}
-                  onChange={handleScreenshotUpload}
-                  accept="image/*"
-                  className="hidden"
-                />
-                <div 
-                  onClick={() => screenshotInputRef.current?.click()}
-                  className={`border-2 border-dashed rounded-lg p-6 text-center cursor-pointer transition-colors ${
-                    screenshotPreview 
-                      ? 'border-green-500 bg-green-50' 
-                      : 'border-gray-300 hover:border-green-400'
-                  }`}
-                >
-                  {screenshotPreview ? (
-                    <div className="space-y-3">
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img 
-                        src={screenshotPreview} 
-                        alt="付款截图预览" 
-                        className="max-h-40 mx-auto rounded"
-                      />
-                      <p className="text-sm text-green-600">点击重新上传</p>
-                    </div>
-                  ) : loading ? (
-                    <div className="space-y-2">
-                      <Spinner className="w-8 h-8 mx-auto text-gray-400" />
-                      <p className="text-sm text-gray-500">上传中...</p>
-                    </div>
-                  ) : (
-                    <div className="space-y-2">
-                      <Upload className="w-8 h-8 mx-auto text-gray-400" />
-                      <p className="text-gray-500">点击上传付款截图</p>
-                      <p className="text-xs text-gray-400">支持 JPG、PNG 格式，最大 5MB</p>
-                    </div>
-                  )}
+                <div className="relative">
+                  <input
+                    type="file"
+                    ref={screenshotInputRef}
+                    onChange={handleScreenshotUpload}
+                    accept="image/*"
+                    capture="environment"
+                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                  />
+                  <div 
+                    className={`border-2 border-dashed rounded-lg p-6 text-center transition-colors ${
+                      screenshotPreview 
+                        ? 'border-green-500 bg-green-50' 
+                        : 'border-gray-300'
+                    }`}
+                  >
+                    {screenshotPreview ? (
+                      <div className="space-y-3">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img 
+                          src={screenshotPreview} 
+                          alt="付款截图预览" 
+                          className="max-h-40 mx-auto rounded"
+                        />
+                        <p className="text-sm text-green-600">点击重新上传</p>
+                      </div>
+                    ) : loading ? (
+                      <div className="space-y-2">
+                        <Spinner className="w-8 h-8 mx-auto text-gray-400" />
+                        <p className="text-sm text-gray-500">上传中...</p>
+                      </div>
+                    ) : (
+                      <div className="space-y-2">
+                        <Upload className="w-8 h-8 mx-auto text-gray-400" />
+                        <p className="text-gray-500">点击上传付款截图</p>
+                        <p className="text-xs text-gray-400">支持 JPG、PNG 格式，最大 5MB</p>
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
             )}
