@@ -17,6 +17,7 @@ export async function GET() {
         platform: eaProducts.platform,
         category: eaProducts.category,
         features: eaProducts.features,
+        productType: eaProducts.productType,
         createdAt: eaProducts.createdAt,
       })
       .from(eaProducts)

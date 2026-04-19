@@ -194,6 +194,7 @@ export const eaProducts = mysqlTable('ea_products', {
   version: varchar('version', { length: 50 }).default('1.0.0'),
   platform: mysqlEnum('platform', ['MT4', 'MT5', 'Both']).default('Both'),
   category: varchar('category', { length: 100 }), // 分类：趋势、震荡、马丁等
+  productType: varchar('product_type', { length: 50 }).default('ea'), // 产品类型: ea, indicator, script, tool
   features: text('features'), // 功能特点，JSON格式
   downloadUrl: varchar('download_url', { length: 500 }), // 下载链接
   fileName: varchar('file_name', { length: 255 }), // 文件名

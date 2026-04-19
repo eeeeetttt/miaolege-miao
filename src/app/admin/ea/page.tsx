@@ -66,6 +66,14 @@ export default function EaManagePage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const uploadProductIdRef = useRef<number | null>(null);
 
+  // 产品类型配置
+  const productTypes = [
+    { value: 'ea', label: 'EA智能交易' },
+    { value: 'indicator', label: '技术指标' },
+    { value: 'script', label: '脚本工具' },
+    { value: 'tool', label: '交易工具' },
+  ];
+
   // 表单状态
   const [formData, setFormData] = useState({
     name: '',
@@ -75,6 +83,7 @@ export default function EaManagePage() {
     platform: 'Both',
     category: '',
     features: '',
+    productType: 'ea', // 新增产品类型
   });
 
   useEffect(() => {
@@ -203,6 +212,7 @@ export default function EaManagePage() {
       platform: product.platform || 'Both',
       category: product.category || '',
       features: product.features ? JSON.parse(product.features).join('\n') : '',
+      productType: (product as any).productType || 'ea',
     });
     setDialogOpen(true);
   };
@@ -217,6 +227,7 @@ export default function EaManagePage() {
       platform: 'Both',
       category: '',
       features: '',
+      productType: 'ea',
     });
   };
 
@@ -278,17 +289,22 @@ export default function EaManagePage() {
                   />
                 </div>
 
-                <div className="space-y-2">
-                  <Label>产品描述</Label>
-                  <Textarea
-                    value={formData.description}
-                    onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                    placeholder="详细描述产品特点..."
-                    rows={3}
-                  />
-                </div>
-
                 <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>产品类型 *</Label>
+                    <Select value={formData.productType} onValueChange={(v) => setFormData({ ...formData, productType: v })}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {productTypes.map((type) => (
+                          <SelectItem key={type.value} value={type.value}>
+                            {type.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
                   <div className="space-y-2">
                     <Label>价格（U）*</Label>
                     <Input
@@ -297,13 +313,16 @@ export default function EaManagePage() {
                       onChange={(e) => setFormData({ ...formData, price: e.target.value })}
                     />
                   </div>
-                  <div className="space-y-2">
-                    <Label>版本号</Label>
-                    <Input
-                      value={formData.version}
-                      onChange={(e) => setFormData({ ...formData, version: e.target.value })}
-                    />
-                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label>产品描述</Label>
+                  <Textarea
+                    value={formData.description}
+                    onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                    placeholder="详细描述产品特点..."
+                    rows={3}
+                  />
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
@@ -320,6 +339,16 @@ export default function EaManagePage() {
                       </SelectContent>
                     </Select>
                   </div>
+                  <div className="space-y-2">
+                    <Label>版本号</Label>
+                    <Input
+                      value={formData.version}
+                      onChange={(e) => setFormData({ ...formData, version: e.target.value })}
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label>分类</Label>
                     <Select value={formData.category} onValueChange={(v) => setFormData({ ...formData, category: v })}>
@@ -393,13 +422,22 @@ export default function EaManagePage() {
               </CardContent>
             </Card>
           ) : (
-            products.map((product) => (
+            products.map((product) => {
+              const productType = (product as any).productType || 'ea';
+              const typeLabel = productTypes.find(t => t.value === productType)?.label || 'EA智能交易';
+              const typeColor = productType === 'ea' ? 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400' :
+                               productType === 'indicator' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400' :
+                               productType === 'script' ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400' :
+                               'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400';
+              
+              return (
               <Card key={product.id}>
                 <CardContent className="pt-6">
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
-                      <div className="flex items-center gap-3 mb-2">
+                      <div className="flex items-center gap-3 mb-2 flex-wrap">
                         <h3 className="text-lg font-semibold">{product.name}</h3>
+                        <Badge className={typeColor}>{typeLabel}</Badge>
                         <Badge variant={product.status === 'active' ? 'default' : 'secondary'}>
                           {product.status === 'active' ? '上架中' : '已下架'}
                         </Badge>
@@ -461,8 +499,9 @@ export default function EaManagePage() {
                   </div>
                 </CardContent>
               </Card>
-            ))
-          )}
+            );
+            }))
+          }))))))
         </div>
       </div>
     </div>

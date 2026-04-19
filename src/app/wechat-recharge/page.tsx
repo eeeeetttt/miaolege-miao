@@ -146,20 +146,24 @@ export default function WechatRechargePage() {
       return;
     }
     
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      setScreenshotPreview(e.target?.result as string);
-    };
-    reader.readAsDataURL(file);
-    
     setLoading(true);
     try {
-      const formData = new FormData();
-      formData.append('file', file);
+      // 使用FileReader读取文件为base64
+      const base64 = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result as string);
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
       
+      // 显示预览
+      setScreenshotPreview(base64);
+      
+      // 上传截图
       const res = await fetch('/api/upload/screenshot', {
         method: 'POST',
-        body: formData,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ image: base64 }),
       });
       const data = await res.json();
       

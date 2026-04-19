@@ -191,13 +191,6 @@ export default function ChallengePage() {
                 )
               )}
             </div>
-            <ul className={styles.ruleList}>
-              <li><i className="fas fa-check-circle"></i> 点击【立即报名】解锁第1关，开启征途</li>
-              <li><i className="fas fa-unlock-alt"></i> 每完成一关，自动解锁下一关卡</li>
-              <li><i className="fas fa-gem"></i> 关卡挑战：净值达标自动通过</li>
-              <li><i className="fas fa-chart-simple"></i> 全部通关将获得专属奖杯成就</li>
-              <li><i className="fas fa-undo-alt"></i> 可随时重新报名，再次挑战</li>
-            </ul>
           </div>
 
           {/* 报名/状态卡片 */}

@@ -37,11 +37,15 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { productId, name, description, price, version, platform, category, features } = body;
+    const { productId, name, description, price, version, platform, category, productType, features } = body;
 
     if (!name || price === undefined) {
       return NextResponse.json({ error: '缺少必要参数' }, { status: 400 });
     }
+
+    // 验证产品类型
+    const validProductTypes = ['ea', 'indicator', 'script', 'tool'];
+    const finalProductType = validProductTypes.includes(productType) ? productType : 'ea';
 
     if (productId) {
       // 更新现有产品
@@ -54,6 +58,7 @@ export async function POST(request: NextRequest) {
           version: version || '1.0.0',
           platform: platform || 'Both',
           category: category || null,
+          productType: finalProductType,
           features: features || null,
           updatedAt: new Date(),
         })
@@ -71,6 +76,7 @@ export async function POST(request: NextRequest) {
           version: version || '1.0.0',
           platform: platform || 'Both',
           category: category || null,
+          productType: finalProductType,
           features: features || null,
           status: 'active',
         });
