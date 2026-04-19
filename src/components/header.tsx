@@ -3,8 +3,9 @@
 import Link from 'next/link';
 import Image from 'next/image';
 import { useSession, signOut } from 'next-auth/react';
+import { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { ThemeToggle } from '@/components/theme-toggle';
+import { ThemeToggle } from '@/components/theme-toggle'; 
 import { 
   DropdownMenu, 
   DropdownMenuContent, 
@@ -16,8 +17,49 @@ import {
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { User, LogOut, Globe, Settings, Download, Home, Shield, FileText, Trophy, MessageCircle, UserCircle, Wallet, MessageSquare, AlertCircle } from 'lucide-react';
 
+// 导航栏配置接口
+interface NavConfig {
+  nav_show_challenge_hall: boolean;
+  nav_show_kline_challenge: boolean;
+  nav_show_social: boolean;
+  nav_show_docs: boolean;
+  nav_show_suggestion: boolean;
+  nav_show_complaint: boolean;
+  nav_show_download: boolean;
+  nav_show_app_download: boolean;
+}
+
 export function Header() {
   const { data: session } = useSession();
+  const [navConfig, setNavConfig] = useState<NavConfig>({
+    nav_show_challenge_hall: true,
+    nav_show_kline_challenge: true,
+    nav_show_social: true,
+    nav_show_docs: true,
+    nav_show_suggestion: true,
+    nav_show_complaint: true,
+    nav_show_download: true,
+    nav_show_app_download: true,
+  });
+  const [configLoading, setConfigLoading] = useState(true);
+
+  // 获取导航栏配置
+  useEffect(() => {
+    const fetchNavConfig = async () => {
+      try {
+        const res = await fetch('/api/nav-config');
+        const data = await res.json();
+        if (data.config) {
+          setNavConfig(data.config);
+        }
+      } catch (error) {
+        console.error('获取导航配置失败:', error);
+      } finally {
+        setConfigLoading(false);
+      }
+    };
+    fetchNavConfig();
+  }, []);
 
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-white/80 dark:bg-gray-900/80 backdrop-blur-md supports-[backdrop-filter]:bg-white/60 dark:supports-[backdrop-filter]:bg-gray-900/60">
@@ -41,46 +83,60 @@ export function Header() {
           </Link>
 
           {/* Navigation */}
-          <nav className="hidden md:flex items-center gap-6">
-            <Link href="/" className="text-gray-600 hover:text-purple-600 dark:text-gray-300 dark:hover:text-purple-400 transition-colors flex items-center gap-1">
-              <Home className="w-4 h-4" />
-              首页
-            </Link>
-            {session && (
-              <>
-                <Link href="/challenge/hall" className="text-gray-600 hover:text-purple-600 dark:text-gray-300 dark:hover:text-purple-400 transition-colors flex items-center gap-1">
-                  <Globe className="w-4 h-4" />
-                  挑战赛大厅
-                </Link>
-                <Link href="/challenge" className="text-amber-600 hover:text-amber-500 dark:text-amber-400 dark:hover:text-amber-300 transition-colors flex items-center gap-1 font-semibold">
-                  <Trophy className="w-4 h-4" />
-                  K线征途
-                </Link>
-                <Link href="/social" className="text-gray-600 hover:text-purple-600 dark:text-gray-300 dark:hover:text-purple-400 transition-colors flex items-center gap-1">
-                  <MessageCircle className="w-4 h-4" />
-                  茶馆
-                </Link>
-                <Link href="/docs" className="text-gray-600 hover:text-purple-600 dark:text-gray-300 dark:hover:text-purple-400 transition-colors flex items-center gap-1">
-                  <FileText className="w-4 h-4" />
-                  文档中心
-                </Link>
-                <Link href="/suggestion" className="text-gray-600 hover:text-purple-600 dark:text-gray-300 dark:hover:text-purple-400 transition-colors flex items-center gap-1">
-                  <MessageSquare className="w-4 h-4" />
-                  建议
-                </Link>
-                <Link href="/complaint" className="text-gray-600 hover:text-purple-600 dark:text-gray-300 dark:hover:text-purple-400 transition-colors flex items-center gap-1">
-                  <AlertCircle className="w-4 h-4" />
-                  投诉
-                </Link>
-                {/* 软件下载入口暂时隐藏
-                <Link href="/download" className="text-gray-600 hover:text-purple-600 dark:text-gray-300 dark:hover:text-purple-400 transition-colors flex items-center gap-1">
-                  <Download className="w-4 h-4" />
-                  软件下载
-                </Link>
-                */}
-              </>
-            )}
-          </nav>
+          {!configLoading && (
+            <nav className="hidden md:flex items-center gap-6">
+              <Link href="/" className="text-gray-600 hover:text-purple-600 dark:text-gray-300 dark:hover:text-purple-400 transition-colors flex items-center gap-1">
+                <Home className="w-4 h-4" />
+                首页
+              </Link>
+              {session && (
+                <>
+                  {navConfig.nav_show_challenge_hall && (
+                    <Link href="/challenge/hall" className="text-gray-600 hover:text-purple-600 dark:text-gray-300 dark:hover:text-purple-400 transition-colors flex items-center gap-1">
+                      <Globe className="w-4 h-4" />
+                      挑战赛大厅
+                    </Link>
+                  )}
+                  {navConfig.nav_show_kline_challenge && (
+                    <Link href="/challenge" className="text-amber-600 hover:text-amber-500 dark:text-amber-400 dark:hover:text-amber-300 transition-colors flex items-center gap-1 font-semibold">
+                      <Trophy className="w-4 h-4" />
+                      K线征途
+                    </Link>
+                  )}
+                  {navConfig.nav_show_social && (
+                    <Link href="/social" className="text-gray-600 hover:text-purple-600 dark:text-gray-300 dark:hover:text-purple-400 transition-colors flex items-center gap-1">
+                      <MessageCircle className="w-4 h-4" />
+                      茶馆
+                    </Link>
+                  )}
+                  {navConfig.nav_show_docs && (
+                    <Link href="/docs" className="text-gray-600 hover:text-purple-600 dark:text-gray-300 dark:hover:text-purple-400 transition-colors flex items-center gap-1">
+                      <FileText className="w-4 h-4" />
+                      文档中心
+                    </Link>
+                  )}
+                  {navConfig.nav_show_suggestion && (
+                    <Link href="/suggestion" className="text-gray-600 hover:text-purple-600 dark:text-gray-300 dark:hover:text-purple-400 transition-colors flex items-center gap-1">
+                      <MessageSquare className="w-4 h-4" />
+                      建议
+                    </Link>
+                  )}
+                  {navConfig.nav_show_complaint && (
+                    <Link href="/complaint" className="text-gray-600 hover:text-purple-600 dark:text-gray-300 dark:hover:text-purple-400 transition-colors flex items-center gap-1">
+                      <AlertCircle className="w-4 h-4" />
+                      投诉
+                    </Link>
+                  )}
+                  {navConfig.nav_show_download && (
+                    <Link href="/download" className="text-gray-600 hover:text-purple-600 dark:text-gray-300 dark:hover:text-purple-400 transition-colors flex items-center gap-1">
+                      <Download className="w-4 h-4" />
+                      软件下载
+                    </Link>
+                  )}
+                </>
+              )}
+            </nav>
+          )}
 
           {/* Right Actions */}
           <div className="flex items-center gap-3">

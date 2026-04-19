@@ -161,6 +161,17 @@ export default function AdminDashboardPage() {
   const [suggestionsTotal, setSuggestionsTotal] = useState(0);
   const [suggestionsStatus, setSuggestionsStatus] = useState<string>('all');
 
+  // 导航栏配置状态
+  const [navConfig, setNavConfig] = useState({
+    nav_show_challenge_hall: true,
+    nav_show_kline_challenge: true,
+    nav_show_social: true,
+    nav_show_docs: true,
+    nav_show_suggestion: true,
+    nav_show_complaint: true,
+    nav_show_download: true,
+  });
+
   useEffect(() => {
     if (status === 'unauthenticated') {
       router.push('/login');
@@ -188,6 +199,9 @@ export default function AdminDashboardPage() {
     }
     if (isAdmin && activeTab === 'suggestions') {
       fetchSuggestions();
+    }
+    if (isAdmin && activeTab === 'nav') {
+      fetchNavConfig();
     }
   }, [activeTab, isAdmin]);
 
@@ -251,6 +265,55 @@ export default function AdminDashboardPage() {
       }
     } catch (err) {
       console.error('Fetch stats error:', err);
+    }
+  };
+
+  // 获取导航栏配置
+  const fetchNavConfig = async () => {
+    try {
+      const res = await fetch('/api/admin/nav-config');
+      const data = await res.json();
+      if (data.config) {
+        setNavConfig({
+          nav_show_challenge_hall: data.config.nav_show_challenge_hall !== 'false',
+          nav_show_kline_challenge: data.config.nav_show_kline_challenge !== 'false',
+          nav_show_social: data.config.nav_show_social !== 'false',
+          nav_show_docs: data.config.nav_show_docs !== 'false',
+          nav_show_suggestion: data.config.nav_show_suggestion !== 'false',
+          nav_show_complaint: data.config.nav_show_complaint !== 'false',
+          nav_show_download: data.config.nav_show_download !== 'false',
+        });
+      }
+    } catch (err) {
+      console.error('Fetch nav config error:', err);
+    }
+  };
+
+  // 保存导航栏配置
+  const handleSaveNavConfig = async () => {
+    setError('');
+    setSuccess('');
+    setSaving(true);
+
+    try {
+      const res = await fetch('/api/admin/nav-config', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(navConfig),
+      });
+
+      const data = await res.json();
+
+      if (res.ok && data.success) {
+        setSuccess('导航配置已保存');
+        setTimeout(() => setSuccess(''), 3000);
+      } else {
+        setError(data.error || '保存失败');
+      }
+    } catch (err) {
+      setError('保存失败');
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -875,6 +938,15 @@ export default function AdminDashboardPage() {
                 建议
               </Button>
               <div className="w-px h-8 bg-gray-300 dark:bg-gray-600 mx-1 self-center" />
+              <Button
+                size="sm"
+                variant={activeTab === 'nav' ? 'default' : 'outline'}
+                onClick={() => setActiveTab('nav')}
+                className="gap-2"
+              >
+                <Settings className="w-4 h-4" />
+                导航
+              </Button>
               <Button
                 size="sm"
                 variant={activeTab === 'config' ? 'default' : 'outline'}
@@ -1737,6 +1809,154 @@ export default function AdminDashboardPage() {
                       </>
                     ) : (
                       '保存配置'
+                    )}
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* 导航栏按钮配置 Tab */}
+          <TabsContent value="nav">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Settings className="w-5 h-5" />
+                  导航栏按钮配置
+                </CardTitle>
+                <CardDescription>
+                  控制导航栏按钮的显示与隐藏
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                {/* 导航按钮开关 */}
+                <div className="grid md:grid-cols-2 gap-4">
+                  <div className="flex items-center justify-between p-4 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
+                    <div>
+                      <p className="font-medium">挑战赛大厅</p>
+                      <p className="text-sm text-gray-500">显示"挑战赛大厅"导航按钮</p>
+                    </div>
+                    <label className="relative inline-flex items-center cursor-pointer">
+                      <input 
+                        type="checkbox" 
+                        className="sr-only peer"
+                        checked={navConfig.nav_show_challenge_hall}
+                        onChange={(e) => setNavConfig({...navConfig, nav_show_challenge_hall: e.target.checked})}
+                      />
+                      <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-purple-300 dark:peer-focus:ring-purple-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-purple-600"></div>
+                    </label>
+                  </div>
+                  
+                  <div className="flex items-center justify-between p-4 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
+                    <div>
+                      <p className="font-medium">K线征途</p>
+                      <p className="text-sm text-gray-500">显示"K线征途"导航按钮</p>
+                    </div>
+                    <label className="relative inline-flex items-center cursor-pointer">
+                      <input 
+                        type="checkbox" 
+                        className="sr-only peer"
+                        checked={navConfig.nav_show_kline_challenge}
+                        onChange={(e) => setNavConfig({...navConfig, nav_show_kline_challenge: e.target.checked})}
+                      />
+                      <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-purple-300 dark:peer-focus:ring-purple-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-purple-600"></div>
+                    </label>
+                  </div>
+                  
+                  <div className="flex items-center justify-between p-4 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
+                    <div>
+                      <p className="font-medium">茶馆</p>
+                      <p className="text-sm text-gray-500">显示"茶馆"导航按钮</p>
+                    </div>
+                    <label className="relative inline-flex items-center cursor-pointer">
+                      <input 
+                        type="checkbox" 
+                        className="sr-only peer"
+                        checked={navConfig.nav_show_social}
+                        onChange={(e) => setNavConfig({...navConfig, nav_show_social: e.target.checked})}
+                      />
+                      <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-purple-300 dark:peer-focus:ring-purple-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-purple-600"></div>
+                    </label>
+                  </div>
+                  
+                  <div className="flex items-center justify-between p-4 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
+                    <div>
+                      <p className="font-medium">文档中心</p>
+                      <p className="text-sm text-gray-500">显示"文档中心"导航按钮</p>
+                    </div>
+                    <label className="relative inline-flex items-center cursor-pointer">
+                      <input 
+                        type="checkbox" 
+                        className="sr-only peer"
+                        checked={navConfig.nav_show_docs}
+                        onChange={(e) => setNavConfig({...navConfig, nav_show_docs: e.target.checked})}
+                      />
+                      <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-purple-300 dark:peer-focus:ring-purple-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-purple-600"></div>
+                    </label>
+                  </div>
+                  
+                  <div className="flex items-center justify-between p-4 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
+                    <div>
+                      <p className="font-medium">建议</p>
+                      <p className="text-sm text-gray-500">显示"建议"导航按钮</p>
+                    </div>
+                    <label className="relative inline-flex items-center cursor-pointer">
+                      <input 
+                        type="checkbox" 
+                        className="sr-only peer"
+                        checked={navConfig.nav_show_suggestion}
+                        onChange={(e) => setNavConfig({...navConfig, nav_show_suggestion: e.target.checked})}
+                      />
+                      <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-purple-300 dark:peer-focus:ring-purple-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-purple-600"></div>
+                    </label>
+                  </div>
+                  
+                  <div className="flex items-center justify-between p-4 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
+                    <div>
+                      <p className="font-medium">投诉</p>
+                      <p className="text-sm text-gray-500">显示"投诉"导航按钮</p>
+                    </div>
+                    <label className="relative inline-flex items-center cursor-pointer">
+                      <input 
+                        type="checkbox" 
+                        className="sr-only peer"
+                        checked={navConfig.nav_show_complaint}
+                        onChange={(e) => setNavConfig({...navConfig, nav_show_complaint: e.target.checked})}
+                      />
+                      <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-purple-300 dark:peer-focus:ring-purple-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-purple-600"></div>
+                    </label>
+                  </div>
+                  
+                  <div className="flex items-center justify-between p-4 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
+                    <div>
+                      <p className="font-medium">软件下载</p>
+                      <p className="text-sm text-gray-500">显示"软件下载"导航按钮</p>
+                    </div>
+                    <label className="relative inline-flex items-center cursor-pointer">
+                      <input 
+                        type="checkbox" 
+                        className="sr-only peer"
+                        checked={navConfig.nav_show_download}
+                        onChange={(e) => setNavConfig({...navConfig, nav_show_download: e.target.checked})}
+                      />
+                      <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-purple-300 dark:peer-focus:ring-purple-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-purple-600"></div>
+                    </label>
+                  </div>
+                </div>
+
+                <div className="flex justify-end">
+                  <Button
+                    onClick={handleSaveNavConfig}
+                    disabled={saving}
+                    className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700"
+                  >
+                    {saving ? (
+                      <>
+                        <Spinner className="w-4 h-4 mr-2" />
+                        保存中...
+                      </>
+                    ) : (
+                      '保存导航配置'
                     )}
                   </Button>
                 </div>

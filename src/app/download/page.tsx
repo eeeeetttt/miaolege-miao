@@ -16,7 +16,8 @@ import {
   CheckCircle2,
   ArrowRight,
   ShoppingCart,
-  AlertCircle
+  AlertCircle,
+  Download,
 } from 'lucide-react';
 
 export default function AppDownloadPage() {
@@ -27,6 +28,7 @@ export default function AppDownloadPage() {
   const [purchasingId, setPurchasingId] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [purchasedIds, setPurchasedIds] = useState<Set<number>>(new Set());
+  const [appDownloadStarted, setAppDownloadStarted] = useState(false);
 
   // 获取EA产品列表
   useEffect(() => {
@@ -45,6 +47,18 @@ export default function AppDownloadPage() {
     };
     fetchProducts();
   }, []);
+
+  // 下载APP
+  const handleDownloadApp = () => {
+    setAppDownloadStarted(true);
+    // 直接触发下载
+    const link = document.createElement('a');
+    link.href = '/miaolegemiao.apk';
+    link.download = '喵了个喵.apk';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
 
   // 购买EA产品
   const handlePurchase = async (productId: number) => {
@@ -195,6 +209,80 @@ export default function AppDownloadPage() {
                 </CardContent>
               </Card>
             ))}
+
+            {/* APP 下载卡片 - 作为特殊产品展示 */}
+            <Card 
+              className="hover:shadow-xl transition-all duration-300 bg-gradient-to-br from-white to-green-50 dark:from-gray-800 dark:to-green-900/20 border-green-100 dark:border-green-800/30"
+            >
+              <CardHeader className="pb-4">
+                <div className="flex items-start justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="w-14 h-14 bg-gradient-to-br from-green-500 to-emerald-500 rounded-xl flex items-center justify-center shadow-lg">
+                      <Smartphone className="w-7 h-7 text-white" />
+                    </div>
+                    <div>
+                      <CardTitle className="text-lg">喵了个喵 APP</CardTitle>
+                      <div className="flex items-center gap-2 mt-1">
+                        <Badge variant="outline" className="text-xs bg-green-50 dark:bg-green-900/30">
+                          v1.0.0
+                        </Badge>
+                        <Badge variant="secondary" className="text-xs">
+                          Android
+                        </Badge>
+                        <Badge variant="secondary" className="text-xs bg-amber-50 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400">
+                          免费
+                        </Badge>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <CardDescription className="text-sm line-clamp-3 min-h-[60px]">
+                  星球跟单平台手机客户端，随时随地管理您的跟单交易，查看实时行情，接收交易信号推送。
+                </CardDescription>
+
+                <div className="flex flex-wrap gap-2">
+                  <span className="inline-flex items-center gap-1 px-2 py-1 bg-white dark:bg-gray-700 rounded-md text-xs text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-600">
+                    <CheckCircle2 className="w-3 h-3 text-green-500" />
+                    实时行情
+                  </span>
+                  <span className="inline-flex items-center gap-1 px-2 py-1 bg-white dark:bg-gray-700 rounded-md text-xs text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-600">
+                    <CheckCircle2 className="w-3 h-3 text-green-500" />
+                    信号推送
+                  </span>
+                  <span className="inline-flex items-center gap-1 px-2 py-1 bg-white dark:bg-gray-700 rounded-md text-xs text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-600">
+                    <CheckCircle2 className="w-3 h-3 text-green-500" />
+                    账户管理
+                  </span>
+                </div>
+
+                <div className="pt-4 border-t flex items-center justify-between">
+                  <div className="text-right">
+                    <p className="text-2xl font-bold text-green-600 dark:text-green-400">
+                      免费
+                    </p>
+                    <p className="text-xs text-gray-500">Android 5.0+</p>
+                  </div>
+                  <Button 
+                    className="bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 gap-2"
+                    onClick={handleDownloadApp}
+                  >
+                    {appDownloadStarted ? (
+                      <>
+                        <CheckCircle2 className="w-4 h-4" />
+                        下载中...
+                      </>
+                    ) : (
+                      <>
+                        <Download className="w-4 h-4" />
+                        立即下载
+                      </>
+                    )}
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
           </div>
         )}
 
