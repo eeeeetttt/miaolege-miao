@@ -97,10 +97,17 @@ export default function EaManagePage() {
       if (res.ok) {
         setProducts(data.products || []);
       } else {
-        setError(data.error || '获取产品列表失败');
+        // 根据状态码显示不同的错误消息
+        if (res.status === 401) {
+          setError('请先登录后再访问');
+        } else if (res.status === 500) {
+          setError('服务器错误：' + (data.error || '获取产品列表失败'));
+        } else {
+          setError(data.error || '获取产品列表失败');
+        }
       }
     } catch (err) {
-      setError('网络错误');
+      setError('网络错误，请检查网络连接');
     } finally {
       setLoading(false);
     }
