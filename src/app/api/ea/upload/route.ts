@@ -66,6 +66,10 @@ export async function POST(request: NextRequest) {
 
     const supabaseAdmin = getSupabaseAdmin();
 
+    if (!supabaseAdmin) {
+      return NextResponse.json({ error: '数据库连接失败' }, { status: 500 });
+    }
+
     // 更新产品记录
     const { error } = await supabaseAdmin
       .from('ea_products')

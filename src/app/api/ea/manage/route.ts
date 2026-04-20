@@ -13,6 +13,11 @@ export async function GET() {
     }
 
     const supabase = getSupabaseClient();
+
+    if (!supabase) {
+      return NextResponse.json({ error: '数据库连接失败' }, { status: 500 });
+    }
+
     const { data: products, error } = await supabase
       .from('ea_products')
       .select('*')
@@ -71,6 +76,10 @@ export async function POST(request: NextRequest) {
     const finalProductType = validProductTypes.includes(productType) ? productType : 'ea';
 
     const supabase = getSupabaseClient();
+
+    if (!supabase) {
+      return NextResponse.json({ error: '数据库连接失败' }, { status: 500 });
+    }
 
     if (productId) {
       // 更新现有产品

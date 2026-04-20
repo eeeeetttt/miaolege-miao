@@ -31,6 +31,10 @@ export async function GET(request: NextRequest) {
 
     const supabase = getSupabaseClient();
 
+    if (!supabase) {
+      return NextResponse.json({ error: '数据库连接失败' }, { status: 500 });
+    }
+
     // 检查用户是否已购买
     const { data: purchase } = await supabase
       .from('ea_purchases')

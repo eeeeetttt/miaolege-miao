@@ -30,6 +30,10 @@ export async function POST(request: NextRequest) {
     const supabase = getSupabaseClient();
     const supabaseAdmin = getSupabaseAdmin();
 
+    if (!supabase || !supabaseAdmin) {
+      return NextResponse.json({ error: '数据库连接失败' }, { status: 500 });
+    }
+
     // 获取产品信息
     const { data: product, error: productError } = await supabase
       .from('ea_products')
