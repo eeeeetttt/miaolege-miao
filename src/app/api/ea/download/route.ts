@@ -1,9 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
-import { db } from '@/lib/db';
-import { eaProducts, eaPurchases } from '@/lib/schema';
-import { eq, and } from 'drizzle-orm';
+import { getSupabaseClient } from '@/storage/database/supabase-client';
 import { S3Storage } from 'coze-coding-dev-sdk';
 
 // 初始化对象存储
@@ -31,41 +29,41 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: '缺少产品ID' }, { status: 400 });
     }
 
+    const supabase = getSupabaseClient();
+
     // 检查用户是否已购买
-    const [purchase] = await db
-      .select()
-      .from(eaPurchases)
-      .where(and(
-        eq(eaPurchases.userId, session.user.id),
-        eq(eaPurchases.productId, parseInt(productId)),
-        eq(eaPurchases.status, 'completed')
-      ))
-      .limit(1);
+    const { data: purchase } = await supabase
+      .from('ea_purchases')
+      .select('id')
+      .eq('user_id', session.user.id)
+      .eq('product_id', parseInt(productId))
+      .eq('status', 'completed')
+      .single();
 
     if (!purchase) {
       return NextResponse.json({ error: '您还未购买此产品' }, { status: 403 });
     }
 
     // 获取产品信息
-    const [product] = await db
-      .select()
-      .from(eaProducts)
-      .where(eq(eaProducts.id, parseInt(productId)))
-      .limit(1);
+    const { data: product, error: productError } = await supabase
+      .from('ea_products')
+      .select('download_url, file_name')
+      .eq('id', parseInt(productId))
+      .single();
 
-    if (!product || !product.downloadUrl) {
+    if (productError || !product || !product.download_url) {
       return NextResponse.json({ error: '下载文件不可用' }, { status: 404 });
     }
 
     // 生成签名下载链接（有效期1小时）
     const downloadUrl = await storage.generatePresignedUrl({
-      key: product.downloadUrl,
+      key: product.download_url,
       expireTime: 3600,
     });
 
     return NextResponse.json({ 
       downloadUrl,
-      fileName: product.fileName,
+      fileName: product.file_name,
     });
   } catch (error) {
     console.error('Download EA error:', error);

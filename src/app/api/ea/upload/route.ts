@@ -2,9 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { S3Storage } from 'coze-coding-dev-sdk';
-import { db } from '@/lib/db';
-import { eaProducts } from '@/lib/schema';
-import { eq } from 'drizzle-orm';
+import { getSupabaseClient } from '@/storage/database/supabase-client';
+import { createClient } from '@supabase/supabase-js';
 
 // 初始化对象存储
 const storage = new S3Storage({
@@ -14,6 +13,13 @@ const storage = new S3Storage({
   bucketName: process.env.COZE_BUCKET_NAME,
   region: 'cn-beijing',
 });
+
+// 获取管理员客户端
+function getSupabaseAdmin() {
+  const supabaseUrl = process.env.COZE_SUPABASE_URL;
+  const supabaseServiceKey = process.env.COZE_SUPABASE_SERVICE_ROLE_KEY;
+  return createClient(supabaseUrl!, supabaseServiceKey!, { auth: { persistSession: false } });
+}
 
 // 上传EA文件
 export async function POST(request: NextRequest) {
@@ -58,16 +64,23 @@ export async function POST(request: NextRequest) {
       contentType: 'application/octet-stream',
     });
 
+    const supabaseAdmin = getSupabaseAdmin();
+
     // 更新产品记录
-    await db
-      .update(eaProducts)
-      .set({
-        downloadUrl: fileKey, // 存储 key，下载时再生成签名 URL
-        fileName: file.name,
-        fileSize: fileSizeKB,
-        updatedAt: new Date(),
+    const { error } = await supabaseAdmin
+      .from('ea_products')
+      .update({
+        download_url: fileKey, // 存储 key，下载时再生成签名 URL
+        file_name: file.name,
+        file_size: fileSizeKB,
+        updated_at: new Date().toISOString(),
       })
-      .where(eq(eaProducts.id, parseInt(productId)));
+      .eq('id', parseInt(productId));
+
+    if (error) {
+      console.error('Failed to update product:', error);
+      return NextResponse.json({ error: '数据库更新失败' }, { status: 500 });
+    }
 
     return NextResponse.json({
       success: true,

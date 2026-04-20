@@ -1,9 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
-import { db } from '@/lib/db';
-import { eaProducts } from '@/lib/schema';
-import { eq } from 'drizzle-orm';
+import { getSupabaseClient } from '@/storage/database/supabase-client';
 
 // 获取所有EA产品（包括未上架的）
 export async function GET() {
@@ -14,13 +12,38 @@ export async function GET() {
       return NextResponse.json({ error: '请先登录' }, { status: 401 });
     }
 
-    // 获取所有产品
-    const products = await db
-      .select()
-      .from(eaProducts)
-      .orderBy(eaProducts.createdAt);
+    const supabase = getSupabaseClient();
+    const { data: products, error } = await supabase
+      .from('ea_products')
+      .select('*')
+      .order('created_at', { ascending: true });
 
-    return NextResponse.json({ products });
+    if (error) {
+      console.error('Supabase query error:', error);
+      return NextResponse.json({ error: '获取产品列表失败' }, { status: 500 });
+    }
+
+    // 转换字段名以匹配前端期望的格式
+    const formattedProducts = (products || []).map((p: any) => ({
+      id: p.id,
+      name: p.name,
+      description: p.description,
+      price: p.price,
+      version: p.version,
+      platform: p.platform,
+      category: p.category,
+      productType: p.product_type || 'ea',
+      features: p.features,
+      status: p.status,
+      downloadUrl: p.download_url,
+      fileName: p.file_name,
+      fileSize: p.file_size,
+      salesCount: p.sales_count,
+      createdAt: p.created_at,
+      updatedAt: p.updated_at,
+    }));
+
+    return NextResponse.json({ products: formattedProducts });
   } catch (error) {
     console.error('Get EA products error:', error);
     return NextResponse.json({ error: '获取产品列表失败' }, { status: 500 });
@@ -47,44 +70,58 @@ export async function POST(request: NextRequest) {
     const validProductTypes = ['ea', 'indicator', 'script', 'tool'];
     const finalProductType = validProductTypes.includes(productType) ? productType : 'ea';
 
+    const supabase = getSupabaseClient();
+
     if (productId) {
       // 更新现有产品
-      await db
-        .update(eaProducts)
-        .set({
+      const { error } = await supabase
+        .from('ea_products')
+        .update({
           name,
           description: description || null,
           price,
           version: version || '1.0.0',
           platform: platform || 'Both',
           category: category || null,
-          productType: finalProductType,
+          product_type: finalProductType,
           features: features || null,
-          updatedAt: new Date(),
+          updated_at: new Date().toISOString(),
         })
-        .where(eq(eaProducts.id, productId));
+        .eq('id', productId);
+
+      if (error) {
+        console.error('Supabase update error:', error);
+        return NextResponse.json({ error: '更新失败' }, { status: 500 });
+      }
 
       return NextResponse.json({ success: true, message: '产品更新成功' });
     } else {
       // 创建新产品
-      const [newProduct] = await db
-        .insert(eaProducts)
-        .values({
+      const { data, error } = await supabase
+        .from('ea_products')
+        .insert({
           name,
           description: description || null,
           price,
           version: version || '1.0.0',
           platform: platform || 'Both',
           category: category || null,
-          productType: finalProductType,
+          product_type: finalProductType,
           features: features || null,
           status: 'active',
-        });
+        })
+        .select('id')
+        .single();
+
+      if (error) {
+        console.error('Supabase insert error:', error);
+        return NextResponse.json({ error: '创建失败' }, { status: 500 });
+      }
 
       return NextResponse.json({ 
         success: true, 
         message: '产品创建成功',
-        productId: newProduct.insertId,
+        productId: data?.id,
       });
     }
   } catch (error) {

@@ -1,9 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
-import { db } from '@/lib/db';
-import { eaProducts, eaPurchases, users } from '@/lib/schema';
-import { eq, and } from 'drizzle-orm';
+import { getSupabaseClient } from '@/storage/database/supabase-client';
+import { createClient } from '@supabase/supabase-js';
+
+// 初始化服务角色客户端用于写入操作
+function getSupabaseAdmin() {
+  // 使用服务角色密钥来绕过RLS
+  const supabaseUrl = process.env.COZE_SUPABASE_URL;
+  const supabaseServiceKey = process.env.COZE_SUPABASE_SERVICE_ROLE_KEY;
+  return createClient(supabaseUrl!, supabaseServiceKey!, { auth: { persistSession: false } });
+}
 
 // 购买EA产品
 export async function POST(request: NextRequest) {
@@ -20,14 +27,17 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: '缺少产品ID' }, { status: 400 });
     }
 
-    // 获取产品信息
-    const [product] = await db
-      .select()
-      .from(eaProducts)
-      .where(eq(eaProducts.id, productId))
-      .limit(1);
+    const supabase = getSupabaseClient();
+    const supabaseAdmin = getSupabaseAdmin();
 
-    if (!product) {
+    // 获取产品信息
+    const { data: product, error: productError } = await supabase
+      .from('ea_products')
+      .select('*')
+      .eq('id', productId)
+      .single();
+
+    if (productError || !product) {
       return NextResponse.json({ error: '产品不存在' }, { status: 404 });
     }
 
@@ -36,56 +46,74 @@ export async function POST(request: NextRequest) {
     }
 
     // 检查是否已购买
-    const [existingPurchase] = await db
-      .select()
-      .from(eaPurchases)
-      .where(and(
-        eq(eaPurchases.userId, session.user.id),
-        eq(eaPurchases.productId, productId)
-      ))
-      .limit(1);
+    const { data: existingPurchase } = await supabase
+      .from('ea_purchases')
+      .select('id')
+      .eq('user_id', session.user.id)
+      .eq('product_id', productId)
+      .single();
 
     if (existingPurchase) {
       return NextResponse.json({ error: '您已购买过此产品' }, { status: 400 });
     }
 
-    // 获取用户余额
-    const [user] = await db
-      .select()
-      .from(users)
-      .where(eq(users.userId, session.user.id))
-      .limit(1);
+    // 获取用户余额 - 使用用户表
+    const { data: user, error: userError } = await supabase
+      .from('users')
+      .select('coin_balance')
+      .eq('user_id', session.user.id)
+      .single();
 
-    if (!user || (user.coinBalance ?? 0) < product.price) {
+    if (userError || !user) {
+      return NextResponse.json({ error: '用户不存在' }, { status: 404 });
+    }
+
+    if ((user.coin_balance || 0) < product.price) {
       return NextResponse.json({ error: 'U 余额不足' }, { status: 400 });
     }
 
-    // 开始事务：扣除余额、创建购买记录、更新销量
-    // 1. 扣除用户余额
-    await db
-      .update(users)
-      .set({ 
-        coinBalance: (user.coinBalance ?? 0) - product.price,
-        updatedAt: new Date(),
+    // 扣除用户余额
+    const { error: updateError } = await supabaseAdmin
+      .from('users')
+      .update({ 
+        coin_balance: (user.coin_balance || 0) - product.price,
+        updated_at: new Date().toISOString(),
       })
-      .where(eq(users.userId, session.user.id));
+      .eq('user_id', session.user.id);
 
-    // 2. 创建购买记录
-    await db.insert(eaPurchases).values({
-      userId: session.user.id,
-      productId: productId,
-      price: product.price,
-      status: 'completed',
-    });
+    if (updateError) {
+      console.error('Failed to update balance:', updateError);
+      return NextResponse.json({ error: '余额扣除失败' }, { status: 500 });
+    }
 
-    // 3. 更新产品销量
-    await db
-      .update(eaProducts)
-      .set({ 
-        salesCount: (product.salesCount || 0) + 1,
-        updatedAt: new Date(),
+    // 创建购买记录
+    const { error: insertError } = await supabaseAdmin
+      .from('ea_purchases')
+      .insert({
+        user_id: session.user.id,
+        product_id: productId,
+        price: product.price,
+        status: 'completed',
+      });
+
+    if (insertError) {
+      console.error('Failed to create purchase record:', insertError);
+      // 回滚余额
+      await supabaseAdmin
+        .from('users')
+        .update({ coin_balance: user.coin_balance })
+        .eq('user_id', session.user.id);
+      return NextResponse.json({ error: '购买记录创建失败' }, { status: 500 });
+    }
+
+    // 更新产品销量
+    await supabaseAdmin
+      .from('ea_products')
+      .update({ 
+        sales_count: (product.sales_count || 0) + 1,
+        updated_at: new Date().toISOString(),
       })
-      .where(eq(eaProducts.id, productId));
+      .eq('id', productId);
 
     return NextResponse.json({ 
       success: true, 
