@@ -73,7 +73,7 @@ export async function POST(request: NextRequest) {
     }
 
     if ((user.coin_balance || 0) < product.price) {
-      return NextResponse.json({ error: 'U 余额不足' }, { status: 400 });
+      return NextResponse.json({ error: '星球币余额不足' }, { status: 400 });
     }
 
     // 扣除用户余额
@@ -123,6 +123,7 @@ export async function POST(request: NextRequest) {
       success: true, 
       message: '购买成功',
       price: product.price,
+      remainingBalance: (user.coin_balance || 0) - product.price,
     });
   } catch (error) {
     console.error('Purchase EA error:', error);

@@ -129,7 +129,7 @@ function ProductCard({
         <div className="pt-4 border-t flex items-center justify-between">
           <div className="text-right">
             <p className="text-2xl font-bold text-purple-600 dark:text-purple-400">
-              {product.price === 0 ? '免费' : `${product.price} U`}
+              {product.price === 0 ? '免费' : `${product.price} 星球币`}
             </p>
             <p className="text-xs text-gray-500">
               {product.price === 0 ? '' : '星球币/永久授权'}
@@ -263,7 +263,7 @@ export default function AppDownloadPage() {
       
       if (res.ok && data.success) {
         setPurchasedIds(prev => new Set([...prev, productId]));
-        alert(`购买成功！已消耗 ${data.price} U`);
+        alert(`购买成功！已消耗 ${data.price} 星球币，剩余 ${data.remainingBalance} 星球币`);
         // 购买成功后自动下载
         handleDownload(productId);
       } else {

@@ -35,7 +35,35 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: '数据库连接失败' }, { status: 500 });
     }
 
-    // 检查用户是否已购买
+    // 先获取产品信息，检查是否为免费产品
+    const { data: product, error: productError } = await supabase
+      .from('ea_products')
+      .select('price, download_url, file_name')
+      .eq('id', parseInt(productId))
+      .single();
+
+    if (productError || !product) {
+      return NextResponse.json({ error: '产品不存在' }, { status: 404 });
+    }
+
+    // 免费产品无需购买检查，直接下载
+    if (product.price === 0) {
+      if (!product.download_url) {
+        return NextResponse.json({ error: '下载文件不可用' }, { status: 404 });
+      }
+      // 生成签名下载链接（有效期1小时）
+      const downloadUrl = await storage.generatePresignedUrl({
+        key: product.download_url,
+        expireTime: 3600,
+      });
+
+      return NextResponse.json({
+        downloadUrl,
+        fileName: product.file_name,
+      });
+    }
+
+    // 付费产品：检查用户是否已购买
     const { data: purchase } = await supabase
       .from('ea_purchases')
       .select('id')
@@ -48,14 +76,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: '您还未购买此产品' }, { status: 403 });
     }
 
-    // 获取产品信息
-    const { data: product, error: productError } = await supabase
-      .from('ea_products')
-      .select('download_url, file_name')
-      .eq('id', parseInt(productId))
-      .single();
-
-    if (productError || !product || !product.download_url) {
+    if (!product.download_url) {
       return NextResponse.json({ error: '下载文件不可用' }, { status: 404 });
     }
 
