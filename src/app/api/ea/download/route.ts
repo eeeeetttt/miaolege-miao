@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
-import { getSupabaseClient } from '@/storage/database/supabase-client';
+import { db } from '@/lib/db';
+import { eaProducts, eaPurchases } from '@/lib/schema';
+import { eq, and } from 'drizzle-orm';
 import { S3Storage } from 'coze-coding-dev-sdk';
 
 // 初始化对象存储
@@ -29,66 +31,64 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: '缺少产品ID' }, { status: 400 });
     }
 
-    const supabase = getSupabaseClient();
+    // 获取产品信息
+    const [product] = await db
+      .select()
+      .from(eaProducts)
+      .where(eq(eaProducts.id, parseInt(productId)))
+      .limit(1);
 
-    if (!supabase) {
-      return NextResponse.json({ error: '数据库连接失败' }, { status: 500 });
-    }
-
-    // 先获取产品信息，检查是否为免费产品
-    const { data: product, error: productError } = await supabase
-      .from('ea_products')
-      .select('price, download_url, file_name')
-      .eq('id', parseInt(productId))
-      .single();
-
-    if (productError || !product) {
+    if (!product) {
       return NextResponse.json({ error: '产品不存在' }, { status: 404 });
     }
 
     // 免费产品无需购买检查，直接下载
     if (product.price === 0) {
-      if (!product.download_url) {
+      if (!product.downloadUrl) {
         return NextResponse.json({ error: '下载文件不可用' }, { status: 404 });
       }
       // 生成签名下载链接（有效期1小时）
       const downloadUrl = await storage.generatePresignedUrl({
-        key: product.download_url,
+        key: product.downloadUrl,
         expireTime: 3600,
       });
 
       return NextResponse.json({
         downloadUrl,
-        fileName: product.file_name,
+        fileName: product.fileName,
       });
     }
 
     // 付费产品：检查用户是否已购买
-    const { data: purchase } = await supabase
-      .from('ea_purchases')
-      .select('id')
-      .eq('user_id', session.user.id)
-      .eq('product_id', parseInt(productId))
-      .eq('status', 'completed')
-      .single();
+    const [purchase] = await db
+      .select()
+      .from(eaPurchases)
+      .where(
+        and(
+          eq(eaPurchases.userId, session.user.id),
+          eq(eaPurchases.productId, parseInt(productId)),
+          eq(eaPurchases.status, 'completed')
+        )
+      )
+      .limit(1);
 
     if (!purchase) {
       return NextResponse.json({ error: '您还未购买此产品' }, { status: 403 });
     }
 
-    if (!product.download_url) {
+    if (!product.downloadUrl) {
       return NextResponse.json({ error: '下载文件不可用' }, { status: 404 });
     }
 
     // 生成签名下载链接（有效期1小时）
     const downloadUrl = await storage.generatePresignedUrl({
-      key: product.download_url,
+      key: product.downloadUrl,
       expireTime: 3600,
     });
 
     return NextResponse.json({ 
       downloadUrl,
-      fileName: product.file_name,
+      fileName: product.fileName,
     });
   } catch (error) {
     console.error('Download EA error:', error);

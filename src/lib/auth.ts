@@ -1,9 +1,9 @@
 import NextAuth from 'next-auth';
 import CredentialsProvider from 'next-auth/providers/credentials';
-import { db } from './db';
-import { users } from './schema';
-import { eq } from 'drizzle-orm';
 import bcrypt from 'bcryptjs';
+import { db } from '@/lib/db';
+import { users } from '@/lib/schema';
+import { eq } from 'drizzle-orm';
 
 // NextAuth v4 配置
 export const authOptions = {
@@ -22,24 +22,40 @@ export const authOptions = {
         const email = credentials.email as string;
         const password = credentials.password as string;
 
-        const user = await db.select().from(users).where(eq(users.email, email)).limit(1);
+        try {
+          const userData = await db
+            .select({ 
+              userId: users.userId, 
+              email: users.email, 
+              password: users.password, 
+              name: users.name,
+              role: users.role,
+            })
+            .from(users)
+            .where(eq(users.email, email))
+            .limit(1);
 
-        if (user.length === 0) {
+          if (userData.length === 0) {
+            return null;
+          }
+
+          const user = userData[0];
+          const passwordMatch = await bcrypt.compare(password, user.password || '');
+
+          if (!passwordMatch) {
+            return null;
+          }
+
+          return {
+            id: user.userId,
+            email: user.email,
+            name: user.name,
+            role: user.role || 'user',
+          };
+        } catch (error) {
+          console.error('Auth error:', error);
           return null;
         }
-
-        const passwordMatch = await bcrypt.compare(password, user[0].password || '');
-
-        if (!passwordMatch) {
-          return null;
-        }
-
-        return {
-          id: user[0].userId,
-          email: user[0].email,
-          name: user[0].name,
-          role: user[0].role || 'user',
-        };
       },
     }),
   ],

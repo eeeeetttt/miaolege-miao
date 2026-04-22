@@ -206,22 +206,29 @@ export default function AdminDashboardPage() {
   }, [activeTab, isAdmin]);
 
   const checkAdmin = async () => {
-    try {
-      const res = await fetch('/api/admin/init');
-      const data = await res.json();
-      
-      if (data.isAdmin) {
-        setIsAdmin(true);
-        fetchStats();
-      } else {
+    // 直接从 session 中检查管理员权限
+    if (session?.user?.role === 'admin') {
+      setIsAdmin(true);
+      fetchStats();
+    } else {
+      // 如果 session 中不是管理员，尝试 API 检查
+      try {
+        const res = await fetch('/api/admin/init');
+        const data = await res.json();
+        
+        if (data.isAdmin) {
+          setIsAdmin(true);
+          fetchStats();
+        } else {
+          setShowInitForm(true);
+        }
+      } catch (err) {
+        console.error('Check admin error:', err);
         setShowInitForm(true);
       }
-    } catch (err) {
-      console.error('Check admin error:', err);
-    } finally {
-      setCheckingAdmin(false);
-      setLoading(false);
     }
+    setCheckingAdmin(false);
+    setLoading(false);
   };
 
   const handleInitAdmin = async () => {

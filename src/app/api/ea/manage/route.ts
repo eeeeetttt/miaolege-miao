@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
-import { getSupabaseClient } from '@/storage/database/supabase-client';
+import { db } from '@/lib/db';
+import { eaProducts, eaPurchases, users } from '@/lib/schema';
+import { eq, asc } from 'drizzle-orm';
 
 // 获取所有EA产品（包括未上架的）
 export async function GET() {
@@ -12,24 +14,13 @@ export async function GET() {
       return NextResponse.json({ error: '请先登录' }, { status: 401 });
     }
 
-    const supabase = getSupabaseClient();
-
-    if (!supabase) {
-      return NextResponse.json({ error: '数据库连接失败' }, { status: 500 });
-    }
-
-    const { data: products, error } = await supabase
-      .from('ea_products')
-      .select('*')
-      .order('created_at', { ascending: true });
-
-    if (error) {
-      console.error('Supabase query error:', error);
-      return NextResponse.json({ error: '获取产品列表失败' }, { status: 500 });
-    }
+    const products = await db
+      .select()
+      .from(eaProducts)
+      .orderBy(asc(eaProducts.createdAt));
 
     // 转换字段名以匹配前端期望的格式
-    const formattedProducts = (products || []).map((p: any) => ({
+    const formattedProducts = (products || []).map((p) => ({
       id: p.id,
       name: p.name,
       description: p.description,
@@ -37,15 +28,15 @@ export async function GET() {
       version: p.version,
       platform: p.platform,
       category: p.category,
-      productType: p.product_type || 'ea',
+      productType: p.productType,
       features: p.features,
       status: p.status,
-      downloadUrl: p.download_url,
-      fileName: p.file_name,
-      fileSize: p.file_size,
-      salesCount: p.sales_count,
-      createdAt: p.created_at,
-      updatedAt: p.updated_at,
+      downloadUrl: p.downloadUrl,
+      fileName: p.fileName,
+      fileSize: p.fileSize,
+      salesCount: p.salesCount,
+      createdAt: p.createdAt,
+      updatedAt: p.updatedAt,
     }));
 
     return NextResponse.json({ products: formattedProducts });
@@ -75,62 +66,46 @@ export async function POST(request: NextRequest) {
     const validProductTypes = ['ea', 'indicator', 'script', 'tool'];
     const finalProductType = validProductTypes.includes(productType) ? productType : 'ea';
 
-    const supabase = getSupabaseClient();
-
-    if (!supabase) {
-      return NextResponse.json({ error: '数据库连接失败' }, { status: 500 });
-    }
-
     if (productId) {
       // 更新现有产品
-      const { error } = await supabase
-        .from('ea_products')
-        .update({
+      await db
+        .update(eaProducts)
+        .set({
           name,
           description: description || null,
           price,
           version: version || '1.0.0',
           platform: platform || 'Both',
           category: category || null,
-          product_type: finalProductType,
+          productType: finalProductType,
           features: features || null,
-          updated_at: new Date().toISOString(),
         })
-        .eq('id', productId);
-
-      if (error) {
-        console.error('Supabase update error:', error);
-        return NextResponse.json({ error: '更新失败' }, { status: 500 });
-      }
+        .where(eq(eaProducts.id, productId));
 
       return NextResponse.json({ success: true, message: '产品更新成功' });
     } else {
-      // 创建新产品
-      const { data, error } = await supabase
-        .from('ea_products')
-        .insert({
+      // 创建新产品 - MySQL 不支持 returning，使用 lastInsertId
+      const result = await db
+        .insert(eaProducts)
+        .values({
           name,
           description: description || null,
           price,
           version: version || '1.0.0',
           platform: platform || 'Both',
           category: category || null,
-          product_type: finalProductType,
+          productType: finalProductType,
           features: features || null,
           status: 'active',
-        })
-        .select('id')
-        .single();
+        });
 
-      if (error) {
-        console.error('Supabase insert error:', error);
-        return NextResponse.json({ error: '创建失败' }, { status: 500 });
-      }
+      // MySQL 返回 lastInsertId
+      const newProductId = (result as unknown as { insertId: number }).insertId;
 
       return NextResponse.json({ 
         success: true, 
         message: '产品创建成功',
-        productId: data?.id,
+        productId: newProductId,
       });
     }
   } catch (error) {

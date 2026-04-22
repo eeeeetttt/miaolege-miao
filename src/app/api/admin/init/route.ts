@@ -54,13 +54,17 @@ export async function GET() {
       return NextResponse.json({ isAdmin: false });
     }
 
-    const userData = await db
+    const [userData] = await db
       .select({ role: users.role })
       .from(users)
       .where(eq(users.userId, session.user.id))
       .limit(1);
 
-    const isAdmin = userData.length > 0 && userData[0].role === 'admin';
+    if (!userData) {
+      return NextResponse.json({ isAdmin: false });
+    }
+
+    const isAdmin = userData.role === 'admin';
     
     return NextResponse.json({ isAdmin });
   } catch (error) {
