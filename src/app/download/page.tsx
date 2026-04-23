@@ -22,6 +22,7 @@ import {
   FileCode,
   Package,
   Eye,
+  Plus,
 } from 'lucide-react';
 
 interface Product {
@@ -417,6 +418,30 @@ export default function AppDownloadPage() {
 
         {/* Features */}
         <div className="mt-16 pt-12 border-t border-purple-100 dark:border-purple-800/30">
+          {/* 上架自己的产品入口 */}
+          {session && (
+            <div className="mb-8 p-6 bg-gradient-to-r from-purple-100 to-blue-100 dark:from-purple-900/30 dark:to-blue-900/30 rounded-2xl border border-purple-200 dark:border-purple-800/50">
+              <div className="flex flex-col md:flex-row items-center justify-between gap-4">
+                <div className="flex items-center gap-4">
+                  <div className="w-14 h-14 bg-gradient-to-br from-purple-500 to-blue-500 rounded-xl flex items-center justify-center shadow-lg">
+                    <Bot className="w-7 h-7 text-white" />
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-lg">拥有自己的EA产品？</h3>
+                    <p className="text-sm text-gray-600 dark:text-gray-400">上传您的EA到平台，开始销售赚取收益</p>
+                  </div>
+                </div>
+                <Button 
+                  className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700"
+                  onClick={() => router.push('/user/ea')}
+                >
+                  <Plus className="w-4 h-4 mr-2" />
+                  上架我的EA
+                </Button>
+              </div>
+            </div>
+          )}
+
           <h2 className="text-2xl font-bold text-center mb-8 bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">
             为什么选择我们的产品？
           </h2>
