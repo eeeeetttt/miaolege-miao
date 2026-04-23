@@ -102,18 +102,22 @@ export default function EaManagePage() {
   useEffect(() => {
     if (status === 'unauthenticated') {
       router.push('/login?callbackUrl=/admin/ea');
-    } else if (status === 'authenticated' && session?.user?.role !== 'admin') {
-      // 非管理员重定向到用户EA页面
-      router.push('/user/ea');
+    } else if (status === 'authenticated') {
+      // 管理员才允许访问，非管理员重定向
+      const userRole = session?.user?.role;
+      console.log('[Admin EA] User role:', userRole);
+      if (userRole !== 'admin') {
+        router.push('/user/ea');
+      }
     }
   }, [status, session, router]);
 
   // 获取产品列表
   useEffect(() => {
-    if (session?.user?.role === 'admin') {
+    if (status === 'authenticated' && session?.user?.role === 'admin') {
       fetchProducts();
     }
-  }, [session]);
+  }, [session, status]);
 
   const fetchProducts = async () => {
     try {

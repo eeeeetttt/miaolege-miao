@@ -34,6 +34,8 @@ export async function GET() {
       downloadUrl: p.downloadUrl,
       fileName: p.fileName,
       fileSize: p.fileSize,
+      imageUrl: p.imageUrl,
+      creatorId: p.creatorId,
       salesCount: p.salesCount,
       createdAt: p.createdAt,
       updatedAt: p.updatedAt,
