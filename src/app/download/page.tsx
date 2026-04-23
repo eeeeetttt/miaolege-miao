@@ -21,6 +21,7 @@ import {
   BarChart3,
   FileCode,
   Package,
+  Eye,
 } from 'lucide-react';
 
 interface Product {
@@ -66,28 +67,32 @@ function ProductCard({
   purchasing, 
   onPurchase,
   onDownload,
+  onViewDetail,
 }: { 
   product: Product; 
   purchased: boolean; 
   purchasing: boolean;
   onPurchase: () => void;
   onDownload?: () => void;
+  onViewDetail: () => void;
 }) {
   const style = getProductStyle(product.productType);
   const IconComponent = getProductIcon(product.productType);
   
   return (
     <Card 
-      className={`hover:shadow-xl transition-all duration-300 bg-gradient-to-br from-white ${style.bgColor} dark:from-gray-800 border ${style.borderColor}`}
+      className={`hover:shadow-xl transition-all duration-300 bg-gradient-to-br from-white ${style.bgColor} dark:from-gray-800 border ${style.borderColor} group`}
     >
       <CardHeader className="pb-4">
         <div className="flex items-start justify-between">
           <div className="flex items-center gap-3">
-            <div className={`w-14 h-14 bg-gradient-to-br ${style.color} rounded-xl flex items-center justify-center shadow-lg`}>
+            <div className={`w-14 h-14 bg-gradient-to-br ${style.color} rounded-xl flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform`}>
               <IconComponent className="w-7 h-7 text-white" />
             </div>
             <div>
-              <CardTitle className="text-lg">{product.name}</CardTitle>
+              <CardTitle className="text-lg cursor-pointer hover:text-purple-600 transition-colors" onClick={onViewDetail}>
+                {product.name}
+              </CardTitle>
               <div className="flex items-center gap-2 mt-1">
                 <Badge variant="outline" className="text-xs bg-purple-50 dark:bg-purple-900/30">
                   {product.version || 'v1.0'}
@@ -103,6 +108,14 @@ function ProductCard({
               </div>
             </div>
           </div>
+          <Button 
+            variant="ghost" 
+            size="sm"
+            onClick={(e) => { e.stopPropagation(); onViewDetail(); }}
+            className="opacity-0 group-hover:opacity-100 transition-opacity"
+          >
+            <Eye className="w-4 h-4" />
+          </Button>
         </div>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -292,6 +305,11 @@ export default function AppDownloadPage() {
   const leftProducts = filteredProducts.filter(p => ['ea', 'indicator', 'script'].includes(p.productType));
   const rightProducts = filteredProducts.filter(p => p.productType === 'tool');
 
+  // 查看详情
+  const handleViewDetail = (productId: number) => {
+    router.push(`/download/${productId}`);
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-purple-50 dark:from-gray-900 dark:to-slate-900 py-8 px-4">
       <div className="max-w-7xl mx-auto">
@@ -359,6 +377,7 @@ export default function AppDownloadPage() {
                       purchasing={purchasingId === product.id}
                       onPurchase={() => handlePurchase(product.id, product.price)}
                       onDownload={purchasedIds.has(product.id) ? () => handleDownload(product.id) : undefined}
+                      onViewDetail={() => handleViewDetail(product.id)}
                     />
                   ))}
                 </div>
@@ -387,6 +406,7 @@ export default function AppDownloadPage() {
                       purchasing={purchasingId === product.id}
                       onPurchase={() => handlePurchase(product.id, product.price)}
                       onDownload={purchasedIds.has(product.id) ? () => handleDownload(product.id) : undefined}
+                      onViewDetail={() => handleViewDetail(product.id)}
                     />
                   ))}
                 </div>

@@ -34,6 +34,7 @@ import {
   Check,
   AlertTriangle,
   Package,
+  ImageIcon,
 } from 'lucide-react';
 
 interface EaProduct {
@@ -51,6 +52,7 @@ interface EaProduct {
   status: string | null;
   salesCount: number | null;
   createdAt: Date | null;
+  imageUrl: string | null;
 }
 
 export default function EaManagePage() {
@@ -64,7 +66,9 @@ export default function EaManagePage() {
   const [editingProduct, setEditingProduct] = useState<EaProduct | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const imageInputRef = useRef<HTMLInputElement>(null);
   const uploadProductIdRef = useRef<number | null>(null);
+  const uploadImageProductIdRef = useRef<number | null>(null);
 
   // 产品类型配置
   const productTypes = [
@@ -84,7 +88,10 @@ export default function EaManagePage() {
     category: '',
     features: '',
     productType: 'ea', // 新增产品类型
+    imageUrl: '', // 产品图片
   });
+  const [uploadingImage, setUploadingImage] = useState<number | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
 
   useEffect(() => {
     fetchProducts();
@@ -116,6 +123,94 @@ export default function EaManagePage() {
   const handleFileSelect = (productId: number) => {
     uploadProductIdRef.current = productId;
     fileInputRef.current?.click();
+  };
+
+  const handleImageSelect = (productId: number) => {
+    uploadImageProductIdRef.current = productId;
+    imageInputRef.current?.click();
+  };
+
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    const productId = uploadImageProductIdRef.current;
+
+    if (!file) return;
+
+    setUploadingImage(productId || null);
+    setError('');
+
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('type', 'image');
+
+      const res = await fetch('/api/ea/upload-image', {
+        method: 'POST',
+        body: formData,
+      });
+
+      const data = await res.json();
+
+      if (res.ok && data.url) {
+        setSuccess('图片上传成功！');
+        // 更新产品列表
+        setProducts(prev =>
+          prev.map(p =>
+            p.id === productId
+              ? { ...p, imageUrl: data.url }
+              : p
+          )
+        );
+        // 如果是在编辑表单中上传，也更新表单数据
+        if (editingProduct?.id === productId) {
+          setFormData(prev => ({ ...prev, imageUrl: data.url }));
+          setImagePreview(data.url);
+        }
+      } else {
+        setError(data.error || '图片上传失败');
+      }
+    } catch (err) {
+      setError('图片上传失败');
+    } finally {
+      setUploadingImage(null);
+      if (imageInputRef.current) {
+        imageInputRef.current.value = '';
+      }
+    }
+  };
+
+  // 处理表单中的图片上传
+  const handleFormImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setUploadingImage(-1); // -1 表示表单上传中
+    setError('');
+
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('type', 'image');
+
+      const res = await fetch('/api/ea/upload-image', {
+        method: 'POST',
+        body: formData,
+      });
+
+      const data = await res.json();
+
+      if (res.ok && data.url) {
+        setFormData(prev => ({ ...prev, imageUrl: data.url }));
+        setImagePreview(data.url);
+        setSuccess('图片上传成功！');
+      } else {
+        setError(data.error || '图片上传失败');
+      }
+    } catch (err) {
+      setError('图片上传失败');
+    } finally {
+      setUploadingImage(null);
+    }
   };
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -180,9 +275,15 @@ export default function EaManagePage() {
         .filter(f => f);
 
       const body = {
-        ...formData,
+        name: formData.name,
+        description: formData.description,
         price: parseInt(formData.price),
+        version: formData.version,
+        platform: formData.platform,
+        category: formData.category,
+        productType: formData.productType,
         features: JSON.stringify(features),
+        imageUrl: formData.imageUrl,
         productId: editingProduct?.id,
       };
 
@@ -220,7 +321,9 @@ export default function EaManagePage() {
       category: product.category || '',
       features: product.features ? JSON.parse(product.features).join('\n') : '',
       productType: (product as any).productType || 'ea',
+      imageUrl: (product as any).imageUrl || '',
     });
+    setImagePreview((product as any).imageUrl || null);
     setDialogOpen(true);
   };
 
@@ -235,7 +338,9 @@ export default function EaManagePage() {
       category: '',
       features: '',
       productType: 'ea',
+      imageUrl: '',
     });
+    setImagePreview(null);
   };
 
   const formatFileSize = (kb: number | null) => {
@@ -319,6 +424,64 @@ export default function EaManagePage() {
                       value={formData.price}
                       onChange={(e) => setFormData({ ...formData, price: e.target.value })}
                     />
+                  </div>
+                </div>
+
+                {/* 产品图片上传 */}
+                <div className="space-y-2">
+                  <Label>产品图片</Label>
+                  <div className="flex items-start gap-4">
+                    <div className="flex-1">
+                      {imagePreview ? (
+                        <div className="relative inline-block">
+                          <img 
+                            src={imagePreview} 
+                            alt="预览" 
+                            className="max-w-[200px] max-h-[150px] rounded-lg border"
+                          />
+                          <Button
+                            size="sm"
+                            variant="destructive"
+                            className="absolute -top-2 -right-2 h-6 w-6 p-0"
+                            onClick={() => {
+                              setFormData(prev => ({ ...prev, imageUrl: '' }));
+                              setImagePreview(null);
+                            }}
+                          >
+                            ×
+                          </Button>
+                        </div>
+                      ) : (
+                        <div className="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg p-8 text-center">
+                          <Upload className="w-8 h-8 mx-auto mb-2 text-gray-400" />
+                          <p className="text-sm text-gray-500">点击下方按钮上传产品图片</p>
+                          <p className="text-xs text-gray-400 mt-1">支持 JPG、PNG，最大 5MB</p>
+                        </div>
+                      )}
+                    </div>
+                    <div>
+                      <input
+                        ref={imageInputRef}
+                        type="file"
+                        accept="image/jpeg,image/png,image/gif,image/webp"
+                        className="hidden"
+                        onChange={handleFormImageUpload}
+                      />
+                      <Button
+                        variant="outline"
+                        onClick={() => imageInputRef.current?.click()}
+                        disabled={uploadingImage !== null}
+                      >
+                        {uploadingImage !== null ? (
+                          <Spinner className="w-4 h-4" />
+                        ) : (
+                          <>
+                            <Upload className="w-4 h-4 mr-2" />
+                            {formData.imageUrl ? '更换图片' : '上传图片'}
+                          </>
+                        )}
+                      </Button>
+                    </div>
                   </div>
                 </div>
 
@@ -491,6 +654,30 @@ export default function EaManagePage() {
                               <>
                                 <Upload className="w-4 h-4 mr-1" />
                                 {product.fileName ? '更新文件' : '上传文件'}
+                              </>
+                            )}
+                          </Button>
+                          
+                          {/* 产品图片上传按钮 */}
+                          <input
+                            ref={imageInputRef}
+                            type="file"
+                            accept="image/jpeg,image/png,image/gif,image/webp"
+                            className="hidden"
+                            onChange={handleImageUpload}
+                          />
+                          <Button
+                            size="sm"
+                            variant={(product as any).imageUrl ? 'outline' : 'secondary'}
+                            onClick={() => handleImageSelect(product.id)}
+                            disabled={uploadingImage === product.id}
+                          >
+                            {uploadingImage === product.id ? (
+                              <Spinner className="w-4 h-4" />
+                            ) : (
+                              <>
+                                <ImageIcon className="w-4 h-4 mr-1" />
+                                {(product as any).imageUrl ? '更新图片' : '上传图片'}
                               </>
                             )}
                           </Button>
