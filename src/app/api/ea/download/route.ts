@@ -47,15 +47,12 @@ export async function GET(request: NextRequest) {
       if (!product.downloadUrl) {
         return NextResponse.json({ error: '下载文件不可用' }, { status: 404 });
       }
-      // 生成签名下载链接（有效期1小时）
-      const downloadUrl = await storage.generatePresignedUrl({
-        key: product.downloadUrl,
-        expireTime: 3600,
-      });
-
+      
+      // 直接返回存储路径，让前端处理下载
       return NextResponse.json({
-        downloadUrl,
+        downloadUrl: product.downloadUrl,
         fileName: product.fileName,
+        direct: true,
       });
     }
 
@@ -80,15 +77,11 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: '下载文件不可用' }, { status: 404 });
     }
 
-    // 生成签名下载链接（有效期1小时）
-    const downloadUrl = await storage.generatePresignedUrl({
-      key: product.downloadUrl,
-      expireTime: 3600,
-    });
-
+    // 直接返回存储路径
     return NextResponse.json({ 
-      downloadUrl,
+      downloadUrl: product.downloadUrl,
       fileName: product.fileName,
+      direct: true,
     });
   } catch (error) {
     console.error('Download EA error:', error);

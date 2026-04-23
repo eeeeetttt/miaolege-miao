@@ -218,14 +218,21 @@ export default function AppDownloadPage() {
       const res = await fetch(`/api/ea/download?productId=${productId}`);
       const data = await res.json();
       
-      if (data.success && data.downloadUrl) {
-        // 创建下载链接
-        const link = document.createElement('a');
-        link.href = data.downloadUrl;
-        link.download = data.fileName || 'download';
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
+      if (data.downloadUrl) {
+        if (data.direct) {
+          // 直接下载模式：通过专门的下载API生成签名URL并下载
+          const fileName = data.fileName || 'download';
+          const downloadLink = `/api/ea/file-download?key=${encodeURIComponent(data.downloadUrl)}&fileName=${encodeURIComponent(fileName)}`;
+          window.open(downloadLink, '_blank');
+        } else {
+          // 创建下载链接
+          const link = document.createElement('a');
+          link.href = data.downloadUrl;
+          link.download = data.fileName || 'download';
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+        }
       } else {
         alert(data.error || '下载失败');
       }
