@@ -1,6 +1,8 @@
 'use client';
 
 import { useEffect, useState, useRef } from 'react';
+import { useSession } from 'next-auth/react';
+import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -53,9 +55,12 @@ interface EaProduct {
   salesCount: number | null;
   createdAt: Date | null;
   imageUrl: string | null;
+  creatorId: string | null;
 }
 
 export default function EaManagePage() {
+  const { data: session, status } = useSession();
+  const router = useRouter();
   const [products, setProducts] = useState<EaProduct[]>([]);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState<number | null>(null);
@@ -93,9 +98,22 @@ export default function EaManagePage() {
   const [uploadingImage, setUploadingImage] = useState<number | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
 
+  // 认证检查 - 只有管理员才能访问
   useEffect(() => {
-    fetchProducts();
-  }, []);
+    if (status === 'unauthenticated') {
+      router.push('/login?callbackUrl=/admin/ea');
+    } else if (status === 'authenticated' && session?.user?.role !== 'admin') {
+      // 非管理员重定向到用户EA页面
+      router.push('/user/ea');
+    }
+  }, [status, session, router]);
+
+  // 获取产品列表
+  useEffect(() => {
+    if (session?.user?.role === 'admin') {
+      fetchProducts();
+    }
+  }, [session]);
 
   const fetchProducts = async () => {
     try {

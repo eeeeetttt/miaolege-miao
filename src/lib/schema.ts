@@ -201,6 +201,7 @@ export const eaProducts = mysqlTable('ea_products', {
   fileSize: int('file_size'), // 文件大小(KB)
   imageUrl: varchar('image_url', { length: 500 }), // 产品图片
   status: mysqlEnum('status', ['active', 'inactive']).default('active'),
+  creatorId: varchar('creator_id', { length: 255 }), // 创建者ID
   salesCount: int('sales_count').default(0), // 销售数量
   createdAt: timestamp('created_at').defaultNow(),
   updatedAt: timestamp('updated_at').defaultNow().onUpdateNow(),

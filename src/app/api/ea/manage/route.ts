@@ -56,7 +56,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { productId, name, description, price, version, platform, category, productType, features } = body;
+    const { productId, name, description, price, version, platform, category, productType, features, imageUrl } = body;
 
     if (!name || price === undefined) {
       return NextResponse.json({ error: '缺少必要参数' }, { status: 400 });
@@ -67,7 +67,22 @@ export async function POST(request: NextRequest) {
     const finalProductType = validProductTypes.includes(productType) ? productType : 'ea';
 
     if (productId) {
-      // 更新现有产品
+      // 更新现有产品 - 验证权限
+      const [existing] = await db
+        .select({ creatorId: eaProducts.creatorId })
+        .from(eaProducts)
+        .where(eq(eaProducts.id, productId))
+        .limit(1);
+
+      if (!existing) {
+        return NextResponse.json({ error: '产品不存在' }, { status: 404 });
+      }
+
+      // 非管理员只能编辑自己的产品
+      if (session.user.role !== 'admin' && existing.creatorId !== session.user.id) {
+        return NextResponse.json({ error: '无权编辑此产品' }, { status: 403 });
+      }
+
       await db
         .update(eaProducts)
         .set({
@@ -79,6 +94,7 @@ export async function POST(request: NextRequest) {
           category: category || null,
           productType: finalProductType,
           features: features || null,
+          imageUrl: imageUrl || null,
         })
         .where(eq(eaProducts.id, productId));
 
@@ -96,7 +112,9 @@ export async function POST(request: NextRequest) {
           category: category || null,
           productType: finalProductType,
           features: features || null,
+          imageUrl: imageUrl || null,
           status: 'active',
+          creatorId: session.user.id, // 自动设置创建者
         });
 
       // MySQL 返回 lastInsertId
@@ -111,5 +129,48 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error('Save EA product error:', error);
     return NextResponse.json({ error: '保存失败' }, { status: 500 });
+  }
+}
+
+// DELETE - 删除产品
+export async function DELETE(request: NextRequest) {
+  try {
+    const session = await getServerSession(authOptions);
+    
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: '请先登录' }, { status: 401 });
+    }
+
+    const { searchParams } = new URL(request.url);
+    const productId = searchParams.get('productId');
+
+    if (!productId) {
+      return NextResponse.json({ error: '缺少产品ID' }, { status: 400 });
+    }
+
+    // 检查产品是否存在以及权限
+    const [product] = await db
+      .select({ creatorId: eaProducts.creatorId })
+      .from(eaProducts)
+      .where(eq(eaProducts.id, parseInt(productId)))
+      .limit(1);
+
+    if (!product) {
+      return NextResponse.json({ error: '产品不存在' }, { status: 404 });
+    }
+
+    // 非管理员只能删除自己的产品
+    if (session.user.role !== 'admin' && product.creatorId !== session.user.id) {
+      return NextResponse.json({ error: '无权删除此产品' }, { status: 403 });
+    }
+
+    await db
+      .delete(eaProducts)
+      .where(eq(eaProducts.id, parseInt(productId)));
+
+    return NextResponse.json({ success: true, message: '产品已删除' });
+  } catch (error) {
+    console.error('Delete EA product error:', error);
+    return NextResponse.json({ error: '删除失败' }, { status: 500 });
   }
 }

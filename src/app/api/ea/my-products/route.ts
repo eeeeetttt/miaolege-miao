@@ -14,10 +14,11 @@ export async function GET() {
       return NextResponse.json({ error: '请先登录' }, { status: 401 });
     }
 
-    // 获取当前用户创建的所有产品
+    // 普通用户只能看到自己创建的产品
     const products = await db
       .select()
       .from(eaProducts)
+      .where(eq(eaProducts.creatorId, session.user.id))
       .orderBy(desc(eaProducts.createdAt));
 
     return NextResponse.json({ products });

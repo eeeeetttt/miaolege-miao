@@ -36,6 +36,22 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: '缺少产品ID' }, { status: 400 });
     }
 
+    // 检查产品是否存在以及权限
+    const [product] = await db
+      .select({ creatorId: eaProducts.creatorId })
+      .from(eaProducts)
+      .where(eq(eaProducts.id, parseInt(productId)))
+      .limit(1);
+
+    if (!product) {
+      return NextResponse.json({ error: '产品不存在' }, { status: 404 });
+    }
+
+    // 非管理员只能上传自己的产品文件
+    if (session.user.role !== 'admin' && product.creatorId !== session.user.id) {
+      return NextResponse.json({ error: '无权操作此产品' }, { status: 403 });
+    }
+
     // 检查文件类型
     const allowedTypes = ['.ex4', '.ex5', '.mq4', '.mq5'];
     const fileName = file.name.toLowerCase();
