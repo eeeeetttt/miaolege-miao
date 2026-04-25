@@ -87,7 +87,7 @@ export default function DownloadPage() {
     {
       step: 4,
       title: '完成',
-      description: '桌面上会出现"喵了个喵"图标，点击即可使用',
+      description: '桌面上会出现"金火火"图标，点击即可使用',
     },
   ];
 
@@ -101,7 +101,7 @@ export default function DownloadPage() {
           </div>
           <h1 className="text-3xl font-bold mb-2">安装到手机</h1>
           <p className="text-gray-600 dark:text-gray-400">
-            喵了个喵 - 星球跟单平台
+            金火火 - 智能交易平台
           </p>
         </div>
 

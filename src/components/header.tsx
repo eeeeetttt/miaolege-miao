@@ -69,16 +69,15 @@ export function Header() {
           <Link href="/" className="flex items-center gap-3 hover:opacity-80 transition-opacity">
             <Image 
               src="/logo.png" 
-              alt="喵了个喵" 
+              alt="金火火" 
               width={40} 
               height={40}
               className="rounded-full shadow-lg"
             />
             <div className="hidden sm:block">
               <h1 className="text-xl font-bold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">
-                喵了个喵
+                金火火
               </h1>
-              <p className="text-xs text-gray-500 dark:text-gray-400">星球跟单平台</p>
             </div>
           </Link>
 

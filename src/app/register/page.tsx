@@ -106,7 +106,7 @@ export default function RegisterPage() {
           </div>
           <CardTitle className="text-2xl font-bold text-center">注册</CardTitle>
           <CardDescription className="text-center">
-            创建您的喵了个喵账号
+            创建您的金火火账号
           </CardDescription>
         </CardHeader>
         <form onSubmit={handleSubmit}>

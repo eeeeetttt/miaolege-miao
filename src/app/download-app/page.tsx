@@ -17,7 +17,7 @@ export default function DownloadPage() {
     // 直接触发下载
     const link = document.createElement('a');
     link.href = '/miaolegemiao.apk';
-    link.download = '喵了个喵.apk';
+    link.download = '金火火.apk';
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -63,7 +63,7 @@ export default function DownloadPage() {
           color: '#1a1a2e',
           marginBottom: '8px'
         }}>
-          喵了个喵
+          金火火
         </h1>
 
         <p style={{
@@ -71,7 +71,7 @@ export default function DownloadPage() {
           color: '#666',
           marginBottom: '32px'
         }}>
-          星球跟单平台
+          智能交易平台
         </p>
 
         <div style={{
@@ -140,7 +140,7 @@ export default function DownloadPage() {
           color: '#999',
           marginTop: '24px'
         }}>
-          点击下载即表示您同意安装来自喵了个喵的应用
+          点击下载即表示您同意安装来自金火火的应用
         </p>
 
         <div style={{

@@ -48,7 +48,7 @@ export default function LoginPage() {
         <CardHeader className="space-y-1">
           <CardTitle className="text-2xl font-bold text-center">登录</CardTitle>
           <CardDescription className="text-center">
-            登录到喵了个喵星球跟单平台
+            登录到金火火智能交易平台
           </CardDescription>
         </CardHeader>
         <form onSubmit={handleSubmit}>

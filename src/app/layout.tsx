@@ -19,20 +19,20 @@ export const viewport: Viewport = {
 
 export const metadata: Metadata = {
   title: {
-    default: '喵了个喵 - 星球跟单平台',
-    template: '%s | 喵了个喵',
+    default: '金火火 - 智能交易平台',
+    template: '%s | 金火火',
   },
   description:
-    '喵了个喵是一个基于交易信号跟单的社区化平台。创建星球、发布信号、智能跟单，实现交易信号共享与跟单。',
+    '金火火是一个专业的智能交易平台。EA智能交易、技术指标、脚本工具，助力您的外汇交易。',
   keywords: [
-    '喵了个喵',
-    '跟单平台',
-    '交易信号',
+    '金火火',
+    '智能交易',
+    'EA交易',
     'MT4',
     'MT5',
-    '外汇跟单',
-    '交易社区',
-    '星球',
+    '外汇交易',
+    '技术指标',
+    '自动跟单',
   ],
   authors: [{ name: 'MLGM Team' }],
   // 移除 generator 标签，避免显示技术栈信息
@@ -57,14 +57,14 @@ export const metadata: Metadata = {
   appleWebApp: {
     capable: true,
     statusBarStyle: 'default',
-    title: '喵了个喵',
+    title: '金火火',
   },
   formatDetection: {
     telephone: false,
   },
   openGraph: {
-    title: '喵了个喵 - 星球跟单平台',
-    description: '创建星球、发布信号、智能跟单，实现交易信号共享与跟单',
+    title: '金火火 - 智能交易平台',
+    description: 'EA智能交易、技术指标、脚本工具，助力您的外汇交易',
     type: 'website',
     locale: 'zh_CN',
   },
@@ -95,10 +95,10 @@ export default function RootLayout({
             <footer className="border-t bg-white/80 dark:bg-gray-900/80 backdrop-blur-sm py-8">
               <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center text-gray-600 dark:text-gray-400">
                 <p className="mb-2">
-                  © {new Date().getFullYear()} 喵了个喵交易挑战赛平台. All rights reserved.
+                  © {new Date().getFullYear()} 金火火智能交易平台. All rights reserved.
                 </p>
                 <p className="text-sm">
-                  挑战赛选拔 · 交易员培养 · 跟单社区
+                  EA智能交易 · 技术指标 · 脚本工具
                 </p>
               </div>
             </footer>

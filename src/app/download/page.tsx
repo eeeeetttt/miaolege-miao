@@ -302,10 +302,6 @@ export default function AppDownloadPage() {
     ? products 
     : products.filter(p => p.productType === activeTab);
 
-  // 按类型分组
-  const leftProducts = filteredProducts.filter(p => ['ea', 'indicator', 'script'].includes(p.productType));
-  const rightProducts = filteredProducts.filter(p => p.productType === 'tool');
-
   // 查看详情
   const handleViewDetail = (productId: number) => {
     router.push(`/download/${productId}`);
@@ -354,65 +350,29 @@ export default function AppDownloadPage() {
             </CardContent>
           </Card>
         ) : (
-          /* 左右布局 */
-          <div className="grid lg:grid-cols-2 gap-8">
-            {/* 左边：EA、指标、脚本 */}
-            <div>
-              <h2 className="text-2xl font-bold mb-4 flex items-center gap-2">
-                <Bot className="w-6 h-6 text-purple-500" />
-                智能交易 & 分析工具
-              </h2>
-              {leftProducts.length === 0 ? (
-                <Card>
-                  <CardContent className="text-center py-12">
-                    <p className="text-gray-500">暂无相关产品</p>
-                  </CardContent>
-                </Card>
-              ) : (
-                <div className="space-y-4">
-                  {leftProducts.map((product) => (
-                    <ProductCard
-                      key={product.id}
-                      product={product}
-                      purchased={purchasedIds.has(product.id)}
-                      purchasing={purchasingId === product.id}
-                      onPurchase={() => handlePurchase(product.id, product.price)}
-                      onDownload={purchasedIds.has(product.id) ? () => handleDownload(product.id) : undefined}
-                      onViewDetail={() => handleViewDetail(product.id)}
-                    />
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {/* 右边：交易工具 */}
-            <div>
-              <h2 className="text-2xl font-bold mb-4 flex items-center gap-2">
-                <Package className="w-6 h-6 text-green-500" />
-                交易工具
-              </h2>
-              {rightProducts.length === 0 ? (
-                <Card>
-                  <CardContent className="text-center py-12">
-                    <p className="text-gray-500">暂无相关产品</p>
-                  </CardContent>
-                </Card>
-              ) : (
-                <div className="space-y-4">
-                  {rightProducts.map((product) => (
-                    <ProductCard
-                      key={product.id}
-                      product={product}
-                      purchased={purchasedIds.has(product.id)}
-                      purchasing={purchasingId === product.id}
-                      onPurchase={() => handlePurchase(product.id, product.price)}
-                      onDownload={purchasedIds.has(product.id) ? () => handleDownload(product.id) : undefined}
-                      onViewDetail={() => handleViewDetail(product.id)}
-                    />
-                  ))}
-                </div>
-              )}
-            </div>
+          /* 统一网格布局 */
+          <div className="mb-8">
+            {filteredProducts.length === 0 ? (
+              <Card>
+                <CardContent className="text-center py-12">
+                  <p className="text-gray-500">暂无相关产品</p>
+                </CardContent>
+              </Card>
+            ) : (
+              <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {filteredProducts.map((product) => (
+                  <ProductCard
+                    key={product.id}
+                    product={product}
+                    purchased={purchasedIds.has(product.id)}
+                    purchasing={purchasingId === product.id}
+                    onPurchase={() => handlePurchase(product.id, product.price)}
+                    onDownload={purchasedIds.has(product.id) ? () => handleDownload(product.id) : undefined}
+                    onViewDetail={() => handleViewDetail(product.id)}
+                  />
+                ))}
+              </div>
+            )}
           </div>
         )}
 
