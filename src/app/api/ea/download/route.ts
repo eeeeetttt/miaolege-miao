@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
-import { db } from '@/lib/db';
+import { db, pool } from '@/lib/db';
 import { eaProducts, eaPurchases } from '@/lib/schema';
 import { eq, and } from 'drizzle-orm';
 import { S3Storage } from 'coze-coding-dev-sdk';
@@ -31,12 +31,12 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: '缺少产品ID' }, { status: 400 });
     }
 
-    // 获取产品信息
-    const [product] = await db
-      .select()
-      .from(eaProducts)
-      .where(eq(eaProducts.id, parseInt(productId)))
-      .limit(1);
+    // 获取产品信息（原始 SQL）
+    const [productRows] = await pool.query(
+      'SELECT * FROM ea_products WHERE id = ?',
+      [parseInt(productId)]
+    );
+    const product = (productRows as any[])[0];
 
     if (!product) {
       return NextResponse.json({ error: '产品不存在' }, { status: 404 });
@@ -44,43 +44,36 @@ export async function GET(request: NextRequest) {
 
     // 免费产品无需购买检查，直接下载
     if (product.price === 0) {
-      if (!product.downloadUrl) {
+      if (!product.download_url) {
         return NextResponse.json({ error: '下载文件不可用' }, { status: 404 });
       }
       
       // 直接返回存储路径，让前端处理下载
       return NextResponse.json({
-        downloadUrl: product.downloadUrl,
-        fileName: product.fileName,
+        downloadUrl: product.download_url,
+        fileName: product.file_name,
         direct: true,
       });
     }
 
-    // 付费产品：检查用户是否已购买
-    const [purchase] = await db
-      .select()
-      .from(eaPurchases)
-      .where(
-        and(
-          eq(eaPurchases.userId, session.user.id),
-          eq(eaPurchases.productId, parseInt(productId)),
-          eq(eaPurchases.status, 'completed')
-        )
-      )
-      .limit(1);
+    // 付费产品：检查用户是否已购买（原始 SQL）
+    const [purchaseRows] = await pool.query(
+      'SELECT id FROM ea_purchases WHERE user_id = ? AND product_id = ? AND status = ?',
+      [session.user.id, parseInt(productId), 'completed']
+    );
 
-    if (!purchase) {
+    if ((purchaseRows as any[]).length === 0) {
       return NextResponse.json({ error: '您还未购买此产品' }, { status: 403 });
     }
 
-    if (!product.downloadUrl) {
+    if (!product.download_url) {
       return NextResponse.json({ error: '下载文件不可用' }, { status: 404 });
     }
 
     // 直接返回存储路径
     return NextResponse.json({ 
-      downloadUrl: product.downloadUrl,
-      fileName: product.fileName,
+      downloadUrl: product.download_url,
+      fileName: product.file_name,
       direct: true,
     });
   } catch (error) {

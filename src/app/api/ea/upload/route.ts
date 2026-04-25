@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { S3Storage } from 'coze-coding-dev-sdk';
-import { db } from '@/lib/db';
+import { db, pool } from '@/lib/db';
 import { eaProducts } from '@/lib/schema';
 import { eq } from 'drizzle-orm';
 
@@ -36,19 +36,19 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: '缺少产品ID' }, { status: 400 });
     }
 
-    // 检查产品是否存在以及权限
-    const [product] = await db
-      .select({ creatorId: eaProducts.creatorId })
-      .from(eaProducts)
-      .where(eq(eaProducts.id, parseInt(productId)))
-      .limit(1);
+    // 检查产品是否存在以及权限（原始 SQL）
+    const [productRows] = await pool.query(
+      'SELECT creator_id FROM ea_products WHERE id = ?',
+      [parseInt(productId)]
+    );
+    const product = (productRows as any[])[0];
 
     if (!product) {
       return NextResponse.json({ error: '产品不存在' }, { status: 404 });
     }
 
     // 非管理员只能上传自己的产品文件
-    if (session.user.role !== 'admin' && product.creatorId !== session.user.id) {
+    if (session.user.role !== 'admin' && product.creator_id !== session.user.id) {
       return NextResponse.json({ error: '无权操作此产品' }, { status: 403 });
     }
 
@@ -74,15 +74,11 @@ export async function POST(request: NextRequest) {
       contentType: 'application/octet-stream',
     });
 
-    // 更新产品记录
-    await db
-      .update(eaProducts)
-      .set({
-        downloadUrl: fileKey,
-        fileName: file.name,
-        fileSize: fileSizeKB,
-      })
-      .where(eq(eaProducts.id, parseInt(productId)));
+    // 更新产品记录（原始 SQL）
+    await pool.query(
+      'UPDATE ea_products SET download_url = ?, file_name = ?, file_size = ? WHERE id = ?',
+      [fileKey, file.name, fileSizeKB, parseInt(productId)]
+    );
 
     return NextResponse.json({
       success: true,

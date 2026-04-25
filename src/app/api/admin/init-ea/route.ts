@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { db } from '@/lib/db';
+import { db, pool } from '@/lib/db';
 import { eaProducts } from '@/lib/schema';
 import { sql } from 'drizzle-orm';
 
@@ -32,6 +32,7 @@ export async function POST(request: NextRequest) {
           file_size INT,
           image_url VARCHAR(500),
           status ENUM('active', 'inactive') DEFAULT 'active',
+          creator_id VARCHAR(255),
           sales_count INT DEFAULT 0,
           created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
           updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
@@ -70,106 +71,38 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // 检查是否已有产品数据
-    const [existingProducts] = await db
-      .select({ count: sql<number>`COUNT(*)` })
-      .from(eaProducts);
+    // 检查是否已有产品数据（原始 SQL）
+    const [countResult] = await pool.query('SELECT COUNT(*) as cnt FROM ea_products');
+    const count = (countResult as any[])[0]?.cnt || 0;
 
-    if (existingProducts && Number(existingProducts.count) > 0) {
-      results.push(`ℹ️ 已有 ${existingProducts.count} 个产品，跳过示例数据添加`);
+    if (Number(count) > 0) {
+      results.push(`ℹ️ 已有 ${count} 个产品，跳过示例数据添加`);
     } else {
-      // 添加示例EA产品
-      const sampleProducts: {
-        name: string;
-        description: string;
-        price: number;
-        version: string;
-        platform: 'MT4' | 'MT5' | 'Both';
-        category: string;
-        features: string;
-        status: 'active' | 'inactive';
-      }[] = [
-        {
-          name: '趋势追踪大师',
-          description: '基于多周期趋势分析的趋势跟踪型EA，适合中长线交易。采用动态止损和移动止盈策略，在趋势行情中表现优异。',
-          price: 500,
-          version: '2.1.0',
-          platform: 'Both',
-          category: '趋势',
-          features: JSON.stringify([
-            '多周期趋势确认',
-            '动态止损止盈',
-            '智能仓位管理',
-            '支持多货币对',
-            '实时风险监控'
-          ]),
-          status: 'active',
-        },
-        {
-          name: '网格交易王',
-          description: '经典的网格交易策略EA，适合震荡行情。可自定义网格间距和手数递增比例，支持双向网格。',
-          price: 300,
-          version: '1.5.0',
-          platform: 'Both',
-          category: '震荡',
-          features: JSON.stringify([
-            '可调网格间距',
-            '双向网格模式',
-            '马丁格尔选项',
-            '自动风控保护',
-            '支持任意品种'
-          ]),
-          status: 'active',
-        },
-        {
-          name: '智能马丁EA',
-          description: '优化的马丁格尔策略EA，结合趋势过滤和智能加仓逻辑，有效控制风险的同时追求稳定收益。',
-          price: 800,
-          version: '3.0.0',
-          platform: 'MT5',
-          category: '马丁',
-          features: JSON.stringify([
-            '趋势方向过滤',
-            '智能加仓逻辑',
-            '最大层数限制',
-            '账户余额保护',
-            '一键平仓功能',
-            '详细交易日志'
-          ]),
-          status: 'active',
-        },
-        {
-          name: '剥头皮高手',
-          description: '专为短线交易设计的剥头皮EA，利用微小波动快速进出，适合高流动性品种。',
-          price: 600,
-          version: '1.2.0',
-          platform: 'Both',
-          category: '趋势',
-          features: JSON.stringify([
-            '毫秒级执行',
-            '点差过滤',
-            '智能止盈',
-            '支持ECN账户',
-            '低延迟优化'
-          ]),
-          status: 'active',
-        },
+      // 添加示例EA产品（原始 SQL）
+      const sampleProducts = [
+        ['趋势追踪大师', '基于多周期趋势分析的趋势跟踪型EA，适合中长线交易。采用动态止损和移动止盈策略，在趋势行情中表现优异。', 500, '2.1.0', 'Both', '趋势', JSON.stringify(['多周期趋势确认', '动态止损止盈', '智能仓位管理', '支持多货币对', '实时风险监控']), 'active'],
+        ['网格交易王', '经典的网格交易策略EA，适合震荡行情。可自定义网格间距和手数递增比例，支持双向网格。', 300, '1.5.0', 'Both', '震荡', JSON.stringify(['可调网格间距', '双向网格模式', '马丁格尔选项', '自动风控保护', '支持任意品种']), 'active'],
+        ['智能马丁EA', '优化的马丁格尔策略EA，结合趋势过滤和智能加仓逻辑，有效控制风险的同时追求稳定收益。', 800, '3.0.0', 'MT5', '马丁', JSON.stringify(['趋势方向过滤', '智能加仓逻辑', '最大层数限制', '账户余额保护', '一键平仓功能', '详细交易日志']), 'active'],
+        ['剥头皮高手', '专为短线交易设计的剥头皮EA，利用微小波动快速进出，适合高流动性品种。', 600, '1.2.0', 'Both', '趋势', JSON.stringify(['毫秒级执行', '点差过滤', '智能止盈', '支持ECN账户', '低延迟优化']), 'active'],
       ];
 
       for (const product of sampleProducts) {
-        await db.insert(eaProducts).values(product);
+        await pool.query(
+          'INSERT INTO ea_products (name, description, price, version, platform, category, features, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+          product
+        );
       }
 
       results.push('✅ 已添加 4 个示例EA产品');
     }
 
-    // 返回当前产品列表
-    const products = await db.select().from(eaProducts);
+    // 返回当前产品列表（原始 SQL）
+    const [productRows] = await pool.query('SELECT * FROM ea_products ORDER BY created_at DESC');
 
     return NextResponse.json({
       success: true,
       results,
-      products,
+      products: productRows,
       message: 'EA产品模块初始化完成',
     });
   } catch (error: any) {
