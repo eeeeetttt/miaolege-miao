@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
-import { db } from '@/lib/db';
+import { db, pool } from '@/lib/db';
 import { eaProducts, eaPurchases, users } from '@/lib/schema';
 import { eq, asc } from 'drizzle-orm';
 
@@ -14,13 +14,17 @@ export async function GET() {
       return NextResponse.json({ error: '请先登录' }, { status: 401 });
     }
 
-    const products = await db
-      .select()
-      .from(eaProducts)
-      .orderBy(asc(eaProducts.createdAt));
+    // 使用原始 SQL 查询避免 drizzle schema 同步问题
+    const [rows] = await pool.query(`
+      SELECT id, name, description, price, version, platform, category, 
+             product_type, features, download_url, file_name, file_size, 
+             image_url, status, creator_id, sales_count, created_at, updated_at
+      FROM ea_products 
+      ORDER BY created_at ASC
+    `);
 
     // 转换字段名以匹配前端期望的格式
-    const formattedProducts = (products || []).map((p) => ({
+    const products = (rows as any[]).map((p) => ({
       id: p.id,
       name: p.name,
       description: p.description,
@@ -28,21 +32,20 @@ export async function GET() {
       version: p.version,
       platform: p.platform,
       category: p.category,
-      productType: p.productType,
+      productType: p.product_type,
       features: p.features,
       status: p.status,
-      downloadUrl: p.downloadUrl,
-      fileName: p.fileName,
-      fileSize: p.fileSize,
-      imageUrl: p.imageUrl,
-      images: p.images,
-      creatorId: p.creatorId,
-      salesCount: p.salesCount,
-      createdAt: p.createdAt,
-      updatedAt: p.updatedAt,
+      downloadUrl: p.download_url,
+      fileName: p.file_name,
+      fileSize: p.file_size,
+      imageUrl: p.image_url,
+      creatorId: p.creator_id,
+      salesCount: p.sales_count,
+      createdAt: p.created_at,
+      updatedAt: p.updated_at,
     }));
 
-    return NextResponse.json({ products: formattedProducts });
+    return NextResponse.json({ products });
   } catch (error) {
     console.error('Get EA products error:', error);
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
@@ -60,7 +63,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { productId, name, description, price, version, platform, category, productType, features, imageUrl, images } = body;
+    const { productId, name, description, price, version, platform, category, productType, features, imageUrl } = body;
 
     if (!name || price === undefined) {
       return NextResponse.json({ error: '缺少必要参数' }, { status: 400 });
@@ -71,60 +74,41 @@ export async function POST(request: NextRequest) {
     const finalProductType = validProductTypes.includes(productType) ? productType : 'ea';
 
     if (productId) {
-      // 更新现有产品 - 验证权限
-      const [existing] = await db
-        .select({ creatorId: eaProducts.creatorId })
-        .from(eaProducts)
-        .where(eq(eaProducts.id, productId))
-        .limit(1);
+      // 更新现有产品 - 验证权限（使用原始 SQL）
+      const [existingRows] = await pool.query(
+        'SELECT creator_id FROM ea_products WHERE id = ?',
+        [productId]
+      );
+      const existing = (existingRows as any[])[0];
 
       if (!existing) {
         return NextResponse.json({ error: '产品不存在' }, { status: 404 });
       }
 
       // 非管理员只能编辑自己的产品
-      if (session.user.role !== 'admin' && existing.creatorId !== session.user.id) {
+      if (session.user.role !== 'admin' && existing.creator_id !== session.user.id) {
         return NextResponse.json({ error: '无权编辑此产品' }, { status: 403 });
       }
 
-      await db
-        .update(eaProducts)
-        .set({
-          name,
-          description: description || null,
-          price,
-          version: version || '1.0.0',
-          platform: platform || 'Both',
-          category: category || null,
-          productType: finalProductType,
-          features: features || null,
-          imageUrl: imageUrl || null,
-          images: images || null,
-        })
-        .where(eq(eaProducts.id, productId));
+      // 使用原始 SQL 更新
+      await pool.query(`
+        UPDATE ea_products 
+        SET name = ?, description = ?, price = ?, version = ?, platform = ?, 
+            category = ?, product_type = ?, features = ?, image_url = ?
+        WHERE id = ?
+      `, [name, description || null, price, version || '1.0.0', platform || 'Both', 
+          category || null, finalProductType, features || null, imageUrl || null, productId]);
 
       return NextResponse.json({ success: true, message: '产品更新成功' });
     } else {
-      // 创建新产品 - MySQL 不支持 returning，使用 lastInsertId
-      const result = await db
-        .insert(eaProducts)
-        .values({
-          name,
-          description: description || null,
-          price,
-          version: version || '1.0.0',
-          platform: platform || 'Both',
-          category: category || null,
-          productType: finalProductType,
-          features: features || null,
-          imageUrl: imageUrl || null,
-          images: images || null,
-          status: 'active',
-          creatorId: session.user.id, // 自动设置创建者
-        });
+      // 创建新产品 - 使用原始 SQL
+      const [result] = await pool.query(`
+        INSERT INTO ea_products (name, description, price, version, platform, category, product_type, features, image_url, status, creator_id)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', ?)
+      `, [name, description || null, price, version || '1.0.0', platform || 'Both', 
+          category || null, finalProductType, features || null, imageUrl || null, session.user.id]);
 
-      // MySQL 返回 lastInsertId
-      const newProductId = (result as unknown as { insertId: number }).insertId;
+      const newProductId = (result as any).insertId;
 
       return NextResponse.json({ 
         success: true, 
@@ -154,25 +138,24 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: '缺少产品ID' }, { status: 400 });
     }
 
-    // 检查产品是否存在以及权限
-    const [product] = await db
-      .select({ creatorId: eaProducts.creatorId })
-      .from(eaProducts)
-      .where(eq(eaProducts.id, parseInt(productId)))
-      .limit(1);
+    // 检查产品是否存在以及权限（使用原始 SQL）
+    const [rows] = await pool.query(
+      'SELECT creator_id FROM ea_products WHERE id = ?',
+      [productId]
+    );
+    const product = (rows as any[])[0];
 
     if (!product) {
       return NextResponse.json({ error: '产品不存在' }, { status: 404 });
     }
 
     // 非管理员只能删除自己的产品
-    if (session.user.role !== 'admin' && product.creatorId !== session.user.id) {
+    if (session.user.role !== 'admin' && product.creator_id !== session.user.id) {
       return NextResponse.json({ error: '无权删除此产品' }, { status: 403 });
     }
 
-    await db
-      .delete(eaProducts)
-      .where(eq(eaProducts.id, parseInt(productId)));
+    // 使用原始 SQL 删除
+    await pool.query('DELETE FROM ea_products WHERE id = ?', [productId]);
 
     return NextResponse.json({ success: true, message: '产品已删除' });
   } catch (error) {
