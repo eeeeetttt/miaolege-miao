@@ -26,6 +26,7 @@ interface Product {
   productType: string;
   features: string | null;
   imageUrl: string | null;
+  images: string | null; // 多图
   downloadUrl: string | null;
   fileName: string | null;
   fileSize: number | null;
@@ -178,6 +179,20 @@ export default function ProductDetailPage() {
   const config = PRODUCT_TYPE_CONFIG[product.productType as keyof typeof PRODUCT_TYPE_CONFIG] || PRODUCT_TYPE_CONFIG.ea;
   const IconComponent = config.icon;
   const features = typeof product.features === 'string' ? JSON.parse(product.features) : (product.features || []);
+  
+  // 解析多图
+  let imagesArray: string[] = [];
+  if (product.images) {
+    try {
+      imagesArray = JSON.parse(product.images);
+    } catch {
+      imagesArray = [];
+    }
+  }
+  // 如果没有多图但有主图，也加入
+  if (product.imageUrl && !imagesArray.includes(product.imageUrl)) {
+    imagesArray.unshift(product.imageUrl);
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-purple-50 dark:from-gray-900 dark:to-slate-900 py-8 px-4">
@@ -237,15 +252,19 @@ export default function ProductDetailPage() {
 
               <TabsContent value="details" className="space-y-6">
                 {/* Product Images */}
-                {product.imageUrl && (
+                {imagesArray.length > 0 && (
                   <div className="space-y-4">
                     <h3 className="text-lg font-semibold">产品截图</h3>
-                    <div className="border rounded-lg overflow-hidden">
-                      <img 
-                        src={`/api/ea/image?path=${encodeURIComponent(product.imageUrl)}`} 
-                        alt={product.name}
-                        className="w-full h-auto"
-                      />
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                      {imagesArray.map((img, index) => (
+                        <div key={index} className="border rounded-lg overflow-hidden">
+                          <img 
+                            src={`/api/ea/image?path=${encodeURIComponent(img)}`} 
+                            alt={`${product.name} - 图${index + 1}`}
+                            className="w-full h-auto"
+                          />
+                        </div>
+                      ))}
                     </div>
                   </div>
                 )}

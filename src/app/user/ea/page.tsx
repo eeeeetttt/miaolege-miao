@@ -52,6 +52,7 @@ interface EaProduct {
   features: string | null;
   productType: string | null;
   imageUrl: string | null;
+  images: string | null; // 多图，JSON数组
   downloadUrl: string | null;
   fileName: string | null;
   fileSize: number | null;
@@ -105,8 +106,10 @@ export default function UserEaPage() {
     features: '',
     productType: 'ea',
     imageUrl: '',
+    images: '[]', // 多图JSON数组
   });
   const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [imagesPreview, setImagesPreview] = useState<string[]>([]); // 多图预览
 
   // 认证检查
   useEffect(() => {
@@ -161,8 +164,10 @@ export default function UserEaPage() {
       features: '',
       productType: 'ea',
       imageUrl: '',
+      images: '[]',
     });
     setImagePreview(null);
+    setImagesPreview([]);
     setDialogOpen(true);
   };
 
@@ -179,8 +184,16 @@ export default function UserEaPage() {
       features: product.features ? JSON.parse(product.features).join('\n') : '',
       productType: product.productType || 'ea',
       imageUrl: product.imageUrl || '',
+      images: product.images || '[]',
     });
     setImagePreview(product.imageUrl || null);
+    // 解析多图
+    try {
+      const imagesArray = product.images ? JSON.parse(product.images) : [];
+      setImagesPreview(imagesArray);
+    } catch {
+      setImagesPreview([]);
+    }
     setDialogOpen(true);
   };
 
@@ -213,6 +226,7 @@ export default function UserEaPage() {
           productType: formData.productType,
           features: JSON.stringify(features),
           imageUrl: formData.imageUrl,
+          images: formData.images,
           productId: editingProduct?.id,
         }),
       });
@@ -396,6 +410,52 @@ export default function UserEaPage() {
     }
   };
 
+  // 上传多图
+  const handleMultiImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+
+    setUploadingImage(-1);
+
+    try {
+      const currentImages = JSON.parse(formData.images || '[]');
+      
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        const uploadFormData = new FormData();
+        uploadFormData.append('file', file);
+        uploadFormData.append('type', 'image');
+
+        const res = await fetch('/api/ea/upload-image', {
+          method: 'POST',
+          body: uploadFormData,
+        });
+
+        const data = await res.json();
+
+        if (res.ok && data.url) {
+          currentImages.push(data.url);
+        }
+      }
+
+      setFormData(prev => ({ ...prev, images: JSON.stringify(currentImages) }));
+      setImagesPreview(currentImages);
+      showSuccess('图片上传成功！');
+    } catch (err) {
+      showError('上传失败');
+    } finally {
+      setUploadingImage(null);
+    }
+  };
+
+  // 删除多图
+  const handleRemoveImage = (index: number) => {
+    const currentImages = JSON.parse(formData.images || '[]');
+    currentImages.splice(index, 1);
+    setFormData(prev => ({ ...prev, images: JSON.stringify(currentImages) }));
+    setImagesPreview(currentImages);
+  };
+
   // 获取产品类型配置
   const getTypeConfig = (type: string) => {
     return PRODUCT_TYPES.find(t => t.value === type) || PRODUCT_TYPES[0];
@@ -538,9 +598,10 @@ export default function UserEaPage() {
                         {product.imageUrl ? (
                           <>
                             <img 
-                              src={product.imageUrl} 
+                              src={`/api/ea/image?path=${encodeURIComponent(product.imageUrl)}`}
                               alt="" 
                               className="w-8 h-8 rounded object-cover border"
+                              onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
                             />
                             <Button
                               size="sm"
@@ -677,59 +738,59 @@ export default function UserEaPage() {
 
               {/* 产品图片 */}
               <div className="space-y-2">
-                <Label>产品图片</Label>
-                <div className="flex items-start gap-4">
-                  <div className="flex-1">
-                    {imagePreview ? (
-                      <div className="relative inline-block">
-                        <img 
-                          src={imagePreview} 
-                          alt="预览" 
-                          className="max-w-[200px] max-h-[150px] rounded-lg border"
-                        />
-                        <Button
-                          size="sm"
-                          variant="destructive"
-                          className="absolute -top-2 -right-2 h-6 w-6 p-0"
-                          onClick={() => {
-                            setFormData(prev => ({ ...prev, imageUrl: '' }));
-                            setImagePreview(null);
-                          }}
-                        >
-                          <X className="w-4 h-4" />
-                        </Button>
-                      </div>
-                    ) : (
-                      <div className="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg p-8 text-center">
-                        <ImageIcon className="w-8 h-8 mx-auto mb-2 text-gray-400" />
-                        <p className="text-sm text-gray-500">点击下方按钮上传产品图片</p>
-                        <p className="text-xs text-gray-400 mt-1">支持 JPG、PNG，最大 5MB</p>
-                      </div>
-                    )}
-                  </div>
-                  <div>
-                    <input
-                      type="file"
-                      accept="image/jpeg,image/png,image/gif,image/webp"
-                      className="hidden"
-                      onChange={handleFormImageUpload}
-                      id="form-image-upload"
-                    />
-                    <Button
-                      variant="outline"
-                      onClick={() => document.getElementById('form-image-upload')?.click()}
-                      disabled={uploadingImage === -1}
-                    >
-                      {uploadingImage === -1 ? (
-                        <Spinner className="w-4 h-4" />
-                      ) : (
-                        <>
-                          <Upload className="w-4 h-4 mr-2" />
-                          {formData.imageUrl ? '更换图片' : '上传图片'}
-                        </>
-                      )}
-                    </Button>
-                  </div>
+                <Label>产品图片（最多9张）</Label>
+                <div className="space-y-3">
+                  {/* 多图预览 */}
+                  {imagesPreview.length > 0 && (
+                    <div className="flex flex-wrap gap-2">
+                      {imagesPreview.map((img, index) => (
+                        <div key={index} className="relative group">
+                          <img 
+                            src={`/api/ea/image?path=${encodeURIComponent(img)}`}
+                            alt={`图片${index + 1}`}
+                            className="w-20 h-20 rounded-lg border object-cover"
+                          />
+                          <Button
+                            size="sm"
+                            variant="destructive"
+                            className="absolute -top-2 -right-2 h-6 w-6 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
+                            onClick={() => handleRemoveImage(index)}
+                          >
+                            <X className="w-4 h-4" />
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  
+                  {/* 上传按钮 */}
+                  {imagesPreview.length < 9 && (
+                    <div>
+                      <input
+                        type="file"
+                        accept="image/jpeg,image/png,image/gif,image/webp"
+                        className="hidden"
+                        onChange={handleMultiImageUpload}
+                        id="form-multi-image-upload"
+                        multiple
+                      />
+                      <Button
+                        variant="outline"
+                        onClick={() => document.getElementById('form-multi-image-upload')?.click()}
+                        disabled={uploadingImage === -1}
+                      >
+                        {uploadingImage === -1 ? (
+                          <Spinner className="w-4 h-4" />
+                        ) : (
+                          <>
+                            <Upload className="w-4 h-4 mr-2" />
+                            {imagesPreview.length > 0 ? '继续添加图片' : '上传图片'}
+                          </>
+                        )}
+                      </Button>
+                      <p className="text-xs text-gray-400 mt-1">支持 JPG、PNG，最多9张，每张最大 5MB</p>
+                    </div>
+                  )}
                 </div>
               </div>
 

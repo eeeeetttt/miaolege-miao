@@ -35,6 +35,7 @@ export async function GET() {
       fileName: p.fileName,
       fileSize: p.fileSize,
       imageUrl: p.imageUrl,
+      images: p.images,
       creatorId: p.creatorId,
       salesCount: p.salesCount,
       createdAt: p.createdAt,
@@ -58,7 +59,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { productId, name, description, price, version, platform, category, productType, features, imageUrl } = body;
+    const { productId, name, description, price, version, platform, category, productType, features, imageUrl, images } = body;
 
     if (!name || price === undefined) {
       return NextResponse.json({ error: '缺少必要参数' }, { status: 400 });
@@ -97,6 +98,7 @@ export async function POST(request: NextRequest) {
           productType: finalProductType,
           features: features || null,
           imageUrl: imageUrl || null,
+          images: images || null,
         })
         .where(eq(eaProducts.id, productId));
 
@@ -115,6 +117,7 @@ export async function POST(request: NextRequest) {
           productType: finalProductType,
           features: features || null,
           imageUrl: imageUrl || null,
+          images: images || null,
           status: 'active',
           creatorId: session.user.id, // 自动设置创建者
         });

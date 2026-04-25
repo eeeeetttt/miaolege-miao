@@ -199,7 +199,8 @@ export const eaProducts = mysqlTable('ea_products', {
   downloadUrl: varchar('download_url', { length: 500 }), // 下载链接
   fileName: varchar('file_name', { length: 255 }), // 文件名
   fileSize: int('file_size'), // 文件大小(KB)
-  imageUrl: varchar('image_url', { length: 500 }), // 产品图片
+  imageUrl: varchar('image_url', { length: 500 }), // 产品主图
+  images: text('images'), // 产品多图，JSON数组格式
   status: mysqlEnum('status', ['active', 'inactive']).default('active'),
   creatorId: varchar('creator_id', { length: 255 }), // 创建者ID
   salesCount: int('sales_count').default(0), // 销售数量
