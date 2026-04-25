@@ -95,6 +95,7 @@ export default function EaManagePage() {
     features: '',
     productType: 'ea', // 新增产品类型
     imageUrl: '', // 产品图片
+    images: '[]', // 产品多图
   });
   const [uploadingImage, setUploadingImage] = useState<number | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
@@ -350,6 +351,7 @@ export default function EaManagePage() {
       features: product.features ? JSON.parse(product.features).join('\n') : '',
       productType: (product as any).productType || 'ea',
       imageUrl: (product as any).imageUrl || '',
+      images: (product as any).images || '[]',
     });
     setImagePreview((product as any).imageUrl || null);
     setDialogOpen(true);
@@ -367,6 +369,7 @@ export default function EaManagePage() {
       features: '',
       productType: 'ea',
       imageUrl: '',
+      images: '[]',
     });
     setImagePreview(null);
   };
