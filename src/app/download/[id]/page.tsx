@@ -242,7 +242,7 @@ export default function ProductDetailPage() {
                     <h3 className="text-lg font-semibold">产品截图</h3>
                     <div className="border rounded-lg overflow-hidden">
                       <img 
-                        src={product.imageUrl} 
+                        src={`/api/ea/image?path=${encodeURIComponent(product.imageUrl)}`} 
                         alt={product.name}
                         className="w-full h-auto"
                       />
