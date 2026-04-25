@@ -55,6 +55,7 @@ interface EaProduct {
   salesCount: number | null;
   createdAt: Date | null;
   imageUrl: string | null;
+  images: string | null; // 多图
   creatorId: string | null;
 }
 
@@ -121,7 +122,7 @@ export default function EaManagePage() {
 
   const fetchProducts = async () => {
     try {
-      const res = await fetch('/api/ea/manage');
+      const res = await fetch('/api/ea/manage', { credentials: 'include' });
       const data = await res.json();
       if (res.ok) {
         setProducts(data.products || []);
@@ -168,6 +169,7 @@ export default function EaManagePage() {
 
       const res = await fetch('/api/ea/upload-image', {
         method: 'POST',
+        credentials: 'include',
         body: formData,
       });
 
@@ -216,6 +218,7 @@ export default function EaManagePage() {
 
       const res = await fetch('/api/ea/upload-image', {
         method: 'POST',
+        credentials: 'include',
         body: formData,
       });
 
@@ -252,6 +255,7 @@ export default function EaManagePage() {
 
       const res = await fetch('/api/ea/upload', {
         method: 'POST',
+        credentials: 'include',
         body: formData,
       });
 
@@ -306,11 +310,13 @@ export default function EaManagePage() {
         productType: formData.productType,
         features: JSON.stringify(features),
         imageUrl: formData.imageUrl,
+        images: formData.images,
         productId: editingProduct?.id,
       };
 
       const res = await fetch('/api/ea/manage', {
         method: 'POST',
+        credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
       });

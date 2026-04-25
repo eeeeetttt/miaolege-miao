@@ -45,7 +45,8 @@ export async function GET() {
     return NextResponse.json({ products: formattedProducts });
   } catch (error) {
     console.error('Get EA products error:', error);
-    return NextResponse.json({ error: '获取产品列表失败' }, { status: 500 });
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    return NextResponse.json({ error: `获取产品列表失败: ${errorMessage}` }, { status: 500 });
   }
 }
 
