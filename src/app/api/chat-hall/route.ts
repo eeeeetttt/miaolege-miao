@@ -268,7 +268,9 @@ export async function POST(request: NextRequest) {
 
     if ((recentCount || 0) >= hourlyLimit) {
       return NextResponse.json({ 
-        error: `每小时最多发送${hourlyLimit}条消息，请稍后再试` 
+        error: `每小时最多发送${hourlyLimit}条消息，请稍后再试`,
+        remainingCount: 0,
+        hourlyLimit,
       }, { status: 429 });
     }
 

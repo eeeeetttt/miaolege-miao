@@ -265,6 +265,13 @@ export function ChatHall() {
           }, 1000);
         }
       } else if (res.status === 429) {
+        // 429 错误时也更新剩余次数
+        if (data.remainingCount !== undefined) {
+          setRemainingCount(data.remainingCount);
+        }
+        if (data.hourlyLimit !== undefined) {
+          setHourlyLimit(data.hourlyLimit);
+        }
         setError(data.error || '发言次数已用完');
         setRemainingCount(0);
       } else if (res.status === 403) {

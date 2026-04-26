@@ -123,6 +123,13 @@ export function ChatHallAdmin() {
           is_time_limited: '时间限制开关',
         };
         setSuccess(`${keyNames[key] || key}已更新`);
+        
+        // 更新本地配置状态
+        setConfig((prev: any) => ({
+          ...prev,
+          [key]: key === 'hourly_limit' ? parseInt(value) || 3 : value,
+        }));
+        
         setTimeout(() => setSuccess(''), 3000);
       } else {
         setError(data.error || '保存失败');
