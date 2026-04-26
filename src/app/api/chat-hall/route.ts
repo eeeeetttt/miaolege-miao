@@ -310,7 +310,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: '发送消息失败' }, { status: 500 });
     }
 
-    // 触发店小二回复（异步执行，不阻塞主响应）
+    // 触发AI角色回复（异步执行，不阻塞主响应）
     triggerAIReply(supabase, session.user.id, userData?.name || session.user.name || '匿名用户', content.trim());
 
     return NextResponse.json({
@@ -325,89 +325,105 @@ export async function POST(request: NextRequest) {
   }
 }
 
-// 触发店小二回复（异步执行，不阻塞主响应）
+// 触发AI角色回复（支持多角色）
 async function triggerAIReply(supabase: any, userId: string, userName: string, userMessage: string) {
   try {
-    // 获取店小二配置
-    const { data: aiConfig } = await supabase
-      .from('chat_hall_ai_config')
-      .select('enabled, reply_probability, max_response_length, system_prompt')
-      .eq('id', 1)
-      .maybeSingle();
+    // 获取所有启用的AI角色
+    const { data: roles } = await supabase
+      .from('chat_hall_ai_roles')
+      .select('*')
+      .eq('enabled', true)
+      .order('sort_order', { ascending: true });
 
-    // 如果未启用，直接返回
-    if (!aiConfig || aiConfig.enabled === false) {
+    if (!roles || roles.length === 0) {
+      console.log('[AI] 没有启用的角色');
       return;
     }
 
-    // 根据概率决定是否回复
-    const probability = aiConfig.reply_probability || 50;
-    const random = Math.random() * 100;
-    
-    if (random > probability) {
-      console.log(`[店小二] 未触发回复 (随机数: ${random.toFixed(2)}, 概率: ${probability}%)`);
-      return;
-    }
-
-    console.log(`[店小二] 触发回复 (随机数: ${random.toFixed(2)}, 概率: ${probability}%)`);
-
-    // 获取 AI 配置
+    // 获取 API Key
     const apiKey = process.env.DEEPSEEK_API_KEY;
     if (!apiKey) {
-      console.error('[店小二] AI服务未配置');
+      console.error('[AI] API Key 未配置');
       return;
     }
 
-    // 构建 AI 消息
-    const systemPrompt = aiConfig.system_prompt || '你是金火火茶馆的店小二，为来往的客人服务。';
-    const maxLength = aiConfig.max_response_length || 200;
+    // 遍历每个角色，检查是否需要回复
+    for (const role of roles) {
+      // 检查是否通过触发词匹配
+      const triggerKeyword = role.trigger_keyword?.trim();
+      let shouldTrigger = false;
 
-    // 调用 DeepSeek API
-    const response = await fetch('https://api.deepseek.com/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
-        model: 'deepseek-chat',
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: userMessage },
-        ],
-        max_tokens: maxLength,
-        temperature: 0.7,
-      }),
-    });
+      if (triggerKeyword) {
+        // 如果有触发词，检查消息是否包含触发词
+        shouldTrigger = userMessage.includes(triggerKeyword);
+      } else {
+        // 如果没有触发词，根据概率随机触发
+        const probability = role.reply_probability || 50;
+        const random = Math.random() * 100;
+        shouldTrigger = random <= probability;
+      }
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error('[店小二] API调用失败:', errorText);
-      return;
+      if (!shouldTrigger) {
+        console.log(`[${role.name}] 未触发 (触发词: ${triggerKeyword || '无'}, 概率: ${role.reply_probability}%)`);
+        continue;
+      }
+
+      console.log(`[${role.name}] 触发回复`);
+
+      // 构建 AI 请求
+      const systemPrompt = role.system_prompt || `你是${role.name}，愿意帮助用户解答问题。`;
+      const maxLength = role.max_response_length || 200;
+
+      try {
+        const response = await fetch('https://api.deepseek.com/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${apiKey}`,
+          },
+          body: JSON.stringify({
+            model: 'deepseek-chat',
+            messages: [
+              { role: 'system', content: systemPrompt },
+              { role: 'user', content: userMessage },
+            ],
+            max_tokens: maxLength,
+            temperature: 0.7,
+          }),
+        });
+
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.error(`[${role.name}] API调用失败:`, errorText);
+          continue;
+        }
+
+        const aiData = await response.json();
+        const aiReply = aiData.choices?.[0]?.message?.content?.trim();
+
+        if (!aiReply) {
+          console.error(`[${role.name}] 未获取到有效回复`);
+          continue;
+        }
+
+        // 保存 AI 回复
+        await supabase
+          .from('chat_hall_messages')
+          .insert({
+            user_id: `ai_${role.id}`,
+            user_name: role.name,
+            user_avatar: role.avatar_url || null,
+            content: aiReply,
+            is_system: 0,
+            is_premium: 1,
+          });
+
+        console.log(`[${role.name}] 已发送回复: ${aiReply.substring(0, 50)}...`);
+      } catch (error) {
+        console.error(`[${role.name}] 回复失败:`, error);
+      }
     }
-
-    const aiData = await response.json();
-    const aiReply = aiData.choices?.[0]?.message?.content?.trim();
-
-    if (!aiReply) {
-      console.error('[店小二] 未获取到有效回复');
-      return;
-    }
-
-    // 保存 AI 回复
-    await supabase
-      .from('chat_hall_messages')
-      .insert({
-        user_id: 'ai_dian',
-        user_name: '店小二',
-        user_avatar: null,
-        content: aiReply,
-        is_system: 0,
-        is_premium: 1,
-      });
-
-    console.log(`[店小二] 已发送回复: ${aiReply.substring(0, 50)}...`);
   } catch (error) {
-    console.error('[店小二] 回复失败:', error);
+    console.error('[AI] 触发回复失败:', error);
   }
 }
