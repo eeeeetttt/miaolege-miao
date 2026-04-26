@@ -7,9 +7,20 @@ import { getSupabaseClient } from '@/storage/database/supabase-client';
 export async function GET() {
   try {
     const session = await getServerSession(authOptions);
-    console.log('Admin GET session:', JSON.stringify(session));
+    
+    // 详细日志
+    console.log('Admin GET session:', {
+      exists: !!session,
+      hasUser: !!session?.user,
+      userId: session?.user?.id,
+      role: session?.user?.role
+    });
+    
     if (!session?.user?.id || session.user.role !== 'admin') {
-      return NextResponse.json({ error: '需要管理员权限', session: session ? { id: session.user?.id, role: session.user?.role } : null }, { status: 403 });
+      return NextResponse.json({ 
+        error: '需要管理员权限',
+        debug: { hasSession: !!session, hasUser: !!session?.user }
+      }, { status: 403 });
     }
 
     const supabase = getSupabaseClient();
@@ -106,9 +117,20 @@ export async function GET() {
 export async function POST(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
-    console.log('Admin POST session:', JSON.stringify(session));
+    
+    // 详细日志
+    console.log('Admin POST session:', {
+      exists: !!session,
+      hasUser: !!session?.user,
+      userId: session?.user?.id,
+      role: session?.user?.role
+    });
+    
     if (!session?.user?.id || session.user.role !== 'admin') {
-      return NextResponse.json({ error: '需要管理员权限', session: session ? { id: session.user?.id, role: session.user?.role } : null }, { status: 403 });
+      return NextResponse.json({ 
+        error: '需要管理员权限',
+        debug: { hasSession: !!session, hasUser: !!session?.user }
+      }, { status: 403 });
     }
 
     const supabase = getSupabaseClient();
