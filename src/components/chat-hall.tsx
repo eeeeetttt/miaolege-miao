@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useSession } from 'next-auth/react';
-import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -32,7 +31,7 @@ const DIAN_XIAO_ER = {
   user_id: 'dianxiaoer_001',
   user_name: '店小二',
   is_system: 0,
-  is_premium: 1, // 使用VIP样式，让名字有颜色
+  is_premium: 1,
 };
 
 // 店小二的系统提示词
@@ -60,7 +59,6 @@ const SYSTEM_PROMPT = `你是金火火茶馆的店小二，为来往的客人服
 请用简洁友好的方式回复，不要太长，保持对话自然流畅。`;
 
 export function ChatHall() {
-  const router = useRouter();
   const { data: session } = useSession();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [newMessage, setNewMessage] = useState('');
@@ -78,6 +76,7 @@ export function ChatHall() {
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const messagesRef = useRef<ChatMessage[]>([]); // 使用 ref 存储最新消息
 
   const userRole = session?.user?.role as string | undefined;
   const isPremium = userRole === 'premium' || userRole === 'vip' || userRole === 'admin';
@@ -91,9 +90,10 @@ export function ChatHall() {
       const data = await res.json();
       if (data.success) {
         setMessages(data.data || []);
+        messagesRef.current = data.data || []; // 更新 ref
         setIsMuted(data.userStatus?.isMuted || false);
         setMuteExpiresAt(data.userStatus?.muteExpiresAt);
-        setRemainingCount(data.remainingCount ?? 3);
+        setRemainingCount(data.userStatus?.remainingCount ?? 3);
         if (data.config) {
           setHourlyLimit(data.config.hourlyLimit || 3);
           setIsOpen(data.config.isOpen !== false);
@@ -124,15 +124,17 @@ export function ChatHall() {
   }, [messages]);
 
   // 调用AI回复
-  const getAIResponse = async (userMessage: string, conversationHistory: ChatMessage[]) => {
+  const getAIResponse = async (userMessage: string) => {
     try {
-      // 构建消息历史（最近10条）
-      const recentMessages = conversationHistory.slice(-10);
+      // 使用 ref 获取最新的消息历史
+      const recentMessages = messagesRef.current.slice(-10);
       const chatMessages = recentMessages.map(msg => ({
         role: msg.user_id === DIAN_XIAO_ER.user_id ? 'assistant' : 'user',
         content: `${msg.user_name}说：${msg.content}`
       }));
       chatMessages.push({ role: 'user', content: userMessage });
+
+      console.log('[店小二] 正在获取AI回复...');
 
       const response = await fetch('/api/ai/chat', {
         method: 'POST',
@@ -176,9 +178,10 @@ export function ChatHall() {
         }
       }
 
+      console.log('[店小二] AI回复内容:', aiContent);
       return aiContent;
     } catch (err) {
-      console.error('AI response error:', err);
+      console.error('[店小二] AI响应错误:', err);
       return null;
     }
   };
@@ -186,7 +189,8 @@ export function ChatHall() {
   // 保存AI消息到数据库
   const saveAIMessage = async (content: string) => {
     try {
-      await fetch('/api/chat-hall', {
+      console.log('[店小二] 保存消息到数据库:', content);
+      const res = await fetch('/api/chat-hall', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
@@ -196,9 +200,20 @@ export function ChatHall() {
           aiUserName: DIAN_XIAO_ER.user_name,
         }),
       });
+      const data = await res.json();
+      console.log('[店小二] 保存结果:', data);
+      return data.success;
     } catch (err) {
-      console.error('Save AI message error:', err);
+      console.error('[店小二] 保存消息错误:', err);
+      return false;
     }
+  };
+
+  // 检查是否需要AI回复（只针对@店小二或明确的提问）
+  const shouldAIReply = (content: string): boolean => {
+    const trimmedContent = content.trim();
+    // 只在明确@店小二时回复
+    return trimmedContent.includes('@店小二');
   };
 
   // 发送聊天室消息
@@ -211,6 +226,10 @@ export function ChatHall() {
     const messageContent = newMessage.trim();
     setNewMessage('');
 
+    // 记录是否需要AI回复
+    const needAI = shouldAIReply(messageContent);
+    console.log('[发送消息]', messageContent, '需要AI回复:', needAI);
+
     try {
       const res = await fetch('/api/chat-hall', {
         method: 'POST',
@@ -222,26 +241,28 @@ export function ChatHall() {
       if (data.success) {
         await loadMessages();
         
-        // 检查是否需要AI回复
-        const shouldAIReply = messageContent.includes('@店小二') || 
-                            messageContent.includes('小二') ||
-                            messageContent.includes('请问') ||
-                            messageContent.includes('？');
-        
-        if (shouldAIReply && !aiTyping) {
+        // 如果需要AI回复
+        if (needAI && !aiTyping) {
           setAiTyping(true);
           
           // 延迟一下再请求，让用户看到消息已发送
           setTimeout(async () => {
-            const response = await getAIResponse(messageContent, messages);
+            console.log('[店小二] 开始获取AI回复...');
+            const response = await getAIResponse(messageContent);
             
-            if (response) {
-              await saveAIMessage(response);
-              await loadMessages();
+            if (response && response.trim()) {
+              console.log('[店小二] 获取到回复，准备保存...');
+              const saved = await saveAIMessage(response);
+              if (saved) {
+                console.log('[店小二] 保存成功，刷新消息列表');
+                await loadMessages();
+              }
+            } else {
+              console.log('[店小二] 未获取到有效回复');
             }
             
             setAiTyping(false);
-          }, 500);
+          }, 1000);
         }
       } else if (res.status === 429) {
         setError(data.error || '发言次数已用完');
@@ -270,7 +291,6 @@ export function ChatHall() {
 
   // 获取消息样式
   const getMessageStyle = (msg: ChatMessage) => {
-    // 店小二使用VIP样式
     if (msg.user_id === DIAN_XIAO_ER.user_id) {
       return 'bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-900/20 dark:to-orange-900/20 border border-amber-200 dark:border-amber-800';
     }
@@ -285,7 +305,6 @@ export function ChatHall() {
 
   // 获取用户名样式
   const getUserNameStyle = (msg: ChatMessage) => {
-    // 店小二使用金色样式
     if (msg.user_id === DIAN_XIAO_ER.user_id) {
       return 'text-amber-600 dark:text-amber-400 font-semibold';
     }
@@ -467,14 +486,14 @@ export function ChatHall() {
                 <span className="text-gray-500">
                   剩余发言次数: <span className={remainingCount <= 0 ? 'text-red-500 font-bold' : remainingCount <= 1 ? 'text-amber-500 font-bold' : 'text-green-500 font-bold'}>{remainingCount}</span> / {hourlyLimit} 条
                 </span>
-                <span className="text-xs text-gray-400">每小时重置 · 可@店小二提问</span>
+                <span className="text-xs text-gray-400">每小时重置</span>
               </div>
               <div className="flex gap-2">
                 <Input
                   ref={inputRef}
                   value={newMessage}
                   onChange={e => setNewMessage(e.target.value)}
-                  placeholder={remainingCount <= 0 ? '今日发言次数已用完' : '输入消息...（可@店小二提问）'}
+                  placeholder={remainingCount <= 0 ? '今日发言次数已用完' : '输入消息...（@店小二 提问）'}
                   disabled={sending || remainingCount <= 0}
                   maxLength={200}
                   onKeyDown={e => e.key === 'Enter' && handleSend()}
