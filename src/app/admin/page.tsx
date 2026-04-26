@@ -50,6 +50,7 @@ import {
 } from 'lucide-react';
 import { ChatHallAdmin } from '@/components/chat-hall-admin';
 import { DatabaseManager } from '@/components/database-manager';
+import AIConfigPanel from '@/components/ai-config-admin';
 
 // 系统配置
 interface SystemConfig {
@@ -1017,6 +1018,15 @@ export default function AdminDashboardPage() {
               >
                 <QrCode className="w-4 h-4" />
                 微信充值
+              </Button>
+              <Button
+                size="sm"
+                variant={activeTab === 'aiConfig' ? 'default' : 'outline'}
+                onClick={() => setActiveTab('aiConfig')}
+                className="gap-2"
+              >
+                <Lightbulb className="w-4 h-4" />
+                店小二
               </Button>
             </div>
           </div>
@@ -2002,6 +2012,11 @@ export default function AdminDashboardPage() {
           {/* 聊天大厅 Tab */}
           <TabsContent value="chatHall">
             <ChatHallAdmin />
+          </TabsContent>
+
+          {/* 店小二配置 Tab */}
+          <TabsContent value="aiConfig">
+            <AIConfigPanel />
           </TabsContent>
         </Tabs>
 

@@ -310,6 +310,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: '发送消息失败' }, { status: 500 });
     }
 
+    // 触发店小二回复（异步执行，不阻塞主响应）
+    triggerAIReply(supabase, session.user.id, userData?.name || session.user.name || '匿名用户', content.trim());
+
     return NextResponse.json({
       success: true,
       data,
@@ -319,5 +322,92 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error('Send chat message error:', error);
     return NextResponse.json({ error: '发送消息失败' }, { status: 500 });
+  }
+}
+
+// 触发店小二回复（异步执行，不阻塞主响应）
+async function triggerAIReply(supabase: any, userId: string, userName: string, userMessage: string) {
+  try {
+    // 获取店小二配置
+    const { data: aiConfig } = await supabase
+      .from('chat_hall_ai_config')
+      .select('enabled, reply_probability, max_response_length, system_prompt')
+      .eq('id', 1)
+      .maybeSingle();
+
+    // 如果未启用，直接返回
+    if (!aiConfig || aiConfig.enabled === false) {
+      return;
+    }
+
+    // 根据概率决定是否回复
+    const probability = aiConfig.reply_probability || 50;
+    const random = Math.random() * 100;
+    
+    if (random > probability) {
+      console.log(`[店小二] 未触发回复 (随机数: ${random.toFixed(2)}, 概率: ${probability}%)`);
+      return;
+    }
+
+    console.log(`[店小二] 触发回复 (随机数: ${random.toFixed(2)}, 概率: ${probability}%)`);
+
+    // 获取 AI 配置
+    const apiKey = process.env.DEEPSEEK_API_KEY;
+    if (!apiKey) {
+      console.error('[店小二] AI服务未配置');
+      return;
+    }
+
+    // 构建 AI 消息
+    const systemPrompt = aiConfig.system_prompt || '你是金火火茶馆的店小二，为来往的客人服务。';
+    const maxLength = aiConfig.max_response_length || 200;
+
+    // 调用 DeepSeek API
+    const response = await fetch('https://api.deepseek.com/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({
+        model: 'deepseek-chat',
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userMessage },
+        ],
+        max_tokens: maxLength,
+        temperature: 0.7,
+      }),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('[店小二] API调用失败:', errorText);
+      return;
+    }
+
+    const aiData = await response.json();
+    const aiReply = aiData.choices?.[0]?.message?.content?.trim();
+
+    if (!aiReply) {
+      console.error('[店小二] 未获取到有效回复');
+      return;
+    }
+
+    // 保存 AI 回复
+    await supabase
+      .from('chat_hall_messages')
+      .insert({
+        user_id: 'ai_dian',
+        user_name: '店小二',
+        user_avatar: null,
+        content: aiReply,
+        is_system: 0,
+        is_premium: 1,
+      });
+
+    console.log(`[店小二] 已发送回复: ${aiReply.substring(0, 50)}...`);
+  } catch (error) {
+    console.error('[店小二] 回复失败:', error);
   }
 }
