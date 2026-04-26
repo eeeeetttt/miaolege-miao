@@ -51,7 +51,7 @@ export async function GET() {
         description: '消息最大长度',
       };
       configMap.hourly_limit = {
-        value: String(config.hourly_limit || 3),
+        value: String(config.hourly_limit || 30),
         description: '每小时发言限制',
       };
       configMap.open_time_start = {
@@ -162,7 +162,7 @@ export async function POST(request: NextRequest) {
       } else if (key === 'max_message_length') {
         updateData.max_message_length = parseInt(value) || 500;
       } else if (key === 'hourly_limit') {
-        updateData.hourly_limit = parseInt(value) || 3;
+        updateData.hourly_limit = parseInt(value) || 30;
       } else if (key === 'open_time_start') {
         updateData.open_time_start = value;
       } else if (key === 'open_time_end') {

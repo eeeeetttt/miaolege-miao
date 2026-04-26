@@ -75,7 +75,7 @@ export function ChatHallAdmin() {
       const data = await res.json();
       if (data.success) {
         setConfig({
-          hourly_limit: { value: data.config?.hourly_limit?.value || '3', description: '每小时发言限制' },
+          hourly_limit: { value: data.config?.hourly_limit?.value || '30', description: '每小时发言限制' },
           enabled: { value: data.config?.enabled?.value || 'true', description: '是否开启聊天大厅' },
           open_time_start: { value: data.config?.open_time_start?.value || '20:00', description: '开放开始时间' },
           open_time_end: { value: data.config?.open_time_end?.value || '00:00', description: '开放结束时间' },
@@ -129,7 +129,7 @@ export function ChatHallAdmin() {
           ...prev,
           [key]: {
             ...prev[key],
-            value: key === 'hourly_limit' ? parseInt(value) || 3 : value,
+            value: key === 'hourly_limit' ? parseInt(value) || 30 : value,
           },
         }));
         
@@ -292,7 +292,7 @@ export function ChatHallAdmin() {
             <div className="flex items-center gap-2">
               <Input
                 type="number"
-                value={config?.hourly_limit?.value || '3'}
+                value={config?.hourly_limit?.value || '30'}
                 onChange={(e) => setConfig({
                   ...config!,
                   hourly_limit: { ...config!.hourly_limit, value: e.target.value }
@@ -304,7 +304,7 @@ export function ChatHallAdmin() {
               <span className="text-gray-500 text-sm">条/小时</span>
               <Button
                 size="sm"
-                onClick={() => handleSaveConfig('hourly_limit', config?.hourly_limit?.value || '3')}
+                onClick={() => handleSaveConfig('hourly_limit', config?.hourly_limit?.value || '30')}
                 disabled={saving}
               >
                 <Save className="w-4 h-4" />

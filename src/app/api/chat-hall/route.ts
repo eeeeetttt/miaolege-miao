@@ -86,7 +86,7 @@ export async function GET(request: NextRequest) {
 
     const enabled = config?.enabled !== 0;
     const maxMessageLength = config?.max_message_length || 200;
-    const hourlyLimit = config?.hourly_limit || 3;
+    const hourlyLimit = config?.hourly_limit || 30;
     const openTimeStart = config?.open_time_start || '20:00';
     const openTimeEnd = config?.open_time_end || '00:00';
     const timezone = config?.timezone || 'Asia/Shanghai';
@@ -218,7 +218,7 @@ export async function POST(request: NextRequest) {
 
     const enabled = config?.enabled !== 0;
     const maxMessageLength = config?.max_message_length || 200;
-    const hourlyLimit = config?.hourly_limit || 3;
+    const hourlyLimit = config?.hourly_limit || 30;
     const openTimeStart = config?.open_time_start || '20:00';
     const openTimeEnd = config?.open_time_end || '00:00';
     const timezone = config?.timezone || 'Asia/Shanghai';

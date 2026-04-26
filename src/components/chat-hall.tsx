@@ -68,7 +68,7 @@ export function ChatHall() {
   const [isMuted, setIsMuted] = useState(false);
   const [muteExpiresAt, setMuteExpiresAt] = useState<string | null>(null);
   const [remainingCount, setRemainingCount] = useState(3);
-  const [hourlyLimit, setHourlyLimit] = useState(3);
+  const [hourlyLimit, setHourlyLimit] = useState(30);
   const [isOpen, setIsOpen] = useState(true);
   const [openTimeStart, setOpenTimeStart] = useState<string | null>(null);
   const [openTimeEnd, setOpenTimeEnd] = useState<string | null>(null);
@@ -93,9 +93,9 @@ export function ChatHall() {
         messagesRef.current = data.data || []; // 更新 ref
         setIsMuted(data.userStatus?.isMuted || false);
         setMuteExpiresAt(data.userStatus?.muteExpiresAt);
-        setRemainingCount(data.userStatus?.remainingCount ?? 3);
+        setRemainingCount(data.userStatus?.remainingCount ?? 30);
         if (data.config) {
-          setHourlyLimit(data.config.hourlyLimit || 3);
+          setHourlyLimit(data.config.hourlyLimit || 30);
           setIsOpen(data.config.isOpen !== false);
           setOpenTimeStart(data.config.openTimeStart);
           setOpenTimeEnd(data.config.openTimeEnd);
