@@ -313,6 +313,8 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       success: true,
       data,
+      remainingCount: Math.max(0, hourlyLimit - (recentCount || 0) - 1),
+      hourlyLimit,
     });
   } catch (error) {
     console.error('Send chat message error:', error);

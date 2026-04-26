@@ -127,7 +127,10 @@ export function ChatHallAdmin() {
         // 更新本地配置状态
         setConfig((prev: any) => ({
           ...prev,
-          [key]: key === 'hourly_limit' ? parseInt(value) || 3 : value,
+          [key]: {
+            ...prev[key],
+            value: key === 'hourly_limit' ? parseInt(value) || 3 : value,
+          },
         }));
         
         setTimeout(() => setSuccess(''), 3000);
