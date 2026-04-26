@@ -7,8 +7,9 @@ import { getSupabaseClient } from '@/storage/database/supabase-client';
 export async function GET() {
   try {
     const session = await getServerSession(authOptions);
+    console.log('Admin GET session:', JSON.stringify(session));
     if (!session?.user?.id || session.user.role !== 'admin') {
-      return NextResponse.json({ error: '需要管理员权限' }, { status: 403 });
+      return NextResponse.json({ error: '需要管理员权限', session: session ? { id: session.user?.id, role: session.user?.role } : null }, { status: 403 });
     }
 
     const supabase = getSupabaseClient();
@@ -105,8 +106,9 @@ export async function GET() {
 export async function POST(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
+    console.log('Admin POST session:', JSON.stringify(session));
     if (!session?.user?.id || session.user.role !== 'admin') {
-      return NextResponse.json({ error: '需要管理员权限' }, { status: 403 });
+      return NextResponse.json({ error: '需要管理员权限', session: session ? { id: session.user?.id, role: session.user?.role } : null }, { status: 403 });
     }
 
     const supabase = getSupabaseClient();
@@ -120,8 +122,16 @@ export async function POST(request: NextRequest) {
       // 更新配置
       const { key, value } = data;
 
+      // 调试：检查当前配置
+      const { data: beforeData } = await supabase
+        .from('chat_hall_config')
+        .select('*')
+        .eq('id', 1)
+        .maybeSingle();
+      console.log('Before update:', beforeData);
+
       // 根据 key 更新对应的配置字段
-      const updateData: Record<string, any> = { id: 1 }; // 只更新 id=1 的记录
+      const updateData: Record<string, any> = {};
       
       if (key === 'cooldown_seconds') {
         updateData.cooldown_seconds = parseInt(value) || 60;
@@ -139,12 +149,25 @@ export async function POST(request: NextRequest) {
         updateData.is_time_limited = value === 'true' || value === '1';
       }
 
+      console.log('Updating config:', { key, value, updateData });
+
       const { error } = await supabase
         .from('chat_hall_config')
         .update(updateData)
         .eq('id', 1);
 
-      if (error) throw new Error(`更新配置失败: ${error.message}`);
+      if (error) {
+        console.error('Update config error:', error);
+        throw new Error(`更新配置失败: ${error.message}`);
+      }
+
+      // 调试：检查更新后的配置
+      const { data: afterData } = await supabase
+        .from('chat_hall_config')
+        .select('*')
+        .eq('id', 1)
+        .maybeSingle();
+      console.log('After update:', afterData);
 
       return NextResponse.json({ success: true, message: '配置已更新' });
     }
