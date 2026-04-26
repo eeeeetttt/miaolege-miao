@@ -169,14 +169,44 @@ export async function GET(request: NextRequest) {
 // 发送聊天消息
 export async function POST(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: '请先登录' }, { status: 401 });
-    }
-
     const supabase = getSupabaseClient();
     if (!supabase) {
       return NextResponse.json({ error: '数据库连接不可用' }, { status: 503 });
+    }
+
+    const body = await request.json();
+    const { content, isAIMessage, aiUserId, aiUserName } = body;
+
+    // AI 消息直接插入，不需要验证
+    if (isAIMessage && aiUserId && aiUserName) {
+      const { data, error } = await supabase
+        .from('chat_hall_messages')
+        .insert({
+          user_id: aiUserId,
+          user_name: aiUserName,
+          user_avatar: null,
+          content: content.trim(),
+          is_system: 0,
+          is_premium: 1, // AI 使用 VIP 样式
+        })
+        .select()
+        .single();
+
+      if (error) {
+        console.error('Insert AI message error:', error);
+        return NextResponse.json({ error: '发送消息失败' }, { status: 500 });
+      }
+
+      return NextResponse.json({
+        success: true,
+        data,
+      });
+    }
+
+    // 普通用户消息需要验证
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: '请先登录' }, { status: 401 });
     }
 
     // 获取聊天配置
@@ -241,8 +271,6 @@ export async function POST(request: NextRequest) {
         error: `每小时最多发送${hourlyLimit}条消息，请稍后再试` 
       }, { status: 429 });
     }
-
-    const { content } = await request.json();
 
     if (!content || content.trim().length === 0) {
       return NextResponse.json({ error: '消息内容不能为空' }, { status: 400 });
