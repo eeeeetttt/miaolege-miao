@@ -447,7 +447,9 @@ async function sendAIReply(
     // 添加对话规则
     const rules = `
 ## 对话规则
-- 说话必须自然、口语化，多用短句，不允许使用表情符号
+- 说话必须自然、口语化，像真人聊天一样简洁有力，不允许使用表情符号
+- **绝对禁止使用括号描述动作、表情、神态**，例如禁止：*（笑着）*、*（摇头）*、*（叹气）*、*（目光平静）*等
+- 只输出纯粹的文字对话内容，不加任何括号或动作描述
 - 当直接回复或引用群内某个成员的发言时，必须使用 @[角色全名] 的格式
 - 允许不同角色之间产生意见分歧和争论，但争论必须基于专业逻辑
 - 回复时可以不局限于上一条消息，可以回应更早的话题，引用历史对话
@@ -466,7 +468,8 @@ async function sendAIReply(
       { role: 'user', content: `${userName}说：${userMessage}` }
     ];
 
-    const maxLength = role.max_response_length || 200;
+    // 提高字数限制到500，确保意思表达完整
+    const maxLength = Math.max(role.max_response_length || 200, 500);
 
     const response = await fetch('https://api.deepseek.com/chat/completions', {
       method: 'POST',
@@ -535,23 +538,31 @@ async function checkAdditionalTriggers(
 
     if (!roles || roles.length === 0) return;
 
-    // 随机决定是否触发后续讨论（较低概率）
-    if (Math.random() > 0.3) return;
+    // 触发后续讨论（较高概率，保持话题热度）
+    if (Math.random() > 0.6) return;
 
     // 找一个还没回复的角色
-    const availableRole = roles.find((r: any) => r.name !== aiName);
-    if (!availableRole) return;
+    const availableRoles = roles.filter((r: any) => r.name !== aiName);
+    if (!availableRoles || availableRoles.length === 0) return;
 
-    // 较低的概率触发（15%）
-    if (Math.random() > 0.15) return;
+    // 随机选择1-2个角色继续讨论
+    const numToTrigger = Math.random() > 0.5 ? 2 : 1;
+    const shuffled = availableRoles.sort(() => Math.random() - 0.5);
+    const toTrigger = shuffled.slice(0, numToTrigger);
 
-    // 1-2秒延迟后触发
-    const delay = 1000 + Math.random() * 1000;
-    console.log(`[${availableRole.name}] 被AI讨论触发，将在 ${Math.round(delay / 1000)} 秒后回复`);
+    for (let i = 0; i < toTrigger.length; i++) {
+      const availableRole = toTrigger[i];
+      // 高概率触发（60%）
+      if (Math.random() > 0.6) continue;
 
-    setTimeout(async () => {
-      await sendAIReply(supabase, apiKey, availableRole, aiName, aiMessage);
-    }, delay);
+      // 1-3秒延迟后触发，保持自然间隔
+      const delay = 1000 + Math.random() * 2000 + i * 1500;
+      console.log(`[${availableRole.name}] 被AI讨论触发，将在 ${Math.round(delay / 1000)} 秒后回复`);
+
+      setTimeout(async () => {
+        await sendAIReply(supabase, apiKey, availableRole, aiName, aiMessage);
+      }, delay);
+    }
   } catch (error) {
     console.error('[AI] 检查额外触发失败:', error);
   }
