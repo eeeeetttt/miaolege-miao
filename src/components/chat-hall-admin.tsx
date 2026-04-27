@@ -81,7 +81,7 @@ export function ChatHallAdmin() {
           open_time_start: { value: data.config?.open_time_start || '12:00', description: '开放开始时间' },
           open_time_end: { value: data.config?.open_time_end || '23:59', description: '开放结束时间' },
           is_time_limited: { value: String(data.config?.is_time_limited ?? true), description: '是否启用时间限制' },
-          ai_reply_delay_seconds: { value: String(data.config?.ai_reply_delay_seconds || '40'), description: 'AI回复间隔' },
+          ai_reply_delay_seconds: { value: String(data.config?.ai_reply_delay_seconds || '70'), description: 'AI回复间隔' },
         });
         setMutes(data.mutes || []);
       } else {

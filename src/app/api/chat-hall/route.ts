@@ -338,7 +338,7 @@ export async function POST(request: NextRequest) {
       .select('ai_reply_delay_seconds')
       .eq('id', 1)
       .maybeSingle();
-    const aiReplyDelaySeconds = configData?.ai_reply_delay_seconds || 40;
+    const aiReplyDelaySeconds = configData?.ai_reply_delay_seconds || 70;
 
     // 触发AI角色回复（异步执行，不阻塞主响应）
     triggerAIReply(supabase, session.user.id, userData?.name || session.user.name || '匿名用户', content.trim(), aiReplyDelaySeconds);
@@ -356,7 +356,7 @@ export async function POST(request: NextRequest) {
 }
 
 // 触发AI角色回复（支持多角色交错回复）
-async function triggerAIReply(supabase: any, userId: string, userName: string, userMessage: string, baseDelaySeconds: number = 40) {
+async function triggerAIReply(supabase: any, userId: string, userName: string, userMessage: string, baseDelaySeconds: number = 70) {
   try {
     // 获取所有启用的AI角色
     const { data: roles } = await supabase
@@ -586,7 +586,7 @@ async function checkAdditionalTriggers(
       .select('ai_reply_delay_seconds')
       .eq('id', 1)
       .maybeSingle();
-    const baseDelaySeconds = configData?.ai_reply_delay_seconds || 40;
+    const baseDelaySeconds = configData?.ai_reply_delay_seconds || 70;
     const baseDelayMs = baseDelaySeconds * 1000;
 
     // 获取所有启用的AI角色
