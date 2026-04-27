@@ -103,16 +103,10 @@ export function Header() {
                     </Link>
                   )}
                   {navConfig.nav_show_social && (
-                    <>
-                      <Link href="/social" className="text-gray-600 hover:text-purple-600 dark:text-gray-300 dark:hover:text-purple-400 transition-colors flex items-center gap-1">
-                        <MessageCircle className="w-4 h-4" />
-                        茶馆
-                      </Link>
-                      <Link href="/news" className="text-orange-600 hover:text-orange-500 dark:text-orange-400 dark:hover:text-orange-300 transition-colors flex items-center gap-1">
-                        <FileText className="w-4 h-4" />
-                        金查理日报
-                      </Link>
-                    </>
+                    <Link href="/social" className="text-gray-600 hover:text-purple-600 dark:text-gray-300 dark:hover:text-purple-400 transition-colors flex items-center gap-1">
+                      <MessageCircle className="w-4 h-4" />
+                      茶馆
+                    </Link>
                   )}
                   {navConfig.nav_show_docs && (
                     <Link href="/docs" className="text-gray-600 hover:text-purple-600 dark:text-gray-300 dark:hover:text-purple-400 transition-colors flex items-center gap-1">
@@ -170,12 +164,6 @@ export function Header() {
                     <Link href="/social" className="cursor-pointer">
                       <MessageCircle className="mr-2 h-4 w-4" />
                       社交中心
-                    </Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link href="/news" className="cursor-pointer">
-                      <FileText className="mr-2 h-4 w-4" />
-                      金查理日报
                     </Link>
                   </DropdownMenuItem>
                   <DropdownMenuItem asChild>
