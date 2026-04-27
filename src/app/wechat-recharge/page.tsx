@@ -133,8 +133,20 @@ export default function WechatRechargePage() {
   };
 
   const handleScreenshotUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+    // 从事件中获取文件
+    let file: File | undefined;
+    
+    if (e.target.files?.[0]) {
+      file = e.target.files[0];
+    } else if (screenshotInputRef.current?.files?.[0]) {
+      // 备用方式从ref获取
+      file = screenshotInputRef.current.files[0];
+    }
+    
+    if (!file) {
+      console.error('未选择文件');
+      return;
+    }
     
     if (!file.type.startsWith('image/')) {
       setError('请上传图片文件');
@@ -447,13 +459,14 @@ export default function WechatRechargePage() {
                     onChange={handleScreenshotUpload}
                     accept="image/*"
                     capture="environment"
-                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                    className="hidden"
                   />
                   <div 
-                    className={`border-2 border-dashed rounded-lg p-6 text-center transition-colors ${
+                    onClick={() => screenshotInputRef.current?.click()}
+                    className={`border-2 border-dashed rounded-lg p-6 text-center transition-colors cursor-pointer ${
                       screenshotPreview 
                         ? 'border-green-500 bg-green-50' 
-                        : 'border-gray-300'
+                        : 'border-gray-300 hover:border-green-400 hover:bg-green-50/50'
                     }`}
                   >
                     {screenshotPreview ? (
@@ -464,7 +477,7 @@ export default function WechatRechargePage() {
                           alt="付款截图预览" 
                           className="max-h-40 mx-auto rounded"
                         />
-                        <p className="text-sm text-green-600">点击重新上传</p>
+                        <p className="text-sm text-green-600 font-medium">点击重新上传</p>
                       </div>
                     ) : loading ? (
                       <div className="space-y-2">
@@ -474,7 +487,7 @@ export default function WechatRechargePage() {
                     ) : (
                       <div className="space-y-2">
                         <Upload className="w-8 h-8 mx-auto text-gray-400" />
-                        <p className="text-gray-500">点击上传付款截图</p>
+                        <p className="text-gray-500 font-medium">点击拍照或选择图片</p>
                         <p className="text-xs text-gray-400">支持 JPG、PNG 格式，最大 5MB</p>
                       </div>
                     )}
