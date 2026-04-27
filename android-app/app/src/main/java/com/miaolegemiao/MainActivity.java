@@ -255,11 +255,6 @@ public class MainActivity extends AppCompatActivity {
         super.onActivityResult(requestCode, resultCode, data);
         
         if (requestCode == FILE_CHOOSER_REQUEST_CODE || requestCode == FILE_CHOOSER_REQUEST_CODE_LOLLIPOP) {
-            if (null == mFilePathCallback) {
-                super.onActivityResult(requestCode, resultCode, data);
-                return;
-            }
-            
             Uri[] results = null;
             
             // 检查用户是否取消了选择
@@ -277,8 +272,21 @@ public class MainActivity extends AppCompatActivity {
                 }
             }
             
-            mFilePathCallback.onReceiveValue(results);
-            mFilePathCallback = null;
+            // 处理新版 onShowFileChooser 回调 (Android 5.0+)
+            if (requestCode == FILE_CHOOSER_REQUEST_CODE_LOLLIPOP && mFilePathCallback != null) {
+                mFilePathCallback.onReceiveValue(results);
+                mFilePathCallback = null;
+            }
+            
+            // 处理旧版 openFileChooser 回调 (Android < 21)
+            if (requestCode == FILE_CHOOSER_REQUEST_CODE && mUploadMessage != null) {
+                if (results != null && results.length > 0) {
+                    mUploadMessage.onReceiveValue(results[0]);
+                } else {
+                    mUploadMessage.onReceiveValue(null);
+                }
+                mUploadMessage = null;
+            }
         }
     }
     
