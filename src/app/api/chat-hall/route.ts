@@ -3,6 +3,23 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { getSupabaseClient } from '@/storage/database/supabase-client';
 
+// 清理消息中的括号动作描述
+function cleanParentheses(text: string): string {
+  if (!text) return text;
+  // 移除各种括号格式的动作描述
+  return text
+    .replace(/\*[\（\(].*?[\）\)]\*/g, '')  // 移除 *（xxx）* 或 *(xxx)*
+    .replace(/[\（\(][^\）\)]*[\）\)]/g, '')  // 移除 （xxx） 或 (xxx)
+    .replace(/【[^】]*】/g, '')  // 移除 【xxx】
+    .replace(/\*\*[^\*]*\*\*/g, (match) => {
+      // 保留**加粗**中的实际内容
+      const content = match.replace(/\*\*/g, '');
+      return content.length > 2 ? match : ''; // 如果内容太短可能是动作描述，移除
+    })
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
 // 异步清理24小时之前的消息（不阻塞主请求）
 async function cleanupOldMessages(supabase: any) {
   try {
@@ -446,26 +463,33 @@ async function sendAIReply(
 
     // 添加对话规则
     const rules = `
-## 对话规则
-- 说话必须自然、口语化，像真人聊天一样简洁有力，不允许使用表情符号
-- **绝对禁止使用括号描述动作、表情、神态**，例如禁止：*（笑着）*、*（摇头）*、*（叹气）*、*（目光平静）*等
-- 只输出纯粹的文字对话内容，不加任何括号或动作描述
-- 当直接回复或引用群内某个成员的发言时，必须使用 @[角色全名] 的格式
-- 允许不同角色之间产生意见分歧和争论，但争论必须基于专业逻辑
-- 回复时可以不局限于上一条消息，可以回应更早的话题，引用历史对话
-- 可以对其他AI角色的观点发表不同意见或补充
+## 对话规则（必须严格遵守）
+- 你是一个普通的聊天者，在群聊中用文字和别人交流
+- **输出格式：只能是纯文字对话，不能有任何其他格式**
+- **绝对禁止使用以下任何格式：**
+  - ❌ *（动作描述）*、*（表情）*、*（神态）* 等星号动作
+  - ❌ 【动作描述】、【表情】等方括号动作
+  - ❌ （摇头）、（叹气）、（冷笑）、（拍桌）等圆括号动作
+  - ❌ 任何类似 **（xxx）**、*（xxx）* 的动作神态描述
+- **正确格式示例：**
+  - ✅ "四哥说得对，我也觉得这个位置可以考虑布局"
+  - ✅ "@Elena 你说的ATR指标怎么看？"
+  - ✅ "这种行情马丁确实风险大，建议观望"
+- 当需要回复某人说的话时，用@格式直接称呼
+- 说话简洁有力，像正常人打字聊天一样
 `;
 
     systemPrompt = systemPrompt + rules;
 
-    // 构建消息列表
+    // 构建消息列表（过滤掉括号动作）
+    const cleanHistory = chatHistory.slice(0, -1).map((msg: ChatMessage) => ({
+      role: msg.role,
+      content: `${msg.name}说：${cleanParentheses(msg.content)}`
+    }));
     const messages = [
       { role: 'system', content: systemPrompt },
-      ...chatHistory.slice(0, -1).map((msg: ChatMessage) => ({
-        role: msg.role,
-        content: `${msg.name}说：${msg.content}`
-      })),
-      { role: 'user', content: `${userName}说：${userMessage}` }
+      ...cleanHistory,
+      { role: 'user', content: `${userName}说：${cleanParentheses(userMessage)}` }
     ];
 
     // 提高字数限制到500，确保意思表达完整
@@ -499,6 +523,9 @@ async function sendAIReply(
       return;
     }
 
+    // 清理回复中的括号动作描述
+    const cleanReply = cleanParentheses(aiReply);
+
     // 保存 AI 回复
     await supabase
       .from('chat_hall_messages')
@@ -506,16 +533,16 @@ async function sendAIReply(
         user_id: `ai_${role.id}`,
         user_name: role.name,
         user_avatar: role.avatar_url || null,
-        content: aiReply,
+        content: cleanReply,
         is_system: 0,
         is_premium: 1,
       });
 
-    console.log(`[${role.name}] 已发送回复: ${aiReply.substring(0, 50)}...`);
+    console.log(`[${role.name}] 已发送回复: ${cleanReply.substring(0, 50)}...`);
 
     // 如果还有其他AI角色可能会回复，给一个机会让它们看到这条新消息
     // 继续检查是否有其他角色需要回复这条新消息
-    await checkAdditionalTriggers(supabase, apiKey, role.name, aiReply);
+    await checkAdditionalTriggers(supabase, apiKey, role.name, cleanReply);
   } catch (error) {
     console.error(`[${role.name}] 回复失败:`, error);
   }
