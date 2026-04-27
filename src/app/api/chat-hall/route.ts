@@ -327,8 +327,16 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: '发送消息失败' }, { status: 500 });
     }
 
+    // 获取AI回复间隔配置
+    const { data: configData } = await supabase
+      .from('chat_hall_config')
+      .select('ai_reply_delay_seconds')
+      .eq('id', 1)
+      .maybeSingle();
+    const aiReplyDelaySeconds = configData?.ai_reply_delay_seconds || 40;
+
     // 触发AI角色回复（异步执行，不阻塞主响应）
-    triggerAIReply(supabase, session.user.id, userData?.name || session.user.name || '匿名用户', content.trim());
+    triggerAIReply(supabase, session.user.id, userData?.name || session.user.name || '匿名用户', content.trim(), aiReplyDelaySeconds);
 
     return NextResponse.json({
       success: true,
@@ -343,7 +351,7 @@ export async function POST(request: NextRequest) {
 }
 
 // 触发AI角色回复（支持多角色交错回复）
-async function triggerAIReply(supabase: any, userId: string, userName: string, userMessage: string) {
+async function triggerAIReply(supabase: any, userId: string, userName: string, userMessage: string, baseDelaySeconds: number = 40) {
   try {
     // 获取所有启用的AI角色
     const { data: roles } = await supabase
@@ -373,6 +381,10 @@ async function triggerAIReply(supabase: any, userId: string, userName: string, u
       .order('created_at', { ascending: false })
       .limit(20);
 
+    // 计算延迟参数
+    const baseDelayMs = baseDelaySeconds * 1000; // 将秒转换为毫秒
+    const staggerMs = baseDelayMs * 0.25; // 每个角色之间间隔为基础延迟的25%
+
     // 检查每个角色是否应该触发
     const triggeredRoles: { role: any; delay: number }[] = [];
 
@@ -392,10 +404,11 @@ async function triggerAIReply(supabase: any, userId: string, userName: string, u
       }
 
       if (shouldTrigger) {
-        // 计算延迟：2-4秒随机延迟，按角色顺序错开
-        const delay = 2000 + Math.random() * 2000 + triggeredRoles.length * 1500;
+        // 计算延迟：基础延迟 + 随机偏移 + 按角色顺序错开
+        const randomOffset = Math.random() * baseDelayMs * 0.3; // 30%的随机偏移
+        const delay = baseDelayMs + randomOffset + triggeredRoles.length * staggerMs;
         triggeredRoles.push({ role, delay });
-        console.log(`[${role.name}] 将在 ${Math.round(delay / 1000)} 秒后回复`);
+        console.log(`[${role.name}] 将在 ${Math.round(delay / 1000)} 秒后回复 (基础: ${baseDelaySeconds}秒)`);
       }
     }
 
@@ -556,6 +569,15 @@ async function checkAdditionalTriggers(
   aiMessage: string
 ) {
   try {
+    // 获取AI回复间隔配置
+    const { data: configData } = await supabase
+      .from('chat_hall_config')
+      .select('ai_reply_delay_seconds')
+      .eq('id', 1)
+      .maybeSingle();
+    const baseDelaySeconds = configData?.ai_reply_delay_seconds || 40;
+    const baseDelayMs = baseDelaySeconds * 1000;
+
     // 获取所有启用的AI角色
     const { data: roles } = await supabase
       .from('chat_hall_ai_roles')
@@ -582,9 +604,9 @@ async function checkAdditionalTriggers(
       // 高概率触发（60%）
       if (Math.random() > 0.6) continue;
 
-      // 1-3秒延迟后触发，保持自然间隔
-      const delay = 1000 + Math.random() * 2000 + i * 1500;
-      console.log(`[${availableRole.name}] 被AI讨论触发，将在 ${Math.round(delay / 1000)} 秒后回复`);
+      // 基础延迟的50%-80% 作为后续讨论间隔
+      const delay = baseDelayMs * (0.5 + Math.random() * 0.3) + i * baseDelayMs * 0.25;
+      console.log(`[${availableRole.name}] 被AI讨论触发，将在 ${Math.round(delay / 1000)} 秒后回复 (基础: ${baseDelaySeconds}秒)`);
 
       setTimeout(async () => {
         await sendAIReply(supabase, apiKey, availableRole, aiName, aiMessage);

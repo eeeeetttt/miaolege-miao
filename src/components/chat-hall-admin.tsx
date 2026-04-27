@@ -35,6 +35,7 @@ interface ChatHallConfig {
   open_time_start: { value: string; description: string };
   open_time_end: { value: string; description: string };
   is_time_limited: { value: string; description: string };
+  ai_reply_delay_seconds: { value: string; description: string };
 }
 
 interface MuteUser {
@@ -80,6 +81,7 @@ export function ChatHallAdmin() {
           open_time_start: { value: data.config?.open_time_start || '12:00', description: '开放开始时间' },
           open_time_end: { value: data.config?.open_time_end || '23:59', description: '开放结束时间' },
           is_time_limited: { value: String(data.config?.is_time_limited ?? true), description: '是否启用时间限制' },
+          ai_reply_delay_seconds: { value: String(data.config?.ai_reply_delay_seconds || '40'), description: 'AI回复间隔' },
         });
         setMutes(data.mutes || []);
       } else {
@@ -121,6 +123,7 @@ export function ChatHallAdmin() {
           open_time_start: '开放开始时间',
           open_time_end: '开放结束时间',
           is_time_limited: '时间限制开关',
+          ai_reply_delay_seconds: 'AI回复间隔',
         };
         setSuccess(`${keyNames[key] || key}已更新`);
         
@@ -385,6 +388,38 @@ export function ChatHallAdmin() {
 
           <div className="text-sm text-gray-500 p-3 bg-amber-50 dark:bg-amber-900/20 rounded-lg">
             <p>💡 提示：发言次数每小时自动重置。时间限制仅在聊天室开启时生效。</p>
+          </div>
+
+          {/* AI回复间隔 */}
+          <div className="flex items-center justify-between p-4 bg-purple-50 dark:bg-purple-900/20 rounded-lg border border-purple-200 dark:border-purple-800">
+            <div>
+              <div className="flex items-center gap-2">
+                <Label className="font-medium text-purple-700 dark:text-purple-400">AI角色回复间隔</Label>
+              </div>
+              <p className="text-sm text-purple-600 dark:text-purple-500">设置AI角色回复消息的时间间隔</p>
+            </div>
+            <div className="flex items-center gap-2">
+              <Input
+                type="number"
+                value={config?.ai_reply_delay_seconds?.value || '40'}
+                onChange={(e) => setConfig({
+                  ...config!,
+                  ai_reply_delay_seconds: { ...config!.ai_reply_delay_seconds, value: e.target.value }
+                })}
+                className="w-24 bg-white dark:bg-gray-800"
+                min={5}
+                max={120}
+              />
+              <span className="text-purple-600 dark:text-purple-400 text-sm">秒</span>
+              <Button
+                size="sm"
+                onClick={() => handleSaveConfig('ai_reply_delay_seconds', config?.ai_reply_delay_seconds?.value || '40')}
+                disabled={saving}
+                className="bg-purple-600 hover:bg-purple-700"
+              >
+                <Save className="w-4 h-4" />
+              </Button>
+            </div>
           </div>
         </CardContent>
       </Card>

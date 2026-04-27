@@ -66,6 +66,10 @@ export async function GET() {
         value: config.is_time_limited !== false ? 'true' : 'false',
         description: '是否启用时间限制',
       };
+      configMap.ai_reply_delay_seconds = {
+        value: String(config.ai_reply_delay_seconds || 40),
+        description: 'AI角色回复间隔（秒）',
+      };
     }
 
     // 获取禁言列表
