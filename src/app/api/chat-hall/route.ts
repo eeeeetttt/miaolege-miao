@@ -325,7 +325,7 @@ export async function POST(request: NextRequest) {
   }
 }
 
-// 触发AI角色回复（支持多角色）
+// 触发AI角色回复（支持多角色交错回复）
 async function triggerAIReply(supabase: any, userId: string, userName: string, userMessage: string) {
   try {
     // 获取所有启用的AI角色
@@ -347,36 +347,18 @@ async function triggerAIReply(supabase: any, userId: string, userName: string, u
       return;
     }
 
-    // 获取最近10条消息作为上下文
-    const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+    // 获取最近2小时的消息作为上下文（包含AI之间的对话）
+    const twoHoursAgo = new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString();
     const { data: recentMessages } = await supabase
       .from('chat_hall_messages')
-      .select('user_id, user_name, content, is_premium')
-      .gte('created_at', oneHourAgo)
+      .select('user_id, user_name, content, is_premium, created_at')
+      .gte('created_at', twoHoursAgo)
       .order('created_at', { ascending: false })
-      .limit(10);
+      .limit(20);
 
-    // 构建对话历史（按时间正序）
-    interface ChatMessage {
-      role: 'user' | 'assistant';
-      name: string;
-      content: string;
-    }
+    // 检查每个角色是否应该触发
+    const triggeredRoles: { role: any; delay: number }[] = [];
 
-    const chatHistory: ChatMessage[] = recentMessages ? recentMessages.reverse().map((msg: { user_name: string; content: string; is_premium: number }) => ({
-      role: msg.is_premium ? 'assistant' : 'user',
-      name: msg.user_name,
-      content: msg.content
-    })) : [];
-
-    // 添加用户当前消息
-    chatHistory.push({
-      role: 'user',
-      name: userName,
-      content: userMessage
-    });
-
-    // 遍历每个角色，检查是否需要回复
     for (const role of roles) {
       // 检查是否通过触发词匹配
       const triggerKeyword = role.trigger_keyword?.trim();
@@ -392,87 +374,185 @@ async function triggerAIReply(supabase: any, userId: string, userName: string, u
         shouldTrigger = random <= probability;
       }
 
-      if (!shouldTrigger) {
-        console.log(`[${role.name}] 未触发 (触发词: ${triggerKeyword || '无'}, 概率: ${role.reply_probability}%)`);
-        continue;
+      if (shouldTrigger) {
+        // 计算延迟：2-4秒随机延迟，按角色顺序错开
+        const delay = 2000 + Math.random() * 2000 + triggeredRoles.length * 1500;
+        triggeredRoles.push({ role, delay });
+        console.log(`[${role.name}] 将在 ${Math.round(delay / 1000)} 秒后回复`);
       }
+    }
 
-      console.log(`[${role.name}] 触发回复`);
+    if (triggeredRoles.length === 0) {
+      console.log('[AI] 没有角色被触发');
+      return;
+    }
 
-      // 构建基础系统提示
-      let systemPrompt = role.system_prompt || `你是${role.name}，愿意帮助用户解答问题。`;
+    // 为每个被触发的角色创建异步回复任务
+    for (let i = 0; i < triggeredRoles.length; i++) {
+      const { role, delay } = triggeredRoles[i];
 
-      // 添加对话规则
-      const rules = `
+      // 使用 setTimeout 延迟执行
+      setTimeout(async () => {
+        await sendAIReply(supabase, apiKey, role, userName, userMessage);
+      }, delay);
+    }
+  } catch (error) {
+    console.error('[AI] 触发回复失败:', error);
+  }
+}
+
+// 发送AI回复（支持获取最新上下文）
+async function sendAIReply(
+  supabase: any,
+  apiKey: string,
+  role: any,
+  userName: string,
+  userMessage: string
+) {
+  try {
+    console.log(`[${role.name}] 开始生成回复...`);
+
+    // 每次发送前获取最新的上下文（包含之前的AI回复）
+    const twoHoursAgo = new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString();
+    const { data: recentMessages } = await supabase
+      .from('chat_hall_messages')
+      .select('user_id, user_name, content, is_premium, created_at')
+      .gte('created_at', twoHoursAgo)
+      .order('created_at', { ascending: false })
+      .limit(15);
+
+    // 构建对话历史（按时间正序）
+    interface ChatMessage {
+      role: 'user' | 'assistant';
+      name: string;
+      content: string;
+    }
+
+    const chatHistory: ChatMessage[] = recentMessages ? recentMessages.reverse().map((msg: { user_name: string; content: string; is_premium: number; user_id: string }) => ({
+      role: msg.is_premium ? 'assistant' : 'user',
+      name: msg.user_name,
+      content: msg.content
+    })) : [];
+
+    // 添加用户当前消息
+    chatHistory.push({
+      role: 'user',
+      name: userName,
+      content: userMessage
+    });
+
+    // 构建基础系统提示
+    let systemPrompt = role.system_prompt || `你是${role.name}，愿意帮助用户解答问题。`;
+
+    // 添加对话规则
+    const rules = `
 ## 对话规则
 - 说话必须自然、口语化，多用短句，不允许使用表情符号
 - 当直接回复或引用群内某个成员的发言时，必须使用 @[角色全名] 的格式
 - 允许不同角色之间产生意见分歧和争论，但争论必须基于专业逻辑
 - 回复时可以不局限于上一条消息，可以回应更早的话题，引用历史对话
+- 可以对其他AI角色的观点发表不同意见或补充
 `;
 
-      systemPrompt = systemPrompt + rules;
+    systemPrompt = systemPrompt + rules;
 
-      // 构建消息列表
-      const messages = [
-        { role: 'system', content: systemPrompt },
-        ...chatHistory.slice(0, -1).map(msg => ({
-          role: msg.role,
-          name: msg.name,
-          content: `${msg.name}说：${msg.content}`
-        })),
-        { role: 'user', content: `${userName}说：${userMessage}` }
-      ];
+    // 构建消息列表
+    const messages = [
+      { role: 'system', content: systemPrompt },
+      ...chatHistory.slice(0, -1).map((msg: ChatMessage) => ({
+        role: msg.role,
+        content: `${msg.name}说：${msg.content}`
+      })),
+      { role: 'user', content: `${userName}说：${userMessage}` }
+    ];
 
-      const maxLength = role.max_response_length || 200;
+    const maxLength = role.max_response_length || 200;
 
-      try {
-        const response = await fetch('https://api.deepseek.com/chat/completions', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${apiKey}`,
-          },
-          body: JSON.stringify({
-            model: 'deepseek-chat',
-            messages: messages,
-            max_tokens: maxLength,
-            temperature: 0.7,
-          }),
-        });
+    const response = await fetch('https://api.deepseek.com/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({
+        model: 'deepseek-chat',
+        messages: messages,
+        max_tokens: maxLength,
+        temperature: 0.7,
+      }),
+    });
 
-        if (!response.ok) {
-          const errorText = await response.text();
-          console.error(`[${role.name}] API调用失败:`, errorText);
-          continue;
-        }
-
-        const aiData = await response.json();
-        const aiReply = aiData.choices?.[0]?.message?.content?.trim();
-
-        if (!aiReply) {
-          console.error(`[${role.name}] 未获取到有效回复`);
-          continue;
-        }
-
-        // 保存 AI 回复
-        await supabase
-          .from('chat_hall_messages')
-          .insert({
-            user_id: `ai_${role.id}`,
-            user_name: role.name,
-            user_avatar: role.avatar_url || null,
-            content: aiReply,
-            is_system: 0,
-            is_premium: 1,
-          });
-
-        console.log(`[${role.name}] 已发送回复: ${aiReply.substring(0, 50)}...`);
-      } catch (error) {
-        console.error(`[${role.name}] 回复失败:`, error);
-      }
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error(`[${role.name}] API调用失败:`, errorText);
+      return;
     }
+
+    const aiData = await response.json();
+    const aiReply = aiData.choices?.[0]?.message?.content?.trim();
+
+    if (!aiReply) {
+      console.error(`[${role.name}] 未获取到有效回复`);
+      return;
+    }
+
+    // 保存 AI 回复
+    await supabase
+      .from('chat_hall_messages')
+      .insert({
+        user_id: `ai_${role.id}`,
+        user_name: role.name,
+        user_avatar: role.avatar_url || null,
+        content: aiReply,
+        is_system: 0,
+        is_premium: 1,
+      });
+
+    console.log(`[${role.name}] 已发送回复: ${aiReply.substring(0, 50)}...`);
+
+    // 如果还有其他AI角色可能会回复，给一个机会让它们看到这条新消息
+    // 继续检查是否有其他角色需要回复这条新消息
+    await checkAdditionalTriggers(supabase, apiKey, role.name, aiReply);
   } catch (error) {
-    console.error('[AI] 触发回复失败:', error);
+    console.error(`[${role.name}] 回复失败:`, error);
+  }
+}
+
+// 检查是否需要对AI的回复触发其他AI
+async function checkAdditionalTriggers(
+  supabase: any,
+  apiKey: string,
+  aiName: string,
+  aiMessage: string
+) {
+  try {
+    // 获取所有启用的AI角色
+    const { data: roles } = await supabase
+      .from('chat_hall_ai_roles')
+      .select('*')
+      .eq('enabled', true)
+      .order('sort_order', { ascending: true });
+
+    if (!roles || roles.length === 0) return;
+
+    // 随机决定是否触发后续讨论（较低概率）
+    if (Math.random() > 0.3) return;
+
+    // 找一个还没回复的角色
+    const availableRole = roles.find((r: any) => r.name !== aiName);
+    if (!availableRole) return;
+
+    // 较低的概率触发（15%）
+    if (Math.random() > 0.15) return;
+
+    // 1-2秒延迟后触发
+    const delay = 1000 + Math.random() * 1000;
+    console.log(`[${availableRole.name}] 被AI讨论触发，将在 ${Math.round(delay / 1000)} 秒后回复`);
+
+    setTimeout(async () => {
+      await sendAIReply(supabase, apiKey, availableRole, aiName, aiMessage);
+    }, delay);
+  } catch (error) {
+    console.error('[AI] 检查额外触发失败:', error);
   }
 }
