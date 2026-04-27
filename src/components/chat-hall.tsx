@@ -381,7 +381,6 @@ export function ChatHall() {
               <div className="text-center">
                 <Users className="w-12 h-12 mx-auto mb-3 opacity-50" />
                 <p>暂无消息，快来发言吧</p>
-                <p className="text-xs mt-2">可以@店小二 提问哦</p>
               </div>
             </div>
           ) : (
@@ -489,20 +488,14 @@ export function ChatHall() {
             </div>
           ) : (
             <div className="space-y-2">
-              <div className="flex items-center justify-between text-sm">
-                <span className="text-gray-500">
-                  剩余发言次数: <span className={remainingCount <= 0 ? 'text-red-500 font-bold' : remainingCount <= 1 ? 'text-amber-500 font-bold' : 'text-green-500 font-bold'}>{remainingCount}</span> / {hourlyLimit} 条
-                </span>
-                <span className="text-xs text-gray-400">每小时重置</span>
-              </div>
               <div className="flex gap-2">
                 <Input
                   ref={inputRef}
                   value={newMessage}
                   onChange={e => setNewMessage(e.target.value)}
-                  placeholder={remainingCount <= 0 ? '今日发言次数已用完' : '输入消息...（@店小二 提问）'}
-                  disabled={sending || remainingCount <= 0}
-                  maxLength={200}
+                  placeholder="输入消息..."
+                  disabled={sending}
+                  maxLength={500}
                   onKeyDown={e => e.key === 'Enter' && handleSend()}
                   className="flex-1"
                 />

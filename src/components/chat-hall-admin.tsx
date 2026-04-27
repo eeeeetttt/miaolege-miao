@@ -76,7 +76,7 @@ export function ChatHallAdmin() {
       const data = await res.json();
       if (data.success) {
         setConfig({
-          hourly_limit: { value: String(data.config?.hourly_limit || '30'), description: '每小时发言限制' },
+          hourly_limit: { value: String(data.config?.hourly_limit || '60'), description: '每小时发言限制' },
           enabled: { value: String(data.config?.enabled ?? 'true'), description: '是否开启聊天大厅' },
           open_time_start: { value: data.config?.open_time_start || '12:00', description: '开放开始时间' },
           open_time_end: { value: data.config?.open_time_end || '23:59', description: '开放结束时间' },
@@ -132,7 +132,7 @@ export function ChatHallAdmin() {
           ...prev,
           [key]: {
             ...prev[key],
-            value: key === 'hourly_limit' ? parseInt(value) || 30 : value,
+            value: key === 'hourly_limit' ? parseInt(value) || 60 : value,
           },
         }));
         
@@ -295,7 +295,7 @@ export function ChatHallAdmin() {
             <div className="flex items-center gap-2">
               <Input
                 type="number"
-                value={config?.hourly_limit?.value || '30'}
+                value={config?.hourly_limit?.value || '60'}
                 onChange={(e) => setConfig({
                   ...config!,
                   hourly_limit: { ...config!.hourly_limit, value: e.target.value }
