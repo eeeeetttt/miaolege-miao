@@ -455,15 +455,16 @@ export default function WechatRechargePage() {
                 <div className="relative">
                   <input
                     type="file"
+                    id="screenshot-upload"
                     ref={screenshotInputRef}
                     onChange={handleScreenshotUpload}
                     accept="image/*"
                     capture="environment"
                     className="hidden"
                   />
-                  <div 
-                    onClick={() => screenshotInputRef.current?.click()}
-                    className={`border-2 border-dashed rounded-lg p-6 text-center transition-colors cursor-pointer ${
+                  <label 
+                    htmlFor="screenshot-upload"
+                    className={`block border-2 border-dashed rounded-lg p-6 text-center transition-colors cursor-pointer ${
                       screenshotPreview 
                         ? 'border-green-500 bg-green-50' 
                         : 'border-gray-300 hover:border-green-400 hover:bg-green-50/50'
@@ -491,7 +492,7 @@ export default function WechatRechargePage() {
                         <p className="text-xs text-gray-400">支持 JPG、PNG 格式，最大 5MB</p>
                       </div>
                     )}
-                  </div>
+                  </label>
                 </div>
               </div>
             )}

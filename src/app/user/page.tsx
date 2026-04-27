@@ -222,8 +222,19 @@ export default function UserCenterPage() {
   };
 
   const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+    // 从事件或 ref 获取文件
+    let file: File | undefined;
+    
+    if (e.target.files?.[0]) {
+      file = e.target.files[0];
+    } else if (fileInputRef.current?.files?.[0]) {
+      file = fileInputRef.current.files[0];
+    }
+    
+    if (!file) {
+      console.error('未选择文件');
+      return;
+    }
     
     setAvatarLoading(true);
     setError('');
@@ -448,18 +459,22 @@ export default function UserCenterPage() {
                     <div>
                       <input
                         type="file"
+                        id="avatar-upload"
                         ref={fileInputRef}
                         onChange={handleAvatarChange}
                         accept="image/*"
                         className="hidden"
                       />
-                      <Button
-                        variant="outline"
-                        onClick={() => fileInputRef.current?.click()}
-                        disabled={avatarLoading}
-                      >
-                        {avatarLoading ? '上传中...' : '选择图片'}
-                      </Button>
+                      <label htmlFor="avatar-upload">
+                        <Button
+                          variant="outline"
+                          asChild
+                          disabled={avatarLoading}
+                          className="cursor-pointer"
+                        >
+                          <span>{avatarLoading ? '上传中...' : '选择图片'}</span>
+                        </Button>
+                      </label>
                     </div>
                   </div>
                 </CardContent>
