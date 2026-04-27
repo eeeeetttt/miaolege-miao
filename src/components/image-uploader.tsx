@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Upload, Loader2, Check } from 'lucide-react';
 
 interface ImageUploaderProps {
@@ -8,75 +8,100 @@ interface ImageUploaderProps {
   preview?: string | null;
   disabled?: boolean;
   accept?: string;
+  capture?: 'user' | 'environment';
 }
 
-export function ImageUploader({ onUpload, preview, disabled, accept = "image/*" }: ImageUploaderProps) {
-  const inputRef = useRef<HTMLInputElement>(null);
+export function ImageUploader({ 
+  onUpload, 
+  preview, 
+  disabled, 
+  accept = "image/*",
+  capture 
+}: ImageUploaderProps) {
   const [loading, setLoading] = useState(false);
+  const [inputId] = useState(() => `upload-${Math.random().toString(36).substr(2, 9)}`);
 
+  // 文件转 base64
+  const fileToBase64 = useCallback((file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  }, []);
+
+  // 处理文件选择
+  const processFile = useCallback(async (file: File) => {
+    if (!file.type.startsWith('image/')) {
+      console.error('不是图片文件');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const base64 = await fileToBase64(file);
+      onUpload(base64);
+    } catch (error) {
+      console.error('上传失败:', error);
+    } finally {
+      setLoading(false);
+    }
+  }, [fileToBase64, onUpload]);
+
+  // 监听 input change 事件
   useEffect(() => {
-    // 原生事件处理，避免 React 事件问题
-    const handleChange = async () => {
-      const input = inputRef.current;
-      if (!input || !input.files || !input.files[0]) return;
-      
-      const file = input.files[0];
-      if (!file.type.startsWith('image/')) {
-        alert('请选择图片文件');
-        return;
-      }
-      
-      setLoading(true);
-      
-      try {
-        const base64 = await fileToBase64(file);
-        onUpload(base64);
-      } catch (error) {
-        console.error('上传失败:', error);
-        alert('上传失败，请重试');
-      } finally {
-        setLoading(false);
-        // 清空 input 以便重新选择同一文件
-        if (inputRef.current) {
-          inputRef.current.value = '';
-        }
+    const input = document.getElementById(inputId) as HTMLInputElement;
+    if (!input) return;
+
+    const handleChange = (e: Event) => {
+      const target = e.target as HTMLInputElement;
+      const file = target.files?.[0];
+      if (file) {
+        processFile(file);
+        // 清空以便重新选择
+        target.value = '';
       }
     };
 
-    const input = inputRef.current;
-    if (input) {
-      input.addEventListener('change', handleChange);
-      return () => input.removeEventListener('change', handleChange);
-    }
-  }, [onUpload]);
+    input.addEventListener('change', handleChange);
+    return () => input.removeEventListener('change', handleChange);
+  }, [inputId, processFile]);
 
-  const handleClick = () => {
-    if (!disabled && !loading) {
-      inputRef.current?.click();
+  // 点击处理函数
+  const handleClick = useCallback(() => {
+    if (disabled || loading) return;
+    
+    const input = document.getElementById(inputId) as HTMLInputElement;
+    if (input) {
+      input.click();
     }
-  };
+  }, [disabled, loading, inputId]);
 
   return (
     <div className="relative">
       <input
         type="file"
-        ref={inputRef}
+        id={inputId}
         accept={accept}
+        capture={capture}
         className="hidden"
         disabled={disabled || loading}
       />
       
       <div
         onClick={handleClick}
+        onTouchEnd={handleClick}  // 移动端触摸事件
         className={`
-          border-2 border-dashed rounded-lg p-6 text-center transition-all cursor-pointer
+          border-2 border-dashed rounded-lg p-6 text-center transition-all select-none
           ${disabled || loading 
             ? 'border-gray-200 bg-gray-50 cursor-not-allowed' 
             : preview 
-              ? 'border-green-500 bg-green-50 hover:border-green-600' 
-              : 'border-gray-300 hover:border-green-400 hover:bg-green-50/50'
+              ? 'border-green-500 bg-green-50' 
+              : 'border-gray-300 bg-white active:bg-green-50'
           }
         `}
+        style={{ touchAction: 'manipulation' }}  // 禁用双击缩放
       >
         {loading ? (
           <div className="space-y-2">
@@ -108,14 +133,4 @@ export function ImageUploader({ onUpload, preview, disabled, accept = "image/*" 
       </div>
     </div>
   );
-}
-
-// 文件转 base64
-function fileToBase64(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(reader.result as string);
-    reader.onerror = reject;
-    reader.readAsDataURL(file);
-  });
 }
