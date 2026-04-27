@@ -47,14 +47,15 @@ export default function DownloadPage() {
           width: '120px',
           height: '120px',
           margin: '0 auto 24px',
-          background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
           borderRadius: '24px',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          fontSize: '60px'
+          overflow: 'hidden',
+          boxShadow: '0 4px 20px rgba(0,0,0,0.15)'
         }}>
-          🐱
+          <img 
+            src="/logo.png" 
+            alt="金火火" 
+            style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+          />
         </div>
 
         <h1 style={{
