@@ -75,11 +75,11 @@ export function ChatHallAdmin() {
       const data = await res.json();
       if (data.success) {
         setConfig({
-          hourly_limit: { value: data.config?.hourly_limit?.value || '30', description: '每小时发言限制' },
-          enabled: { value: data.config?.enabled?.value || 'true', description: '是否开启聊天大厅' },
-          open_time_start: { value: data.config?.open_time_start?.value || '20:00', description: '开放开始时间' },
-          open_time_end: { value: data.config?.open_time_end?.value || '00:00', description: '开放结束时间' },
-          is_time_limited: { value: data.config?.is_time_limited?.value || 'true', description: '是否启用时间限制' },
+          hourly_limit: { value: String(data.config?.hourly_limit || '30'), description: '每小时发言限制' },
+          enabled: { value: String(data.config?.enabled ?? 'true'), description: '是否开启聊天大厅' },
+          open_time_start: { value: data.config?.open_time_start || '20:00', description: '开放开始时间' },
+          open_time_end: { value: data.config?.open_time_end || '00:00', description: '开放结束时间' },
+          is_time_limited: { value: String(data.config?.is_time_limited ?? true), description: '是否启用时间限制' },
         });
         setMutes(data.mutes || []);
       } else {
