@@ -3,10 +3,10 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { getSupabaseClient } from '@/storage/database/supabase-client';
 
-// 清理消息中的括号动作描述
+// 清理消息中的不自然格式
 function cleanParentheses(text: string): string {
   if (!text) return text;
-  // 移除各种括号格式的动作描述
+  // 移除各种不自然的格式
   return text
     .replace(/\*[\（\(].*?[\）\)]\*/g, '')  // 移除 *（xxx）* 或 *(xxx)*
     .replace(/[\（\(][^\）\)]*[\）\)]/g, '')  // 移除 （xxx） 或 (xxx)
@@ -16,6 +16,11 @@ function cleanParentheses(text: string): string {
       const content = match.replace(/\*\*/g, '');
       return content.length > 2 ? match : ''; // 如果内容太短可能是动作描述，移除
     })
+    // 移除 "XXX说："、"XXX道："、"XXX表示：" 等前缀
+    .replace(/^[\u4e00-\u9fa5a-zA-Z]{2,8}[说问道表示称讲答]：[：\s]*/g, '')
+    .replace(/^@[\u4e00-\u9fa5a-zA-Z]{2,8}：[：\s]*/g, '')
+    // 移除开头的标点和空格
+    .replace(/^[\s,，.。]+/, '')
     .replace(/\s+/g, ' ')
     .trim();
 }
@@ -477,32 +482,38 @@ async function sendAIReply(
     // 添加对话规则
     const rules = `
 ## 对话规则（必须严格遵守）
-- 你是一个普通的聊天者，在群聊中用文字和别人交流
-- **输出格式：只能是纯文字对话，不能有任何其他格式**
+- 你在群聊中发言，像正常人打字聊天一样
+- **只输出你的对话内容，不要加任何前缀或动作描述**
 - **绝对禁止使用以下任何格式：**
-  - ❌ *（动作描述）*、*（表情）*、*（神态）* 等星号动作
-  - ❌ 【动作描述】、【表情】等方括号动作
-  - ❌ （摇头）、（叹气）、（冷笑）、（拍桌）等圆括号动作
-  - ❌ 任何类似 **（xxx）**、*（xxx）* 的动作神态描述
-- **正确格式示例：**
-  - ✅ "四哥说得对，我也觉得这个位置可以考虑布局"
-  - ✅ "@Elena 你说的ATR指标怎么看？"
-  - ✅ "这种行情马丁确实风险大，建议观望"
-- 当需要回复某人说的话时，用@格式直接称呼
-- 说话简洁有力，像正常人打字聊天一样
+  - ❌ *（动作）*、【动作】、（动作）等任何括号动作描述
+  - ❌ "XXX说："、"@XXX："等前缀，直接说话
+  - ❌ 表情符号
+- **回复方式（根据情况选择）：**
+  1. 回复上一条：直接说你的观点，不用提是谁说的
+     - 示例："确实该等等看，非农数据影响太大了"
+  2. 回应某人：可以用@提及
+     - 示例："@闪电 说得对，我也觉得现在不是好时机"
+     - 示例："@Elena ATR怎么看？"
+  3. 主动发言：直接说观点
+     - 示例："这波行情估计要震荡几天"
+     - 示例："黄金还是看多，等回调再进"
+- **注意：**
+  - 回复上一条消息时不要重复对方说的话，直接说你的观点
+  - 不要每次都@人，自然一点
+  - 说话简洁，像在手机上打字聊天
 `;
 
     systemPrompt = systemPrompt + rules;
 
-    // 构建消息列表（过滤掉括号动作）
+    // 构建消息列表（简化格式，去掉"XXX说："前缀）
     const cleanHistory = chatHistory.slice(0, -1).map((msg: ChatMessage) => ({
       role: msg.role,
-      content: `${msg.name}说：${cleanParentheses(msg.content)}`
+      content: cleanParentheses(msg.content)  // 直接用内容，不加前缀
     }));
     const messages = [
       { role: 'system', content: systemPrompt },
       ...cleanHistory,
-      { role: 'user', content: `${userName}说：${cleanParentheses(userMessage)}` }
+      { role: 'user', content: cleanParentheses(userMessage) }  // 用户消息也去掉前缀
     ];
 
     // 提高字数限制到500，确保意思表达完整
