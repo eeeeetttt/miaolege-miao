@@ -347,6 +347,35 @@ async function triggerAIReply(supabase: any, userId: string, userName: string, u
       return;
     }
 
+    // 获取最近10条消息作为上下文
+    const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+    const { data: recentMessages } = await supabase
+      .from('chat_hall_messages')
+      .select('user_id, user_name, content, is_premium')
+      .gte('created_at', oneHourAgo)
+      .order('created_at', { ascending: false })
+      .limit(10);
+
+    // 构建对话历史（按时间正序）
+    interface ChatMessage {
+      role: 'user' | 'assistant';
+      name: string;
+      content: string;
+    }
+
+    const chatHistory: ChatMessage[] = recentMessages ? recentMessages.reverse().map((msg: { user_name: string; content: string; is_premium: number }) => ({
+      role: msg.is_premium ? 'assistant' : 'user',
+      name: msg.user_name,
+      content: msg.content
+    })) : [];
+
+    // 添加用户当前消息
+    chatHistory.push({
+      role: 'user',
+      name: userName,
+      content: userMessage
+    });
+
     // 遍历每个角色，检查是否需要回复
     for (const role of roles) {
       // 检查是否通过触发词匹配
@@ -370,8 +399,31 @@ async function triggerAIReply(supabase: any, userId: string, userName: string, u
 
       console.log(`[${role.name}] 触发回复`);
 
-      // 构建 AI 请求
-      const systemPrompt = role.system_prompt || `你是${role.name}，愿意帮助用户解答问题。`;
+      // 构建基础系统提示
+      let systemPrompt = role.system_prompt || `你是${role.name}，愿意帮助用户解答问题。`;
+
+      // 添加对话规则
+      const rules = `
+## 对话规则
+- 说话必须自然、口语化，多用短句，不允许使用表情符号
+- 当直接回复或引用群内某个成员的发言时，必须使用 @[角色全名] 的格式
+- 允许不同角色之间产生意见分歧和争论，但争论必须基于专业逻辑
+- 回复时可以不局限于上一条消息，可以回应更早的话题，引用历史对话
+`;
+
+      systemPrompt = systemPrompt + rules;
+
+      // 构建消息列表
+      const messages = [
+        { role: 'system', content: systemPrompt },
+        ...chatHistory.slice(0, -1).map(msg => ({
+          role: msg.role,
+          name: msg.name,
+          content: `${msg.name}说：${msg.content}`
+        })),
+        { role: 'user', content: `${userName}说：${userMessage}` }
+      ];
+
       const maxLength = role.max_response_length || 200;
 
       try {
@@ -383,10 +435,7 @@ async function triggerAIReply(supabase: any, userId: string, userName: string, u
           },
           body: JSON.stringify({
             model: 'deepseek-chat',
-            messages: [
-              { role: 'system', content: systemPrompt },
-              { role: 'user', content: userMessage },
-            ],
+            messages: messages,
             max_tokens: maxLength,
             temperature: 0.7,
           }),
