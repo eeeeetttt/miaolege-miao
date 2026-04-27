@@ -113,8 +113,8 @@ export function ChatHall() {
 
   useEffect(() => {
     loadMessages();
-    // 每10秒刷新一次
-    const interval = setInterval(loadMessages, 10000);
+    // 每3秒刷新一次，确保能及时看到AI回复
+    const interval = setInterval(loadMessages, 3000);
     return () => clearInterval(interval);
   }, [loadMessages]);
 
