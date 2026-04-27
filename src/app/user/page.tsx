@@ -13,6 +13,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { UserCardSkeleton } from '@/components/loading-skeleton';
 import { Spinner } from '@/components/ui/spinner';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { ImageUploader } from '@/components/image-uploader';
 import { 
   Wallet, 
   User as UserIcon, 
@@ -479,8 +480,6 @@ export default function UserCenterPage() {
                   </div>
                 </CardContent>
               </Card>
-
-              {/* MT账号绑定 - 暂时隐藏
               <Card className="lg:col-span-2">
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
@@ -559,9 +558,9 @@ export default function UserCenterPage() {
                   )}
                 </CardContent>
               </Card>
-              */}
 
-              {/* 跟单统计 - 暂时隐藏
+              {/* MT账号绑定 - 暂时隐藏 */}
+              {/*
               <Card className="lg:col-span-2">
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">

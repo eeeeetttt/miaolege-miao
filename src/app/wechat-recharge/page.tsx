@@ -10,6 +10,7 @@ import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Spinner } from '@/components/ui/spinner';
 import { Badge } from '@/components/ui/badge';
+import { ImageUploader } from '@/components/image-uploader';
 import { 
   Coins, 
   CheckCircle2,
@@ -452,48 +453,14 @@ export default function WechatRechargePage() {
             {(selectedAmount || (customAmount && parseInt(customAmount) > 0)) && (
               <div className="space-y-3">
                 <Label>上传付款截图 *</Label>
-                <div className="relative">
-                  <input
-                    type="file"
-                    id="screenshot-upload"
-                    ref={screenshotInputRef}
-                    onChange={handleScreenshotUpload}
-                    accept="image/*"
-                    capture="environment"
-                    className="hidden"
-                  />
-                  <label 
-                    htmlFor="screenshot-upload"
-                    className={`block border-2 border-dashed rounded-lg p-6 text-center transition-colors cursor-pointer ${
-                      screenshotPreview 
-                        ? 'border-green-500 bg-green-50' 
-                        : 'border-gray-300 hover:border-green-400 hover:bg-green-50/50'
-                    }`}
-                  >
-                    {screenshotPreview ? (
-                      <div className="space-y-3">
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img 
-                          src={screenshotPreview} 
-                          alt="付款截图预览" 
-                          className="max-h-40 mx-auto rounded"
-                        />
-                        <p className="text-sm text-green-600 font-medium">点击重新上传</p>
-                      </div>
-                    ) : loading ? (
-                      <div className="space-y-2">
-                        <Spinner className="w-8 h-8 mx-auto text-gray-400" />
-                        <p className="text-sm text-gray-500">上传中...</p>
-                      </div>
-                    ) : (
-                      <div className="space-y-2">
-                        <Upload className="w-8 h-8 mx-auto text-gray-400" />
-                        <p className="text-gray-500 font-medium">点击拍照或选择图片</p>
-                        <p className="text-xs text-gray-400">支持 JPG、PNG 格式，最大 5MB</p>
-                      </div>
-                    )}
-                  </label>
-                </div>
+                <ImageUploader
+                  onUpload={(base64) => {
+                    setScreenshot(base64);
+                    setScreenshotPreview(base64);
+                  }}
+                  preview={screenshotPreview}
+                  disabled={loading}
+                />
               </div>
             )}
 
