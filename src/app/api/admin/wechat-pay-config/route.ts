@@ -24,7 +24,7 @@ export async function GET() {
     const { data: configData, error } = await supabase
       .from('system_config')
       .select('config_key, config_value')
-      .in('config_key', ['wechat_qrcode_url', 'wechat_exchange_rate', 'wechat_enabled']);
+      .in('config_key', ['wechat_qrcode_url', 'wechat_qrcode_key', 'wechat_exchange_rate', 'wechat_enabled']);
 
     if (error) {
       console.error('获取配置失败:', error);
@@ -38,10 +38,24 @@ export async function GET() {
       }
     }
 
+    // 从 key 动态生成 URL
+    let qrcodeUrl = '';
+    const qrcodeKey = config['wechat_qrcode_key'] || config['wechat_qrcode_url'];
+    if (qrcodeKey) {
+      try {
+        qrcodeUrl = await storage.generatePresignedUrl({
+          key: qrcodeKey,
+          expireTime: 86400, // 1天有效期
+        });
+      } catch (e) {
+        console.error('生成收款码URL失败:', e);
+      }
+    }
+
     return NextResponse.json({
       success: true,
       data: {
-        qrcodeUrl: config['wechat_qrcode_url'] || '',
+        qrcodeUrl,
         exchangeRate: config['wechat_exchange_rate'] || '7',
         enabled: config['wechat_enabled'] === 'true',
       },
@@ -94,18 +108,19 @@ export async function POST(request: NextRequest) {
         contentType: file.type,
       });
 
-      const qrcodeUrl = await storage.generatePresignedUrl({
-        key,
-        expireTime: -1, // 永不过期
-      });
-
-      // 保存配置
+      // 保存 key 而不是 URL（URL会过期，key不会）
       await supabase
         .from('system_config')
         .upsert({ 
-          config_key: 'wechat_qrcode_url', 
-          config_value: qrcodeUrl 
+          config_key: 'wechat_qrcode_key', 
+          config_value: key 
         }, { onConflict: 'config_key' });
+
+      // 返回带签名的URL用于立即显示
+      const qrcodeUrl = await storage.generatePresignedUrl({
+        key,
+        expireTime: 86400, // 1天有效期
+      });
 
       return NextResponse.json({
         success: true,
