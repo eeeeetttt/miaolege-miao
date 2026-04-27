@@ -25,6 +25,101 @@ function cleanParentheses(text: string): string {
     .trim();
 }
 
+// 检查消息是否与最近的消息重复
+async function checkDuplicateMessage(supabase: any, newMessage: string, similarityThreshold: number = 0.7): Promise<boolean> {
+  if (!newMessage || newMessage.length < 10) return false;
+
+  try {
+    // 获取最近30分钟的消息
+    const thirtyMinutesAgo = new Date(Date.now() - 30 * 60 * 1000).toISOString();
+    const { data: recentMessages } = await supabase
+      .from('chat_hall_messages')
+      .select('content, user_name')
+      .gte('created_at', thirtyMinutesAgo)
+      .order('created_at', { ascending: false })
+      .limit(20);
+
+    if (!recentMessages) return false;
+
+    // 标准化新消息
+    const normalizedNew = normalizeForComparison(newMessage);
+
+    for (const msg of recentMessages) {
+      const normalizedOld = normalizeForComparison(msg.content);
+
+      // 完全相同
+      if (normalizedNew === normalizedOld) {
+        console.log(`[去重] 消息完全相同: ${msg.user_name}`);
+        return true;
+      }
+
+      // 相似度检查（主要检查前半部分是否相同）
+      const maxLen = Math.min(normalizedNew.length, normalizedOld.length);
+      const compareLen = Math.min(maxLen, 30); // 只比较前30个字符
+      const newPrefix = normalizedNew.substring(0, compareLen);
+      const oldPrefix = normalizedOld.substring(0, compareLen);
+
+      if (newPrefix === oldPrefix && compareLen >= 15) {
+        console.log(`[去重] 消息前缀相似 (>15字符相同)`);
+        return true;
+      }
+
+      // 计算相似度
+      const similarity = calculateSimilarity(normalizedNew, normalizedOld);
+      if (similarity > similarityThreshold) {
+        console.log(`[去重] 消息相似度过高 (${(similarity * 100).toFixed(0)}%)`);
+        return true;
+      }
+    }
+
+    return false;
+  } catch (error) {
+    console.error('[去重] 检查失败:', error);
+    return false; // 出错时不阻止发送
+  }
+}
+
+// 标准化消息用于比较
+function normalizeForComparison(text: string): string {
+  return text
+    .toLowerCase()
+    .replace(/\s+/g, '')  // 移除所有空格
+    .replace(/[，。！？、；：「」『』【】《》]/g, '')  // 移除标点
+    .replace(/[a-z0-9]/gi, '')  // 移除字母数字
+    .trim();
+}
+
+// 计算字符串相似度（简单版）
+function calculateSimilarity(str1: string, str2: string): number {
+  if (str1 === str2) return 1;
+  if (str1.length === 0 || str2.length === 0) return 0;
+
+  // 使用最长公共子串计算相似度
+  const maxLen = Math.max(str1.length, str2.length);
+  const lcs = longestCommonSubstring(str1, str2);
+  return lcs / maxLen;
+}
+
+// 计算最长公共子串
+function longestCommonSubstring(str1: string, str2: string): number {
+  const m = str1.length;
+  const n = str2.length;
+  const dp: number[][] = Array(m + 1).fill(null).map(() => Array(n + 1).fill(0));
+
+  let maxLen = 0;
+
+  for (let i = 1; i <= m; i++) {
+    for (let j = 1; j <= n; j++) {
+      if (str1[i - 1] === str2[j - 1]) {
+        dp[i][j] = dp[i - 1][j - 1] + 1;
+        maxLen = Math.max(maxLen, dp[i][j]);
+      }
+    }
+  }
+
+  return maxLen;
+}
+
 // 异步清理24小时之前的消息（不阻塞主请求）
 async function cleanupOldMessages(supabase: any) {
   try {
@@ -549,6 +644,13 @@ async function sendAIReply(
 
     // 清理回复中的括号动作描述
     const cleanReply = cleanParentheses(aiReply);
+
+    // 检查是否与最近的消息重复
+    const isDuplicate = await checkDuplicateMessage(supabase, cleanReply);
+    if (isDuplicate) {
+      console.log(`[${role.name}] 回复与近期消息重复，跳过: ${cleanReply.substring(0, 30)}...`);
+      return;
+    }
 
     // 保存 AI 回复
     await supabase
