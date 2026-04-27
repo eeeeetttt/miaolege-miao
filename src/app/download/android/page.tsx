@@ -25,7 +25,7 @@ export default function DownloadPage() {
   useEffect(() => {
     // 获取当前域名
     const domain = window.location.origin;
-    setDownloadUrl(`${domain}/download/miaolegemiao-android-app.tar.gz`);
+    setDownloadUrl(`${domain}/download/jinhuohuo-android-app.tar.gz`);
     setSiteUrl(domain);
   }, []);
 
@@ -40,7 +40,7 @@ export default function DownloadPage() {
       step: 2,
       title: '下载项目源码',
       description: '点击上方按钮下载项目压缩包，解压到本地目录',
-      command: 'tar -xzvf miaolegemiao-android-app.tar.gz',
+      command: 'tar -xzvf jinhuohuo-android-app.tar.gz',
     },
     {
       step: 3,
@@ -247,7 +247,7 @@ export default function DownloadPage() {
               </div>
               <div className="text-center p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
                 <p className="text-sm text-gray-500 mb-1">包名</p>
-                <p className="font-bold text-sm">com.miaolegemiao</p>
+                <p className="font-bold text-sm">com.jinhuohuo</p>
               </div>
             </div>
 

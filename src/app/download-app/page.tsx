@@ -16,7 +16,7 @@ export default function DownloadPage() {
     setDownloadStarted(true);
     // 直接触发下载
     const link = document.createElement('a');
-    link.href = '/miaolegemiao.apk';
+    link.href = '/jinhuohuo.apk';
     link.download = '金火火.apk';
     document.body.appendChild(link);
     link.click();
