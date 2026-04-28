@@ -315,6 +315,44 @@ export default function ChallengePage() {
     }
   }, [currentEquity, hasRegistered, currentLevel, showToast, getLevelConfig]);
 
+  // 检查净值是否达标，自动通关下一关
+  const checkAndLevelUp = useCallback(() => {
+    if (!hasRegistered || currentEquity <= 0 || positions.length > 0) return;
+    
+    const cfg = getLevelConfig(currentLevel);
+    // 净值达到目标值
+    if (currentEquity >= cfg.targetBalance) {
+      const nextLevel = currentLevel + 1;
+      const nextCfg = getLevelConfig(nextLevel);
+      
+      // 如果有下一关
+      if (nextCfg) {
+        // 重置余额为下一关初始净值
+        setBalance(nextCfg.initialBalance);
+        // 清空历史记录
+        setEquityHistory([]);
+        // 进入下一关
+        setCurrentLevel(nextLevel);
+        showToast(`恭喜通关第${currentLevel}关！自动进入第${nextLevel}关，初始净值 $${nextCfg.initialBalance}`, 'success');
+        // 保存状态
+        localStorage.setItem(STORAGE_KEY, JSON.stringify({
+          balance: nextCfg.initialBalance,
+          positions: [],
+          currentLevel: nextLevel,
+          hasRegistered: true
+        }));
+        localStorage.setItem(EQUITY_HISTORY_KEY, JSON.stringify([]));
+      } else {
+        showToast(`恭喜通关所有关卡！最终净值 $${currentEquity.toFixed(2)}`, 'success');
+      }
+    }
+  }, [hasRegistered, currentEquity, positions.length, currentLevel, getLevelConfig, showToast]);
+
+  useEffect(() => {
+    const timer = setTimeout(checkAndLevelUp, 1000);
+    return () => clearTimeout(timer);
+  }, [checkAndLevelUp]);
+
   // 开多单（买入，用卖价）
   const handleLong = async () => {
     if (!session) {
@@ -331,6 +369,12 @@ export default function ChallengePage() {
     }
     if (goldAsk === 0) {
       showToast('价格加载中，请稍后', 'warning');
+      return;
+    }
+    
+    // 检查手数是否超过最大可开仓手数
+    if (lotSize > maxLots) {
+      showToast(`手数不能超过最大可开 ${maxLots.toFixed(2)}手`, 'warning');
       return;
     }
     
@@ -373,6 +417,12 @@ export default function ChallengePage() {
     }
     if (goldBid === 0) {
       showToast('价格加载中，请稍后', 'warning');
+      return;
+    }
+    
+    // 检查手数是否超过最大可开仓手数
+    if (lotSize > maxLots) {
+      showToast(`手数不能超过最大可开 ${maxLots.toFixed(2)}手`, 'warning');
       return;
     }
     
@@ -571,11 +621,6 @@ export default function ChallengePage() {
                 <span>第{currentLevel}关</span>
               </div>
             )}
-            {hasRegistered && (
-              <button className={styles.resetBtn} onClick={handleReset}>
-                重置
-              </button>
-            )}
           </div>
         </div>
 
@@ -628,7 +673,20 @@ export default function ChallengePage() {
             
             {hasRegistered ? (
               <>
-                {/* 净值和余额显示 */}
+                {/* 净值显示 */}
+                <div className={styles.equityDisplay}>
+                  <span className={styles.equityLabel}>净值</span>
+                  {currentEquity < currentLevelConfig.failBalance ? (
+                    <span className={styles.equityValue + ' ' + styles.equityFailed}>
+                      ${currentEquity.toFixed(2)} 
+                      <small>挑战失败</small>
+                    </span>
+                  ) : (
+                    <span className={styles.equityValue}>${currentEquity.toFixed(2)}</span>
+                  )}
+                </div>
+
+                {/* 余额和持仓盈亏显示 */}
                 <div className={styles.balanceRow}>
                   <div className={styles.balanceItem}>
                     <span className={styles.balanceItemLabel}>
@@ -646,47 +704,14 @@ export default function ChallengePage() {
                       {totalPositionProfit >= 0 ? '+' : ''}${totalPositionProfit.toFixed(2)}
                     </span>
                   </div>
-                </div>
-                
-                <div className={styles.equityDisplay}>
-                  <span className={styles.equityLabel}>净值</span>
-                  {hasRegistered && currentEquity < currentLevelConfig.failBalance ? (
-                    <span className={styles.equityValue + ' ' + styles.equityFailed}>
-                      ${currentEquity.toFixed(2)} 
-                      <small>挑战失败</small>
+                  <div className={styles.balanceItem}>
+                    <span className={styles.balanceItemLabel}>
+                      <AlertCircle className={styles.balanceIcon} />
+                      失败底线
                     </span>
-                  ) : (
-                    <span className={styles.equityValue}>${currentEquity.toFixed(2)}</span>
-                  )}
-                </div>
-
-                {/* 最大可开仓手数 */}
-                <div className={styles.maxLotsInfo}>
-                  <Calculator className={styles.maxLotsIcon} />
-                  <span>最大可开: <strong>{maxLots.toFixed(2)}手</strong></span>
-                  <span className={styles.marginInfo}>保证金 ${(goldAsk * CONTRACT_SIZE * maxLots / LEVERAGE).toFixed(2)}</span>
-                </div>
-                
-                {/* 历史盈亏记录 */}
-                {equityHistory.length >= 2 && (
-                  <div className={styles.equityCurve}>
-                    <span className={styles.curveLabel}>历史记录</span>
-                    <div className={styles.historyList}>
-                      <div className={styles.historyItem}>
-                        <span>初始</span>
-                        <span>${equityHistory[0]?.equity.toFixed(2)}</span>
-                      </div>
-                      <div className={styles.historyItem}>
-                        <span>当前</span>
-                        <span className={currentEquity >= (equityHistory[0]?.equity || 0) ? styles.profitText : styles.lossText}>
-                          ${currentEquity.toFixed(2)}
-                          {currentEquity >= (equityHistory[0]?.equity || 0) ? ' (+)' : ' (-)'}
-                          ${Math.abs(currentEquity - (equityHistory[0]?.equity || 0)).toFixed(2)}
-                        </span>
-                      </div>
-                    </div>
+                    <span className={styles.balanceItemValue}>${currentLevelConfig.failBalance}</span>
                   </div>
-                )}
+                </div>
 
                 <div className={styles.progressSection}>
                   <div className={styles.progressHeader}>
@@ -702,17 +727,6 @@ export default function ChallengePage() {
                   <div className={styles.progressLabels}>
                     <span>初始 ${initialBalance.toLocaleString()}</span>
                     <span>目标 ${targetBalance.toLocaleString()}</span>
-                  </div>
-                </div>
-
-                <div className={styles.levelInfo}>
-                  <div className={styles.levelInfoItem}>
-                    <span>关卡名称</span>
-                    <span>{currentLevelConfig.name}</span>
-                  </div>
-                  <div className={styles.levelInfoItem}>
-                    <span>失败底线</span>
-                    <span className={styles.failText}>${currentLevelConfig.failBalance}</span>
                   </div>
                 </div>
               </>
