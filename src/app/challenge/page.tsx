@@ -2,18 +2,15 @@
 
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useSession } from 'next-auth/react';
+import dynamic from 'next/dynamic';
 import styles from './page.module.css';
 import { TrendingUp, TrendingDown, Trophy, Zap, Target, Clock, DollarSign, BarChart3, Star, RefreshCw, X, Wallet, Calculator } from 'lucide-react';
-import {
-  AreaChart,
-  Area,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-  ReferenceLine,
-} from 'recharts';
+
+// 动态导入图表组件，避免SSR问题
+const EquityChart = dynamic(() => import('@/components/challenge/equity-chart').then(mod => mod.default), {
+  ssr: false,
+  loading: () => <div className="h-[80px] bg-gray-800/30 rounded animate-pulse" />
+});
 
 interface LevelConfig {
   level: number;
@@ -625,48 +622,7 @@ export default function ChallengePage() {
                 {chartData.length >= 2 && (
                   <div className={styles.equityCurve}>
                     <span className={styles.curveLabel}>收益曲线</span>
-                    <ResponsiveContainer width="100%" height={80}>
-                      <AreaChart data={chartData} margin={{ top: 5, right: 5, bottom: 5, left: 5 }}>
-                        <defs>
-                          <linearGradient id="equityGradient" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="5%" stopColor="#22c55e" stopOpacity={0.3}/>
-                            <stop offset="95%" stopColor="#22c55e" stopOpacity={0}/>
-                          </linearGradient>
-                        </defs>
-                        <CartesianGrid strokeDasharray="3 3" stroke="#333" vertical={false} />
-                        <XAxis 
-                          dataKey="timeLabel" 
-                          tick={{ fontSize: 10, fill: '#6b7280' }}
-                          axisLine={{ stroke: '#333' }}
-                          tickLine={false}
-                          interval="preserveStartEnd"
-                        />
-                        <YAxis 
-                          tick={{ fontSize: 10, fill: '#6b7280' }}
-                          axisLine={{ stroke: '#333' }}
-                          tickLine={false}
-                          tickFormatter={(v) => `$${v.toFixed(0)}`}
-                          width={50}
-                        />
-                        <Tooltip 
-                          contentStyle={{ 
-                            backgroundColor: '#1e2230', 
-                            border: '1px solid #333',
-                            borderRadius: '8px',
-                            fontSize: '12px'
-                          }}
-                          formatter={(value: number) => [`$${value.toFixed(2)}`, '净值']}
-                        />
-                        <ReferenceLine y={initialBalance} stroke="#D4AF37" strokeDasharray="3 3" />
-                        <Area 
-                          type="monotone" 
-                          dataKey="equity" 
-                          stroke="#22c55e" 
-                          strokeWidth={2}
-                          fill="url(#equityGradient)" 
-                        />
-                      </AreaChart>
-                    </ResponsiveContainer>
+                    <EquityChart data={chartData} initialBalance={initialBalance} />
                   </div>
                 )}
 
