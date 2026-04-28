@@ -559,11 +559,11 @@ async function sendAIReply(
       const goldData = await goldResponse.json();
       if (goldData.success && goldData.data) {
         const price = goldData.data;
-        goldPriceInfo = `【重要】当前伦敦金(XAUUSD)实时价格: $${price.price.toLocaleString()} ${price.change >= 0 ? '+' : ''}${price.changePercent.toFixed(2)}% (更新时间: ${new Date(price.time).toLocaleString('zh-CN')})。请以此为准，不要使用过时或错误的价格数据。`;
+        goldPriceInfo = `【实时行情】当前伦敦金(XAUUSD)现货价格: $${price.price.toLocaleString()} ${price.change >= 0 ? '+' : ''}${price.changePercent?.toFixed(2) || 0}% (买价: $${price.bid?.toLocaleString()}, 卖价: $${price.ask?.toLocaleString()}, 点差: $${price.spread?.toFixed(2)}) | 数据来源: ${price.source || 'Unknown'} | 更新时间: ${new Date(price.time).toLocaleString('zh-CN')}。重要提醒：讨论黄金时必须使用上述实时价格，禁止使用任何历史价格或错误价格（如1900美元附近的价格都是过时的）！`;
       }
     } catch (e) {
       console.log('[价格] 获取实时价格失败，使用默认信息');
-      goldPriceInfo = '【重要】当前伦敦金价格约在4300美元/盎司附近，请以实际行情为准。';
+      goldPriceInfo = '【紧急提醒】当前伦敦金价格约在4500-4600美元/盎司之间（具体请以实际行情为准）。请勿使用任何低于4000美元的价格数据进行讨论，那是严重过时的价格！';
     }
 
     // 每次发送前获取最新的上下文（包含之前的AI回复）

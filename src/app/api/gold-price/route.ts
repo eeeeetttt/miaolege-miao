@@ -1,117 +1,125 @@
 import { NextResponse } from 'next/server';
 
-// 伦敦金价格API
+// 伦敦金价格API - 使用Swissquote实时数据
 export async function GET() {
   try {
-    // 方法1: 使用金十数据的免费接口（需要设置代理或者使用CORS代理）
-    // 金十数据 API
-    const goldAPIUrl = 'https://api.money.126.net/data/feed/1200200,1001861?callback=a';
-
-    try {
-      const response = await fetch(goldAPIUrl, {
-        headers: {
-          'Referer': 'https://finance.126.com',
-        },
-      });
-
-      if (response.ok) {
-        const text = await response.text();
-        // 解析返回的数据格式: a({"1200200":{...}})
-        const jsonMatch = text.match(/a\((.+)\)/);
-        if (jsonMatch) {
-          const data = JSON.parse(jsonMatch[1]);
-          const londonGold = data['1200200'];
-          
-          if (londonGold && londonGold.price) {
-            return NextResponse.json({
-              success: true,
-              data: {
-                price: parseFloat(londonGold.price),
-                change: parseFloat(londonGold.change) || 0,
-                changePercent: parseFloat(londonGold.percent) || 0,
-                name: '伦敦金',
-                code: 'XAUUSD',
-                time: londonGold.updateTime || new Date().toISOString(),
-                unit: '美元/盎司',
-                currency: 'USD'
-              }
-            });
-          }
-        }
-      }
-    } catch (e) {
-      console.error('金十数据获取失败:', e);
-    }
-
-    // 方法2: 备用 - 使用其他数据源
-    // 如果金十数据失败，尝试网易贵金属
-    const backupUrl = 'https://api.money.126.net/data/feed/1001861?callback=b';
+    // Swissquote 实时报价API - 提供准确的XAU/USD价格
+    const swissquoteUrl = 'https://forex-data-feed.swissquote.com/public-quotes/bboquotes/instrument/XAU/USD';
     
     try {
-      const response = await fetch(backupUrl, {
+      const response = await fetch(swissquoteUrl, {
         headers: {
-          'Referer': 'https://money.163.com',
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+          'Accept': 'application/json',
         },
       });
 
       if (response.ok) {
-        const text = await response.text();
-        const jsonMatch = text.match(/b\((.+)\)/);
-        if (jsonMatch) {
-          const data = JSON.parse(jsonMatch[1]);
-          const goldData = data['1001861'];
+        const data = await response.json();
+        
+        if (data && data.length > 0) {
+          // 获取第一个报价的价格
+          const quote = data[0];
+          const prices = quote.spreadProfilePrices;
           
-          if (goldData && goldData.price) {
-            // 换算成美元/盎司（人民币汇率换算 + 单位换算）
-            const cnyPrice = parseFloat(goldData.price);
-            const usdCnyRate = 7.25; // 默认汇率
-            
-            // 黄金换算：1盎司=31.1035克，人民币/克换算成美元/盎司
-            const usdPrice = (cnyPrice / usdCnyRate) * 31.1035;
+          // 使用第一个可用价格配置（通常是premium）
+          const premiumPrice = prices.find((p: any) => p.spreadProfile === 'premium') || prices[0];
+          
+          if (premiumPrice) {
+            const bid = premiumPrice.bid;
+            const ask = premiumPrice.ask;
+            const midPrice = (bid + ask) / 2;
+            const spread = ask - bid;
+            const timestamp = new Date(quote.ts);
             
             return NextResponse.json({
               success: true,
               data: {
-                price: Math.round(usdPrice * 100) / 100,
-                change: parseFloat(goldData.change) || 0,
-                changePercent: parseFloat(goldData.percent) || 0,
-                name: '伦敦金(换算)',
+                price: Math.round(midPrice * 100) / 100,
+                bid: Math.round(bid * 100) / 100,
+                ask: Math.round(ask * 100) / 100,
+                spread: Math.round(spread * 100) / 100,
+                name: '伦敦金',
                 code: 'XAUUSD',
-                time: goldData.updateTime || new Date().toISOString(),
+                time: timestamp.toISOString(),
                 unit: '美元/盎司',
                 currency: 'USD',
-                cnyPrice: cnyPrice
+                source: 'Swissquote'
               }
             });
           }
         }
       }
     } catch (e) {
-      console.error('备用数据获取失败:', e);
+      console.error('Swissquote 获取失败:', e);
     }
 
-    // 方法3: 返回一个估算值（当所有API都失败时）
-    // 这个值需要手动更新或者用其他方式获取
+    // 备用: Yahoo Finance
+    const yahooUrl = 'https://query2.finance.yahoo.com/v8/finance/chart/XAUUSD=X?interval=1d&range=1d';
+    
+    try {
+      const response = await fetch(yahooUrl, {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+        },
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        const chartData = result?.chart?.result?.[0];
+        
+        if (chartData) {
+          const meta = chartData.meta;
+          const regularMarketPrice = meta.regularMarketPrice;
+          const regularMarketPreviousClose = meta.chartPreviousClose || meta.previousClose;
+          const change = regularMarketPrice - regularMarketPreviousClose;
+          const changePercent = regularMarketPreviousClose ? (change / regularMarketPreviousClose) * 100 : 0;
+          
+          return NextResponse.json({
+            success: true,
+            data: {
+              price: Math.round(regularMarketPrice * 100) / 100,
+              change: Math.round(change * 100) / 100,
+              changePercent: Math.round(changePercent * 100) / 100,
+              name: '伦敦金',
+              code: 'XAUUSD',
+              time: new Date(meta.regularMarketTime * 1000).toISOString(),
+              unit: '美元/盎司',
+              currency: 'USD',
+              source: 'Yahoo Finance'
+            }
+          });
+        }
+      }
+    } catch (e) {
+      console.error('Yahoo Finance 获取失败:', e);
+    }
+
+    // 最终备用: 返回null价格，让前端显示上次获取的价格
+    console.error('所有数据源获取失败');
+    
     return NextResponse.json({
-      success: true,
+      success: false,
+      error: '无法获取实时价格',
       data: {
-        price: 4320, // 默认值，实际应该从API获取
-        change: 0,
-        changePercent: 0,
+        price: null,
         name: '伦敦金',
         code: 'XAUUSD',
-        time: new Date().toISOString(),
         unit: '美元/盎司',
-        currency: 'USD',
-        estimated: true // 标记为估算值
+        currency: 'USD'
       }
     });
 
   } catch (error) {
-    console.error('获取伦敦金价格失败:', error);
+    console.error('gold-price API error:', error);
     return NextResponse.json({
       success: false,
-      error: '获取价格失败'
+      error: '服务器错误',
+      data: {
+        price: null,
+        name: '伦敦金',
+        code: 'XAUUSD'
+      }
     }, { status: 500 });
   }
 }
