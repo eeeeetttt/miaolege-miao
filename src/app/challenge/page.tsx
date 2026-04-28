@@ -2,9 +2,8 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useSession } from 'next-auth/react';
-import Link from 'next/link';
 import styles from './page.module.css';
-import { TrendingUp, TrendingDown, Trophy, Users, Zap, Target, Clock, DollarSign, BarChart3, Star, RefreshCw, X } from 'lucide-react';
+import { TrendingUp, TrendingDown, Trophy, Zap, Target, Clock, DollarSign, BarChart3, Star, RefreshCw, X } from 'lucide-react';
 
 interface LevelConfig {
   level: number;
@@ -20,28 +19,31 @@ interface Position {
   id: string;
   type: 'long' | 'short';
   openPrice: number;
+  closePrice: number;
   amount: number;
   openTime: string;
+  profit: number;
 }
 
-interface Ranking {
-  rank: number;
-  userName: string;
-  level: number;
-  balance: number;
-  profitPercent: number;
+interface EquityHistory {
+  time: string;
+  equity: number;
 }
 
 const STORAGE_KEY = 'challenge_state';
+const EQUITY_HISTORY_KEY = 'challenge_equity_history';
+const LEVERAGE = 500; // 杠杆500倍
 
 export default function ChallengePage() {
   const { data: session, status } = useSession();
   const [goldPrice, setGoldPrice] = useState<number>(0);
+  const [goldBid, setGoldBid] = useState<number>(0);
+  const [goldAsk, setGoldAsk] = useState<number>(0);
   const [priceChange, setPriceChange] = useState<number>(0);
   const [loading, setLoading] = useState(true);
-  const [equity, setEquity] = useState<number>(1000);
+  const [equity, setEquity] = useState<number>(0);
   const [positions, setPositions] = useState<Position[]>([]);
-  const [ranking, setRanking] = useState<Ranking[]>([]);
+  const [equityHistory, setEquityHistory] = useState<EquityHistory[]>([]);
   const [currentLevel, setCurrentLevel] = useState(1);
   const [levelConfigs, setLevelConfigs] = useState<LevelConfig[]>([]);
   const [registrationMode, setRegistrationMode] = useState<'free' | 'paid'>('free');
@@ -51,12 +53,29 @@ export default function ChallengePage() {
   const [lotSize, setLotSize] = useState(0.1);
   const [selectedPositions, setSelectedPositions] = useState<Set<string>>(new Set());
   const priceRef = useRef<number>(0);
-  const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const showToast = useCallback((message: string, type: 'success' | 'warning' | 'info' = 'info') => {
     setToast({ message, type });
     setTimeout(() => setToast(null), 2500);
   }, []);
+
+  // 获取当前关卡配置
+  const getLevelConfig = useCallback((level: number): LevelConfig => {
+    if (levelConfigs.length > 0) {
+      const config = levelConfigs.find(c => c.level === level);
+      if (config) return config;
+    }
+    // 默认配置
+    return {
+      level,
+      name: `第${level}关`,
+      description: '',
+      targetBalance: 3000 * Math.pow(1.3, level - 1),
+      initialBalance: level === 1 ? 3000 : 3000 * Math.pow(1.3, level - 2),
+      failBalance: 100,
+      reward: null
+    };
+  }, [levelConfigs]);
 
   // 从localStorage加载状态
   const loadState = useCallback(() => {
@@ -66,19 +85,33 @@ export default function ChallengePage() {
     if (saved) {
       try {
         const state = JSON.parse(saved);
-        if (state.equity !== undefined) setEquity(state.equity);
-        if (state.positions !== undefined) setPositions(state.positions);
-        if (state.currentLevel !== undefined) setCurrentLevel(state.currentLevel);
-        if (state.hasRegistered !== undefined) setHasRegistered(state.hasRegistered);
+        // 只有未注册时才使用默认值
+        if (state.hasRegistered && state.equity > 0) {
+          setEquity(state.equity);
+          setPositions(state.positions || []);
+          setCurrentLevel(state.currentLevel || 1);
+          setHasRegistered(state.hasRegistered);
+        }
       } catch (e) {
         console.error('加载状态失败:', e);
       }
     }
+
+    // 加载历史记录
+    const historySaved = localStorage.getItem(EQUITY_HISTORY_KEY);
+    if (historySaved) {
+      try {
+        setEquityHistory(JSON.parse(historySaved));
+      } catch (e) {
+        console.error('加载历史失败:', e);
+      }
+    }
   }, []);
 
-  // 保存状态到localStorage
+  // 保存状态到localStorage（仅在有有效数据时保存）
   const saveState = useCallback(() => {
     if (typeof window === 'undefined') return;
+    if (!hasRegistered || equity <= 0) return;
     
     const state = {
       equity,
@@ -87,32 +120,21 @@ export default function ChallengePage() {
       hasRegistered
     };
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  }, [equity, positions, currentLevel, hasRegistered]);
 
-    // 同步到后端
-    if (session?.user?.id) {
-      fetch('/api/challenge/equity', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ equity, positions, level: currentLevel })
-      }).catch(console.error);
-    }
-  }, [equity, positions, currentLevel, hasRegistered, session]);
-
-  // 防抖保存
-  useEffect(() => {
-    if (!hasRegistered) return;
+  // 记录净值变化到历史
+  const recordEquity = useCallback(() => {
+    if (typeof window === 'undefined') return;
+    if (!hasRegistered || equity <= 0) return;
     
-    if (saveTimeoutRef.current) {
-      clearTimeout(saveTimeoutRef.current);
-    }
-    saveTimeoutRef.current = setTimeout(saveState, 500);
-    
-    return () => {
-      if (saveTimeoutRef.current) {
-        clearTimeout(saveTimeoutRef.current);
-      }
-    };
-  }, [equity, positions, saveState, hasRegistered]);
+    const history = equityHistory.slice(-99); // 保留最近100条
+    history.push({
+      time: new Date().toISOString(),
+      equity
+    });
+    setEquityHistory(history);
+    localStorage.setItem(EQUITY_HISTORY_KEY, JSON.stringify(history));
+  }, [equity, hasRegistered, equityHistory]);
 
   // 获取实时金价
   const fetchGoldPrice = useCallback(async () => {
@@ -121,7 +143,11 @@ export default function ChallengePage() {
       const data = await res.json();
       if (data.success && data.data) {
         const newPrice = data.data.price;
+        const bid = data.data.bid || newPrice - 0.3;
+        const ask = data.data.ask || newPrice + 0.3;
         setGoldPrice(newPrice);
+        setGoldBid(bid);
+        setGoldAsk(ask);
         if (priceRef.current > 0) {
           setPriceChange(newPrice - priceRef.current);
         }
@@ -141,92 +167,60 @@ export default function ChallengePage() {
         if (data.levelConfigs && data.levelConfigs.length > 0) {
           setLevelConfigs(data.levelConfigs);
         }
+        return data;
       }
     } catch (e) {
       console.error('获取关卡配置失败:', e);
     }
+    return null;
   }, []);
 
-  // 获取净值和订单数据
-  const fetchUserData = useCallback(async () => {
-    if (!session?.user?.id) return;
+  // 获取用户挑战状态
+  const fetchUserStatus = useCallback(async () => {
+    if (!session?.user?.id) return null;
     
     try {
-      // 获取净值
-      const equityRes = await fetch(`/api/challenge/equity?level=${currentLevel}`);
-      if (equityRes.ok) {
-        const equityData = await equityRes.json();
-        if (equityData.equity !== null) {
-          setEquity(equityData.equity);
-        }
-      }
-
-      // 获取订单
-      const tradesRes = await fetch(`/api/challenge/trades?level=${currentLevel}`);
-      if (tradesRes.ok) {
-        const tradesData = await tradesRes.json();
-        if (tradesData.trades && tradesData.trades.length > 0) {
-          // 过滤出未平仓的订单
-          const openTrades = tradesData.trades
-            .filter((t: any) => t.status === 'open')
-            .map((t: any) => ({
-              id: t.id,
-              type: t.type,
-              openPrice: t.open_price,
-              amount: t.amount,
-              openTime: t.open_time
-            }));
-          if (openTrades.length > 0) {
-            setPositions(openTrades);
-          }
-        }
-      }
-    } catch (e) {
-      console.error('获取用户数据失败:', e);
-    }
-  }, [session, currentLevel]);
-
-  // 获取排名数据
-  const fetchRanking = useCallback(async () => {
-    try {
-      const res = await fetch('/api/challenge/ranking');
+      const res = await fetch('/api/challenge/register');
       if (res.ok) {
         const data = await res.json();
-        if (data.rankings) {
-          setRanking(data.rankings);
+        if (data.registration) {
+          setHasRegistered(true);
+          if (data.registration.currentLevel) {
+            setCurrentLevel(data.registration.currentLevel);
+          }
+          // 初始净值从关卡配置获取
+          const level = data.registration.currentLevel || 1;
+          const config = data.levelConfigs?.find((c: LevelConfig) => c.level === level);
+          if (config && config.initialBalance) {
+            // 只有在未从localStorage加载到有效数据时才使用配置值
+            const saved = localStorage.getItem(STORAGE_KEY);
+            if (!saved || !JSON.parse(saved).hasRegistered) {
+              setEquity(config.initialBalance);
+            }
+          }
         }
+        return data;
       }
     } catch (e) {
-      console.error('获取排名失败:', e);
+      console.error('获取用户状态失败:', e);
     }
-  }, []);
+    return null;
+  }, [session]);
 
   // 初始化
   useEffect(() => {
-    loadState();
-    
-    if (status === 'authenticated') {
-      fetchLevelConfigs().then(() => {
-        // 获取用户挑战状态
-        fetch('/api/challenge/register')
-          .then(res => res.json())
-          .then(data => {
-            if (data.registration) {
-              setHasRegistered(true);
-              if (data.registration.currentLevel) {
-                setCurrentLevel(data.registration.currentLevel);
-              }
-            }
-            // 获取用户数据
-            fetchUserData();
-            setLoading(false);
-          })
-          .catch(() => setLoading(false));
-      });
-    } else {
+    const init = async () => {
+      loadState();
+      
+      if (status === 'authenticated') {
+        await fetchLevelConfigs();
+        await fetchUserStatus();
+      }
       setLoading(false);
-    }
-  }, [status, loadState, fetchLevelConfigs, fetchUserData]);
+    };
+    
+    init();
+  }, [status, loadState, fetchLevelConfigs, fetchUserStatus]);
 
   // 实时价格更新
   useEffect(() => {
@@ -235,24 +229,29 @@ export default function ChallengePage() {
     return () => clearInterval(interval);
   }, [fetchGoldPrice]);
 
-  // 排名数据定期刷新
+  // 定期记录净值
   useEffect(() => {
-    if (hasRegistered) {
-      fetchRanking();
-      const interval = setInterval(fetchRanking, 30000);
-      return () => clearInterval(interval);
-    }
-  }, [hasRegistered, fetchRanking]);
+    if (!hasRegistered) return;
+    
+    recordEquity();
+    const interval = setInterval(recordEquity, 10000); // 每10秒记录一次
+    return () => clearInterval(interval);
+  }, [hasRegistered, recordEquity]);
 
-  // 计算订单盈亏
+  // 计算订单盈亏（考虑点差）
   const calculatePositionProfit = (pos: Position) => {
     if (goldPrice === 0) return { profit: 0, profitPercent: 0 };
-    const priceDiff = goldPrice - pos.openPrice;
+    
+    // 平仓时：做多用买价，做空用卖价
+    const closePrice = pos.type === 'long' ? goldBid : goldAsk;
+    const priceDiff = closePrice - pos.openPrice;
+    // 考虑杠杆
     const profit = pos.type === 'long' 
-      ? priceDiff * pos.amount * 100
-      : -priceDiff * pos.amount * 100;
+      ? priceDiff * pos.amount * 100 * LEVERAGE
+      : -priceDiff * pos.amount * 100 * LEVERAGE;
     const profitPercent = (profit / (pos.openPrice * pos.amount * 100)) * 100;
-    return { profit, profitPercent };
+    
+    return { profit, profitPercent, closePrice };
   };
 
   // 计算总盈亏
@@ -261,72 +260,58 @@ export default function ChallengePage() {
     return sum + profit;
   }, 0);
 
-  // 开多单
+  // 开多单（买入，用卖价）
   const handleLong = async () => {
     if (!session) {
       showToast('请先登录', 'warning');
       return;
     }
+    if (goldAsk === 0) {
+      showToast('价格加载中，请稍后', 'warning');
+      return;
+    }
+    
+    const openPrice = goldAsk; // 买入用卖价
     const newPosition: Position = {
       id: `pos_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
       type: 'long',
-      openPrice: goldPrice,
+      openPrice,
+      closePrice: openPrice,
       amount: lotSize,
-      openTime: new Date().toISOString()
+      openTime: new Date().toISOString(),
+      profit: 0
     };
 
-    // 保存到后端
-    try {
-      await fetch('/api/challenge/trades', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          type: 'long',
-          openPrice: goldPrice,
-          amount: lotSize,
-          level: currentLevel
-        })
-      });
-    } catch (e) {
-      console.error('保存订单失败:', e);
-    }
-
     setPositions(prev => [...prev, newPosition]);
-    showToast(`做多成功，开仓价: $${goldPrice.toFixed(2)}`, 'success');
+    showToast(`做多成功，开仓价: $${openPrice.toFixed(2)} (卖价)`, 'success');
+    saveState();
   };
 
-  // 开空单
+  // 开空单（卖出，用买价）
   const handleShort = async () => {
     if (!session) {
       showToast('请先登录', 'warning');
       return;
     }
+    if (goldBid === 0) {
+      showToast('价格加载中，请稍后', 'warning');
+      return;
+    }
+    
+    const openPrice = goldBid; // 卖出用买价
     const newPosition: Position = {
       id: `pos_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
       type: 'short',
-      openPrice: goldPrice,
+      openPrice,
+      closePrice: openPrice,
       amount: lotSize,
-      openTime: new Date().toISOString()
+      openTime: new Date().toISOString(),
+      profit: 0
     };
 
-    // 保存到后端
-    try {
-      await fetch('/api/challenge/trades', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          type: 'short',
-          openPrice: goldPrice,
-          amount: lotSize,
-          level: currentLevel
-        })
-      });
-    } catch (e) {
-      console.error('保存订单失败:', e);
-    }
-
     setPositions(prev => [...prev, newPosition]);
-    showToast(`做空成功，开仓价: $${goldPrice.toFixed(2)}`, 'success');
+    showToast(`做空成功，开仓价: $${openPrice.toFixed(2)} (买价)`, 'success');
+    saveState();
   };
 
   // 平仓单个订单
@@ -334,33 +319,25 @@ export default function ChallengePage() {
     const pos = positions.find(p => p.id === posId);
     if (!pos) return;
 
-    const { profit } = calculatePositionProfit(pos);
+    const { profit, closePrice } = calculatePositionProfit(pos);
     
     // 更新净值
     setEquity(prev => prev + profit);
 
     // 从列表中移除
     setPositions(prev => prev.filter(p => p.id !== posId));
-
-    // 更新后端
-    try {
-      await fetch('/api/challenge/trades', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          tradeId: posId,
-          closePrice: goldPrice,
-          profit
-        })
-      });
-    } catch (e) {
-      console.error('更新订单失败:', e);
-    }
+    setSelectedPositions(prev => {
+      const newSet = new Set(prev);
+      newSet.delete(posId);
+      return newSet;
+    });
 
     showToast(
       `平仓完成，${profit >= 0 ? '盈利' : '亏损'} $${Math.abs(profit).toFixed(2)}`,
       profit >= 0 ? 'success' : 'warning'
     );
+    saveState();
+    recordEquity();
   };
 
   // 平仓所有选中订单
@@ -388,24 +365,12 @@ export default function ChallengePage() {
     setPositions(prev => prev.filter(p => !selectedPositions.has(p.id)));
     setSelectedPositions(new Set());
 
-    // 更新后端
-    try {
-      await fetch('/api/challenge/trades', {
-        method: 'DELETE',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          tradeIds: closedIds,
-          closePrice: goldPrice
-        })
-      });
-    } catch (e) {
-      console.error('批量平仓失败:', e);
-    }
-
     showToast(
       `已平仓${closedIds.length}单，${totalClosedProfit >= 0 ? '盈利' : '亏损'} $${Math.abs(totalClosedProfit).toFixed(2)}`,
       totalClosedProfit >= 0 ? 'success' : 'warning'
     );
+    saveState();
+    recordEquity();
   };
 
   // 全选/取消全选
@@ -430,6 +395,18 @@ export default function ChallengePage() {
     });
   };
 
+  // 重置挑战
+  const handleReset = () => {
+    const config = getLevelConfig(currentLevel);
+    setEquity(config.initialBalance);
+    setPositions([]);
+    setEquityHistory([]);
+    setSelectedPositions(new Set());
+    localStorage.removeItem(STORAGE_KEY);
+    localStorage.removeItem(EQUITY_HISTORY_KEY);
+    showToast(`已重置到第${currentLevel}关初始状态`, 'info');
+  };
+
   // 报名参赛
   const handleRegister = async () => {
     if (!session) {
@@ -448,10 +425,13 @@ export default function ChallengePage() {
         showToast('报名成功！', 'success');
         setHasRegistered(true);
         // 从配置获取初始净值
-        const initialBalance = levelConfigs.find(c => c.level === 1)?.initialBalance || 1000;
-        setEquity(initialBalance);
+        const config = getLevelConfig(1);
+        setEquity(config.initialBalance);
         setPositions([]);
         setCurrentLevel(1);
+        setEquityHistory([]);
+        localStorage.removeItem(STORAGE_KEY);
+        localStorage.removeItem(EQUITY_HISTORY_KEY);
         saveState();
       } else {
         showToast(data.error || '报名失败', 'warning');
@@ -473,29 +453,29 @@ export default function ChallengePage() {
   }
 
   const isPriceUp = priceChange >= 0;
-
-  // 获取当前关卡配置
-  const getLevelConfig = (level: number): LevelConfig => {
-    if (levelConfigs.length > 0) {
-      const config = levelConfigs.find(c => c.level === level);
-      if (config) return config;
-    }
-    // 默认配置
-    return {
-      level,
-      name: `第${level}关`,
-      description: '',
-      targetBalance: 1000 * Math.pow(1.5, level - 1),
-      initialBalance: 1000 * Math.pow(1.3, level - 2) || 1000,
-      failBalance: 100,
-      reward: null
-    };
-  };
-
   const currentLevelConfig = getLevelConfig(currentLevel);
   const targetBalance = currentLevelConfig.targetBalance;
   const initialBalance = currentLevelConfig.initialBalance;
-  const progressPercent = ((equity - initialBalance) / (targetBalance - initialBalance)) * 100;
+  const progressPercent = equity > 0 ? ((equity - initialBalance) / (targetBalance - initialBalance)) * 100 : 0;
+
+  // 生成收益曲线SVG路径
+  const generateEquityCurve = () => {
+    if (equityHistory.length < 2) return '';
+    
+    const width = 100;
+    const height = 40;
+    const minEquity = Math.min(...equityHistory.map(h => h.equity)) * 0.95;
+    const maxEquity = Math.max(...equityHistory.map(h => h.equity)) * 1.05;
+    const range = maxEquity - minEquity || 1;
+    
+    const points = equityHistory.map((h, i) => {
+      const x = (i / (equityHistory.length - 1)) * width;
+      const y = height - ((h.equity - minEquity) / range) * height;
+      return `${x},${y}`;
+    });
+    
+    return `M ${points.join(' L ')}`;
+  };
 
   return (
     <div className={styles.pageContainer}>
@@ -513,15 +493,22 @@ export default function ChallengePage() {
             <Trophy className={styles.headerIcon} />
             <div>
               <h1>K线征途</h1>
-              <span className={styles.headerSub}>伦敦金模拟交易挑战</span>
+              <span className={styles.headerSub}>伦敦金模拟交易 · 杠杆{LEVERAGE}倍</span>
             </div>
           </div>
-          {hasRegistered && (
-            <div className={styles.levelBadge}>
-              <Star className={styles.levelIcon} />
-              <span>第{currentLevel}关</span>
-            </div>
-          )}
+          <div className={styles.headerRight}>
+            {hasRegistered && (
+              <div className={styles.levelBadge}>
+                <Star className={styles.levelIcon} />
+                <span>第{currentLevel}关</span>
+              </div>
+            )}
+            {hasRegistered && (
+              <button className={styles.resetBtn} onClick={handleReset}>
+                重置
+              </button>
+            )}
+          </div>
         </div>
 
         {/* 实时行情区域 */}
@@ -538,145 +525,29 @@ export default function ChallengePage() {
                 <span>{isPriceUp ? '+' : ''}{priceChange.toFixed(2)}</span>
               </div>
             </div>
+            {/* 买卖价格 */}
+            <div className={styles.bidAsk}>
+              <div className={styles.bidAskItem}>
+                <span className={styles.bidAskLabel}>买价</span>
+                <span className={styles.bidAskValue}>${goldBid.toFixed(2)}</span>
+              </div>
+              <div className={styles.bidAskItem}>
+                <span className={styles.bidAskLabel}>卖价</span>
+                <span className={styles.bidAskValue}>${goldAsk.toFixed(2)}</span>
+              </div>
+              <div className={styles.bidAskSpread}>
+                <span>点差</span>
+                <span>${(goldAsk - goldBid).toFixed(2)}</span>
+              </div>
+            </div>
             <div className={styles.priceTime}>
               <Clock className={styles.timeIcon} />
               <span>{new Date().toLocaleTimeString('zh-CN')}</span>
             </div>
           </div>
 
-          {/* 交易面板 */}
-          <div className={styles.tradeCard}>
-            <div className={styles.tradeHeader}>
-              <span>模拟交易</span>
-              {positions.length > 0 && (
-                <span className={styles.positionBadge}>
-                  {positions.length}单持仓中
-                </span>
-              )}
-            </div>
-            
-            {/* 手数选择 */}
-            <div className={styles.lotSection}>
-              <span className={styles.lotLabel}>交易手数</span>
-              <div className={styles.lotButtons}>
-                {[0.01, 0.05, 0.1, 0.2, 0.5, 1].map(lot => (
-                  <button
-                    key={lot}
-                    className={`${styles.lotBtn} ${lotSize === lot ? styles.lotActive : ''}`}
-                    onClick={() => setLotSize(lot)}
-                  >
-                    {lot}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* 交易按钮 */}
-            <div className={styles.tradeButtons}>
-              <button 
-                className={`${styles.tradeBtn} ${styles.longBtn}`}
-                onClick={handleLong}
-              >
-                <TrendingUp className={styles.tradeIcon} />
-                <span>做多</span>
-              </button>
-              <button 
-                className={`${styles.tradeBtn} ${styles.shortBtn}`}
-                onClick={handleShort}
-              >
-                <TrendingDown className={styles.tradeIcon} />
-                <span>做空</span>
-              </button>
-              {positions.length > 0 && (
-                <button 
-                  className={`${styles.tradeBtn} ${styles.closeBtn}`}
-                  onClick={handleCloseSelected}
-                  disabled={selectedPositions.size === 0}
-                >
-                  <BarChart3 className={styles.tradeIcon} />
-                  <span>平仓({selectedPositions.size})</span>
-                </button>
-              )}
-            </div>
-          </div>
-        </div>
-
-        {/* 持仓列表 */}
-        {positions.length > 0 && (
-          <div className={styles.positionsSection}>
-            <div className={styles.positionsHeader}>
-              <h3><BarChart3 className={styles.cardIcon} />当前持仓 ({positions.length})</h3>
-              <div className={styles.positionsActions}>
-                <button 
-                  className={styles.selectAllBtn}
-                  onClick={toggleSelectAll}
-                >
-                  {selectedPositions.size === positions.length ? '取消全选' : '全选'}
-                </button>
-                <span className={styles.totalProfit}>
-                  总浮动盈亏: 
-                  <span className={totalProfit >= 0 ? styles.profitText : styles.lossText}>
-                    {totalProfit >= 0 ? '+' : ''}${totalProfit.toFixed(2)}
-                  </span>
-                </span>
-              </div>
-            </div>
-            <div className={styles.positionsList}>
-              {positions.map(pos => {
-                const { profit, profitPercent } = calculatePositionProfit(pos);
-                const isSelected = selectedPositions.has(pos.id);
-                
-                return (
-                  <div 
-                    key={pos.id} 
-                    className={`${styles.positionItem} ${isSelected ? styles.selected : ''}`}
-                    onClick={() => toggleSelect(pos.id)}
-                  >
-                    <div className={styles.positionCheck}>
-                      <input 
-                        type="checkbox" 
-                        checked={isSelected}
-                        onChange={() => toggleSelect(pos.id)}
-                        onClick={(e) => e.stopPropagation()}
-                      />
-                    </div>
-                    <div className={styles.positionType}>
-                      <span className={pos.type === 'long' ? styles.longBadge : styles.shortBadge}>
-                        {pos.type === 'long' ? '多' : '空'}
-                      </span>
-                    </div>
-                    <div className={styles.positionInfo}>
-                      <span>开仓价: ${pos.openPrice.toFixed(2)}</span>
-                      <span>手数: {pos.amount}</span>
-                    </div>
-                    <div className={styles.positionProfit}>
-                      <span className={profit >= 0 ? styles.profitText : styles.lossText}>
-                        {profit >= 0 ? '+' : ''}${profit.toFixed(2)}
-                      </span>
-                      <span className={profitPercent >= 0 ? styles.profitText : styles.lossText}>
-                        {profitPercent >= 0 ? '+' : ''}{profitPercent.toFixed(2)}%
-                      </span>
-                    </div>
-                    <button 
-                      className={styles.closeSingleBtn}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleClosePosition(pos.id);
-                      }}
-                    >
-                      <X className={styles.closeIcon} />
-                    </button>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        )}
-
-        {/* 账户与排名区域 */}
-        <div className={styles.mainGrid}>
-          {/* 左侧：账户信息 */}
-          <div className={styles.accountCard}>
+          {/* 账户卡片 */}
+          <div className={styles.accountCardSmall}>
             <h3><DollarSign className={styles.cardIcon} />账户概览</h3>
             
             {hasRegistered ? (
@@ -686,6 +557,28 @@ export default function ChallengePage() {
                   <span className={styles.balanceValue}>${equity.toFixed(2)}</span>
                 </div>
                 
+                {/* 收益曲线 */}
+                {equityHistory.length >= 2 && (
+                  <div className={styles.equityCurve}>
+                    <span className={styles.curveLabel}>收益曲线</span>
+                    <svg viewBox="0 0 100 40" className={styles.curveSvg}>
+                      <defs>
+                        <linearGradient id="curveGradient" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="0%" stopColor="rgba(34, 197, 94, 0.3)" />
+                          <stop offset="100%" stopColor="rgba(34, 197, 94, 0)" />
+                        </linearGradient>
+                      </defs>
+                      <path
+                        d={generateEquityCurve()}
+                        fill="none"
+                        stroke="#22c55e"
+                        strokeWidth="1.5"
+                        vectorEffect="non-scaling-stroke"
+                      />
+                    </svg>
+                  </div>
+                )}
+
                 <div className={styles.progressSection}>
                   <div className={styles.progressHeader}>
                     <span>第{currentLevel}关进度</span>
@@ -745,45 +638,132 @@ export default function ChallengePage() {
               </div>
             )}
           </div>
+        </div>
 
-          {/* 右侧：排行榜 */}
-          <div className={styles.rankingCard}>
-            <h3><Trophy className={styles.cardIcon} />收益排行</h3>
-            
-            {hasRegistered ? (
-              <div className={styles.rankingList}>
-                {[
-                  { rank: 1, name: '交易高手', level: 8, profit: 285.5 },
-                  { rank: 2, name: '黄金猎手', level: 7, profit: 198.2 },
-                  { rank: 3, name: '趋势追踪', level: 6, profit: 156.8 },
-                  { rank: 4, name: '波段之王', level: 5, profit: 112.3 },
-                  { rank: 5, name: '你的昵称', level: currentLevel, profit: ((equity - 1000) / 1000) * 100 },
-                ].map((item, idx) => (
-                  <div 
-                    key={item.rank} 
-                    className={`${styles.rankingItem} ${idx < 3 ? styles.topThree : ''}`}
-                  >
-                    <div className={styles.rankNumber}>
-                      {idx < 3 ? ['🥇', '🥈', '🥉'][idx] : item.rank}
-                    </div>
-                    <div className={styles.rankInfo}>
-                      <span className={styles.rankName}>{item.name}</span>
-                      <span className={styles.rankLevel}>第{item.level}关</span>
-                    </div>
-                    <div className={styles.rankProfit}>
-                      +{item.profit.toFixed(1)}%
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className={styles.rankingPlaceholder}>
-                <Users className={styles.placeholderIcon} />
-                <p>登录后查看排行</p>
-              </div>
+        {/* 交易面板 */}
+        <div className={styles.tradeCard}>
+          <div className={styles.tradeHeader}>
+            <span>模拟交易</span>
+            {positions.length > 0 && (
+              <span className={styles.positionBadge}>
+                {positions.length}单持仓中
+              </span>
+            )}
+          </div>
+          
+          {/* 手数选择 */}
+          <div className={styles.lotSection}>
+            <span className={styles.lotLabel}>交易手数 (1手 = 100盎司)</span>
+            <div className={styles.lotButtons}>
+              {[0.01, 0.05, 0.1, 0.2, 0.5, 1].map(lot => (
+                <button
+                  key={lot}
+                  className={`${styles.lotBtn} ${lotSize === lot ? styles.lotActive : ''}`}
+                  onClick={() => setLotSize(lot)}
+                >
+                  {lot}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* 交易按钮 */}
+          <div className={styles.tradeButtons}>
+            <button 
+              className={`${styles.tradeBtn} ${styles.longBtn}`}
+              onClick={handleLong}
+              disabled={!hasRegistered}
+            >
+              <TrendingUp className={styles.tradeIcon} />
+              <span>买入做多</span>
+              <small>开仓价 ${goldAsk.toFixed(2)}</small>
+            </button>
+            <button 
+              className={`${styles.tradeBtn} ${styles.shortBtn}`}
+              onClick={handleShort}
+              disabled={!hasRegistered}
+            >
+              <TrendingDown className={styles.tradeIcon} />
+              <span>卖出做空</span>
+              <small>开仓价 ${goldBid.toFixed(2)}</small>
+            </button>
+            {positions.length > 0 && (
+              <button 
+                className={`${styles.tradeBtn} ${styles.closeBtn}`}
+                onClick={handleCloseSelected}
+                disabled={selectedPositions.size === 0}
+              >
+                <BarChart3 className={styles.tradeIcon} />
+                <span>平仓({selectedPositions.size})</span>
+                <small>总盈亏 ${totalProfit >= 0 ? '+' : ''}${totalProfit.toFixed(2)}</small>
+              </button>
             )}
           </div>
         </div>
+
+        {/* 持仓列表 */}
+        {positions.length > 0 && (
+          <div className={styles.positionsSection}>
+            <div className={styles.positionsHeader}>
+              <h3><BarChart3 className={styles.cardIcon} />当前持仓 ({positions.length})</h3>
+              <div className={styles.positionsActions}>
+                <button 
+                  className={styles.selectAllBtn}
+                  onClick={toggleSelectAll}
+                >
+                  {selectedPositions.size === positions.length ? '取消全选' : '全选'}
+                </button>
+              </div>
+            </div>
+            <div className={styles.positionsList}>
+              {positions.map(pos => {
+                const { profit, closePrice } = calculatePositionProfit(pos);
+                const isSelected = selectedPositions.has(pos.id);
+                
+                return (
+                  <div 
+                    key={pos.id} 
+                    className={`${styles.positionItem} ${isSelected ? styles.selected : ''}`}
+                    onClick={() => toggleSelect(pos.id)}
+                  >
+                    <div className={styles.positionCheck}>
+                      <input 
+                        type="checkbox" 
+                        checked={isSelected}
+                        onChange={() => toggleSelect(pos.id)}
+                        onClick={(e) => e.stopPropagation()}
+                      />
+                    </div>
+                    <div className={styles.positionType}>
+                      <span className={pos.type === 'long' ? styles.longBadge : styles.shortBadge}>
+                        {pos.type === 'long' ? '多' : '空'}
+                      </span>
+                    </div>
+                    <div className={styles.positionInfo}>
+                      <span>开仓: ${pos.openPrice.toFixed(2)}</span>
+                      <span>现价: ${(closePrice || 0).toFixed(2)}</span>
+                      <span>{pos.amount}手</span>
+                    </div>
+                    <div className={styles.positionProfit}>
+                      <span className={profit >= 0 ? styles.profitText : styles.lossText}>
+                        {profit >= 0 ? '+' : ''}${profit.toFixed(2)}
+                      </span>
+                    </div>
+                    <button 
+                      className={styles.closeSingleBtn}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleClosePosition(pos.id);
+                      }}
+                    >
+                      <X className={styles.closeIcon} />
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
 
         {/* 关卡展示 */}
         <div className={styles.levelsSection}>
@@ -798,6 +778,17 @@ export default function ChallengePage() {
                 <div 
                   key={level}
                   className={`${styles.levelCard} ${isCurrent ? styles.currentLevel : ''} ${isUnlocked ? styles.unlocked : ''}`}
+                  onClick={() => {
+                    if (hasRegistered && level <= currentLevel) {
+                      setCurrentLevel(level);
+                      const cfg = getLevelConfig(level);
+                      setEquity(cfg.initialBalance);
+                      setPositions([]);
+                      setEquityHistory([]);
+                      saveState();
+                      showToast(`切换到第${level}关，初始净值 $${cfg.initialBalance.toLocaleString()}`, 'info');
+                    }
+                  }}
                 >
                   <div className={styles.levelNum}>{level}</div>
                   <div className={styles.levelName}>{config.name}</div>

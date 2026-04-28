@@ -1,4 +1,4 @@
-/* K线征途挑战赛页面样式 - 全新设计 */
+/* K线征途挑战赛页面样式 */
 
 /* 主容器 */
 .pageContainer {
@@ -95,6 +95,12 @@
   gap: 1rem;
 }
 
+.headerRight {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
 .headerIcon {
   width: 40px;
   height: 40px;
@@ -135,10 +141,25 @@
   height: 18px;
 }
 
-/* 行情与交易区域 */
+.resetBtn {
+  padding: 8px 16px;
+  background: rgba(239, 68, 68, 0.2);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  border-radius: 8px;
+  color: #ef4444;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.resetBtn:hover {
+  background: rgba(239, 68, 68, 0.3);
+}
+
+/* 行情与账户区域 */
 .priceSection {
   display: grid;
-  grid-template-columns: 1fr 1.5fr;
+  grid-template-columns: 1fr 1fr;
   gap: 1.5rem;
   margin-bottom: 1.5rem;
 }
@@ -185,7 +206,7 @@
   display: flex;
   align-items: baseline;
   gap: 1rem;
-  margin-bottom: 0.5rem;
+  margin-bottom: 1rem;
 }
 
 .priceValue {
@@ -216,6 +237,53 @@
   height: 18px;
 }
 
+/* 买卖价格 */
+.bidAsk {
+  display: flex;
+  gap: 1.5rem;
+  padding: 1rem;
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 12px;
+  margin-bottom: 1rem;
+}
+
+.bidAskItem {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.bidAskLabel {
+  font-size: 0.8rem;
+  color: #6b7280;
+}
+
+.bidAskValue {
+  font-size: 1.2rem;
+  font-weight: 600;
+  color: #fff;
+  font-variant-numeric: tabular-nums;
+}
+
+.bidAskSpread {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-left: auto;
+  text-align: right;
+}
+
+.bidAskSpread span:first-child {
+  font-size: 0.8rem;
+  color: #6b7280;
+}
+
+.bidAskSpread span:last-child {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #D4AF37;
+}
+
 .priceTime {
   display: flex;
   align-items: center;
@@ -229,363 +297,15 @@
   height: 14px;
 }
 
-/* 交易卡片 */
-.tradeCard {
+/* 账户卡片 */
+.accountCardSmall {
   background: linear-gradient(145deg, #1e2230 0%, #252a3a 100%);
   border-radius: 16px;
   padding: 1.5rem;
   border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
-.tradeHeader {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 1.5rem;
-  font-weight: 600;
-  color: #fff;
-}
-
-.positionBadge {
-  padding: 4px 12px;
-  background: rgba(59, 130, 246, 0.2);
-  color: #60a5fa;
-  border-radius: 12px;
-  font-size: 0.85rem;
-}
-
-/* 手数选择 */
-.lotSection {
-  margin-bottom: 1.5rem;
-}
-
-.lotLabel {
-  display: block;
-  font-size: 0.85rem;
-  color: #8b92a5;
-  margin-bottom: 0.75rem;
-}
-
-.lotButtons {
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
-}
-
-.lotBtn {
-  padding: 8px 14px;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 8px;
-  color: #a0a5b5;
-  font-size: 0.9rem;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.lotBtn:hover:not(:disabled) {
-  background: rgba(255, 255, 255, 0.1);
-  color: #fff;
-}
-
-.lotBtn.lotActive {
-  background: linear-gradient(135deg, #D4AF37 0%, #B8962E 100%);
-  color: #0f1117;
-  border-color: transparent;
-}
-
-.lotBtn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-/* 交易按钮 */
-.tradeButtons {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 12px;
-  margin-bottom: 1rem;
-}
-
-.tradeBtn {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 6px;
-  padding: 1rem;
-  border-radius: 12px;
-  border: none;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.tradeBtn:disabled {
-  opacity: 0.4;
-  cursor: not-allowed;
-}
-
-.tradeIcon {
-  width: 24px;
-  height: 24px;
-}
-
-.longBtn {
-  background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
-  color: white;
-}
-
-.longBtn:hover:not(:disabled) {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(239, 68, 68, 0.4);
-}
-
-.shortBtn {
-  background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
-  color: white;
-}
-
-.shortBtn:hover:not(:disabled) {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(34, 197, 94, 0.4);
-}
-
-.closeBtn {
-  background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
-  color: white;
-}
-
-.closeBtn:hover:not(:disabled) {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.4);
-}
-
-/* 持仓信息 */
-.positionInfo {
-  background: rgba(255, 255, 255, 0.03);
-  border-radius: 12px;
-  padding: 1rem;
-  margin-top: 1rem;
-}
-
-.positionRow {
-  display: flex;
-  justify-content: space-between;
-  padding: 6px 0;
-  font-size: 0.9rem;
-  color: #a0a5b5;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-}
-
-.positionRow:last-child {
-  border-bottom: none;
-}
-
-.positionRow span:last-child {
-  color: #fff;
-  font-weight: 500;
-}
-
-.longText {
-  color: #ef4444 !important;
-}
-
-.shortText {
-  color: #22c55e !important;
-}
-
-/* 持仓列表 */
-.positionsSection {
-  background: linear-gradient(145deg, #1e2230 0%, #252a3a 100%);
-  border-radius: 16px;
-  padding: 1.5rem;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  margin-bottom: 1.5rem;
-}
-
-.positionsHeader {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 1rem;
-}
-
-.positionsHeader h3 {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 1.1rem;
-  font-weight: 600;
-  color: #fff;
-  margin: 0;
-}
-
-.positionsActions {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-}
-
-.selectAllBtn {
-  padding: 6px 12px;
-  background: rgba(255, 255, 255, 0.1);
-  border: none;
-  border-radius: 6px;
-  color: #a0a5b5;
-  font-size: 0.85rem;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.selectAllBtn:hover {
-  background: rgba(255, 255, 255, 0.15);
-  color: #fff;
-}
-
-.totalProfit {
-  font-size: 0.9rem;
-  color: #a0a5b5;
-}
-
-.positionsList {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.positionItem {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 12px 16px;
-  background: rgba(255, 255, 255, 0.03);
-  border: 2px solid transparent;
-  border-radius: 12px;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.positionItem:hover {
-  background: rgba(255, 255, 255, 0.06);
-}
-
-.positionItem.selected {
-  border-color: #D4AF37;
-  background: rgba(212, 175, 55, 0.1);
-}
-
-.positionCheck {
-  display: flex;
-  align-items: center;
-}
-
-.positionCheck input[type="checkbox"] {
-  width: 18px;
-  height: 18px;
-  cursor: pointer;
-  accent-color: #D4AF37;
-}
-
-.positionType {
-  display: flex;
-  align-items: center;
-}
-
-.longBadge,
-.shortBadge {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 32px;
-  height: 32px;
-  border-radius: 8px;
-  font-size: 0.85rem;
-  font-weight: 600;
-  color: white;
-}
-
-.longBadge {
-  background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
-}
-
-.shortBadge {
-  background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
-}
-
-.positionInfo {
-  flex: 1;
-  display: flex;
-  gap: 16px;
-  font-size: 0.9rem;
-  color: #a0a5b5;
-}
-
-.positionProfit {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 2px;
-  font-size: 0.95rem;
-  font-weight: 600;
-}
-
-.closeSingleBtn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 32px;
-  height: 32px;
-  background: rgba(239, 68, 68, 0.1);
-  border: none;
-  border-radius: 8px;
-  color: #ef4444;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.closeSingleBtn:hover {
-  background: rgba(239, 68, 68, 0.2);
-}
-
-.closeIcon {
-  width: 16px;
-  height: 16px;
-}
-
-/* 盈利/亏损文字颜色 */
-.profitText {
-  color: #22c55e !important;
-}
-
-.lossText {
-  color: #ef4444 !important;
-}
-
-/* 主要网格 */
-.mainGrid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 1.5rem;
-  margin-bottom: 1.5rem;
-}
-
-@media (max-width: 768px) {
-  .mainGrid {
-    grid-template-columns: 1fr;
-  }
-}
-
-/* 卡片通用 */
-.accountCard,
-.rankingCard {
-  background: linear-gradient(145deg, #1e2230 0%, #252a3a 100%);
-  border-radius: 16px;
-  padding: 1.5rem;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-}
-
-.accountCard h3,
-.rankingCard h3 {
+.accountCardSmall h3 {
   display: flex;
   align-items: center;
   gap: 8px;
@@ -604,10 +324,10 @@
 /* 账户余额 */
 .accountBalance {
   text-align: center;
-  padding: 1.5rem;
+  padding: 1rem;
   background: rgba(212, 175, 55, 0.1);
   border-radius: 12px;
-  margin-bottom: 1.5rem;
+  margin-bottom: 1rem;
 }
 
 .balanceLabel {
@@ -618,15 +338,34 @@
 }
 
 .balanceValue {
-  font-size: 2.5rem;
+  font-size: 2rem;
   font-weight: 700;
   color: #D4AF37;
   font-variant-numeric: tabular-nums;
 }
 
+/* 收益曲线 */
+.equityCurve {
+  margin-bottom: 1rem;
+}
+
+.curveLabel {
+  display: block;
+  font-size: 0.8rem;
+  color: #6b7280;
+  margin-bottom: 0.5rem;
+}
+
+.curveSvg {
+  width: 100%;
+  height: 60px;
+  background: rgba(255, 255, 255, 0.02);
+  border-radius: 8px;
+}
+
 /* 进度条 */
 .progressSection {
-  margin-bottom: 1.5rem;
+  margin-bottom: 1rem;
 }
 
 .progressHeader {
@@ -769,80 +508,297 @@
   cursor: not-allowed;
 }
 
-/* 排行榜 */
-.rankingList {
+/* 交易卡片 */
+.tradeCard {
+  background: linear-gradient(145deg, #1e2230 0%, #252a3a 100%);
+  border-radius: 16px;
+  padding: 1.5rem;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  margin-bottom: 1.5rem;
+}
+
+.tradeHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.5rem;
+  font-weight: 600;
+  color: #fff;
+}
+
+.positionBadge {
+  padding: 4px 12px;
+  background: rgba(59, 130, 246, 0.2);
+  color: #60a5fa;
+  border-radius: 12px;
+  font-size: 0.85rem;
+}
+
+/* 手数选择 */
+.lotSection {
+  margin-bottom: 1.5rem;
+}
+
+.lotLabel {
+  display: block;
+  font-size: 0.85rem;
+  color: #8b92a5;
+  margin-bottom: 0.75rem;
+}
+
+.lotButtons {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.lotBtn {
+  padding: 8px 14px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  color: #a0a5b5;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.lotBtn:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+}
+
+.lotBtn.lotActive {
+  background: linear-gradient(135deg, #D4AF37 0%, #B8962E 100%);
+  color: #0f1117;
+  border-color: transparent;
+}
+
+/* 交易按钮 */
+.tradeButtons {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+}
+
+.tradeBtn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 1rem;
+  border-radius: 12px;
+  border: none;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.tradeBtn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.tradeBtn small {
+  font-size: 0.75rem;
+  opacity: 0.8;
+  font-weight: 400;
+}
+
+.tradeIcon {
+  width: 24px;
+  height: 24px;
+}
+
+.longBtn {
+  background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+  color: white;
+}
+
+.longBtn:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(239, 68, 68, 0.4);
+}
+
+.shortBtn {
+  background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
+  color: white;
+}
+
+.shortBtn:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(34, 197, 94, 0.4);
+}
+
+.closeBtn {
+  background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
+  color: white;
+}
+
+.closeBtn:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.4);
+}
+
+/* 持仓列表 */
+.positionsSection {
+  background: linear-gradient(145deg, #1e2230 0%, #252a3a 100%);
+  border-radius: 16px;
+  padding: 1.5rem;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  margin-bottom: 1.5rem;
+}
+
+.positionsHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.positionsHeader h3 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: #fff;
+  margin: 0;
+}
+
+.positionsActions {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.selectAllBtn {
+  padding: 6px 12px;
+  background: rgba(255, 255, 255, 0.1);
+  border: none;
+  border-radius: 6px;
+  color: #a0a5b5;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.selectAllBtn:hover {
+  background: rgba(255, 255, 255, 0.15);
+  color: #fff;
+}
+
+.positionsList {
   display: flex;
   flex-direction: column;
   gap: 8px;
 }
 
-.rankingItem {
+.positionItem {
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 12px;
+  padding: 12px 16px;
   background: rgba(255, 255, 255, 0.03);
-  border-radius: 10px;
-  transition: background 0.2s;
+  border: 2px solid transparent;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.2s;
 }
 
-.rankingItem:hover {
+.positionItem:hover {
   background: rgba(255, 255, 255, 0.06);
 }
 
-.rankingItem.topThree {
-  background: rgba(212, 175, 55, 0.08);
+.positionItem.selected {
+  border-color: #D4AF37;
+  background: rgba(212, 175, 55, 0.1);
 }
 
-.rankNumber {
+.positionCheck {
+  display: flex;
+  align-items: center;
+}
+
+.positionCheck input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  cursor: pointer;
+  accent-color: #D4AF37;
+}
+
+.positionType {
+  display: flex;
+  align-items: center;
+}
+
+.longBadge,
+.shortBadge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   width: 32px;
   height: 32px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 0.9rem;
+  border-radius: 8px;
+  font-size: 0.85rem;
   font-weight: 600;
-  color: #D4AF37;
+  color: white;
 }
 
-.rankInfo {
+.longBadge {
+  background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+}
+
+.shortBadge {
+  background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
+}
+
+.positionInfo {
   flex: 1;
   display: flex;
-  flex-direction: column;
-  gap: 2px;
+  gap: 16px;
+  font-size: 0.9rem;
+  color: #a0a5b5;
 }
 
-.rankName {
-  font-size: 0.95rem;
-  color: #fff;
-  font-weight: 500;
-}
-
-.rankLevel {
-  font-size: 0.8rem;
-  color: #6b7280;
-}
-
-.rankProfit {
-  font-size: 1rem;
-  font-weight: 600;
-  color: #22c55e;
-}
-
-.rankingPlaceholder {
+.positionProfit {
   display: flex;
   flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 3rem;
-  color: #6b7280;
+  align-items: flex-end;
+  gap: 2px;
+  font-size: 0.95rem;
+  font-weight: 600;
 }
 
-.placeholderIcon {
-  width: 48px;
-  height: 48px;
-  margin-bottom: 1rem;
-  opacity: 0.5;
+.profitText {
+  color: #22c55e !important;
+}
+
+.lossText {
+  color: #ef4444 !important;
+}
+
+.closeSingleBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  background: rgba(239, 68, 68, 0.1);
+  border: none;
+  border-radius: 8px;
+  color: #ef4444;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.closeSingleBtn:hover {
+  background: rgba(239, 68, 68, 0.2);
+}
+
+.closeIcon {
+  width: 16px;
+  height: 16px;
 }
 
 /* 关卡区域 */
@@ -890,11 +846,17 @@
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 12px;
   transition: all 0.2s;
+  cursor: default;
 }
 
 .levelCard.unlocked {
   background: rgba(212, 175, 55, 0.08);
   border-color: rgba(212, 175, 55, 0.3);
+  cursor: pointer;
+}
+
+.levelCard.unlocked:hover {
+  background: rgba(212, 175, 55, 0.15);
 }
 
 .levelCard.currentLevel {
