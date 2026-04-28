@@ -1,9 +1,19 @@
 'use client';
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useSession } from 'next-auth/react';
 import styles from './page.module.css';
-import { TrendingUp, TrendingDown, Trophy, Zap, Target, Clock, DollarSign, BarChart3, Star, RefreshCw, X } from 'lucide-react';
+import { TrendingUp, TrendingDown, Trophy, Zap, Target, Clock, DollarSign, BarChart3, Star, RefreshCw, X, Wallet, Calculator } from 'lucide-react';
+import {
+  AreaChart,
+  Area,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  ReferenceLine,
+} from 'recharts';
 
 interface LevelConfig {
   level: number;
@@ -28,11 +38,13 @@ interface Position {
 interface EquityHistory {
   time: string;
   equity: number;
+  balance: number;
 }
 
 const STORAGE_KEY = 'challenge_state';
 const EQUITY_HISTORY_KEY = 'challenge_equity_history';
 const LEVERAGE = 500; // 杠杆500倍
+const CONTRACT_SIZE = 100; // 每手100盎司
 
 export default function ChallengePage() {
   const { data: session, status } = useSession();
@@ -41,7 +53,7 @@ export default function ChallengePage() {
   const [goldAsk, setGoldAsk] = useState<number>(0);
   const [priceChange, setPriceChange] = useState<number>(0);
   const [loading, setLoading] = useState(true);
-  const [equity, setEquity] = useState<number>(0);
+  const [balance, setBalance] = useState<number>(0); // 余额（可用于交易的资金）
   const [positions, setPositions] = useState<Position[]>([]);
   const [equityHistory, setEquityHistory] = useState<EquityHistory[]>([]);
   const [currentLevel, setCurrentLevel] = useState(1);
@@ -77,6 +89,48 @@ export default function ChallengePage() {
     };
   }, [levelConfigs]);
 
+  // 计算订单盈亏（考虑点差）
+  const calculatePositionProfit = useCallback((pos: Position, bid?: number, ask?: number) => {
+    const currentBid = bid || goldBid;
+    const currentAsk = ask || goldAsk;
+    if (currentBid === 0 && currentAsk === 0) return { profit: 0, profitPercent: 0, closePrice: 0 };
+    
+    // 平仓时：做多用买价，做空用卖价
+    const closePrice = pos.type === 'long' ? currentBid : currentAsk;
+    const priceDiff = closePrice - pos.openPrice;
+    // 考虑杠杆：每手每点$1
+    const profit = pos.type === 'long' 
+      ? priceDiff * pos.amount * CONTRACT_SIZE * LEVERAGE
+      : -priceDiff * pos.amount * CONTRACT_SIZE * LEVERAGE;
+    // 收益率基于保证金计算
+    const marginRequired = pos.openPrice * CONTRACT_SIZE * pos.amount / LEVERAGE;
+    const profitPercent = marginRequired > 0 ? (profit / marginRequired) * 100 : 0;
+    
+    return { profit, profitPercent, closePrice };
+  }, [goldBid, goldAsk]);
+
+  // 计算总持仓盈亏
+  const totalPositionProfit = useMemo(() => {
+    return positions.reduce((sum, pos) => {
+      const { profit } = calculatePositionProfit(pos);
+      return sum + profit;
+    }, 0);
+  }, [positions, calculatePositionProfit]);
+
+  // 计算当前净值 = 余额 + 持仓盈亏
+  const currentEquity = useMemo(() => {
+    return balance + totalPositionProfit;
+  }, [balance, totalPositionProfit]);
+
+  // 计算最大可开仓手数
+  // 公式：保证金 = 开仓价 × 合约单位(100盎司) × 手数 ÷ 杠杆倍数
+  // 最大手数 = 余额 ÷ (当前价 × 100 ÷ 500)
+  const maxLots = useMemo(() => {
+    if (goldAsk === 0 || balance <= 0) return 0;
+    const marginPerLot = goldAsk * CONTRACT_SIZE / LEVERAGE;
+    return Math.floor(balance / marginPerLot * 100) / 100; // 保留2位小数
+  }, [goldAsk, balance]);
+
   // 从localStorage加载状态
   const loadState = useCallback(() => {
     if (typeof window === 'undefined') return;
@@ -85,9 +139,8 @@ export default function ChallengePage() {
     if (saved) {
       try {
         const state = JSON.parse(saved);
-        // 只有未注册时才使用默认值
-        if (state.hasRegistered && state.equity > 0) {
-          setEquity(state.equity);
+        if (state.hasRegistered && state.balance !== undefined) {
+          setBalance(state.balance);
           setPositions(state.positions || []);
           setCurrentLevel(state.currentLevel || 1);
           setHasRegistered(state.hasRegistered);
@@ -108,33 +161,34 @@ export default function ChallengePage() {
     }
   }, []);
 
-  // 保存状态到localStorage（仅在有有效数据时保存）
+  // 保存状态到localStorage
   const saveState = useCallback(() => {
     if (typeof window === 'undefined') return;
-    if (!hasRegistered || equity <= 0) return;
+    if (!hasRegistered) return;
     
     const state = {
-      equity,
+      balance,
       positions,
       currentLevel,
       hasRegistered
     };
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-  }, [equity, positions, currentLevel, hasRegistered]);
+  }, [balance, positions, currentLevel, hasRegistered]);
 
   // 记录净值变化到历史
   const recordEquity = useCallback(() => {
     if (typeof window === 'undefined') return;
-    if (!hasRegistered || equity <= 0) return;
+    if (!hasRegistered) return;
     
-    const history = equityHistory.slice(-99); // 保留最近100条
+    const history = equityHistory.slice(-99);
     history.push({
       time: new Date().toISOString(),
-      equity
+      equity: currentEquity,
+      balance
     });
     setEquityHistory(history);
     localStorage.setItem(EQUITY_HISTORY_KEY, JSON.stringify(history));
-  }, [equity, hasRegistered, equityHistory]);
+  }, [hasRegistered, currentEquity, balance, equityHistory]);
 
   // 获取实时金价
   const fetchGoldPrice = useCallback(async () => {
@@ -195,7 +249,7 @@ export default function ChallengePage() {
             // 只有在未从localStorage加载到有效数据时才使用配置值
             const saved = localStorage.getItem(STORAGE_KEY);
             if (!saved || !JSON.parse(saved).hasRegistered) {
-              setEquity(config.initialBalance);
+              setBalance(config.initialBalance);
             }
           }
         }
@@ -238,28 +292,6 @@ export default function ChallengePage() {
     return () => clearInterval(interval);
   }, [hasRegistered, recordEquity]);
 
-  // 计算订单盈亏（考虑点差）
-  const calculatePositionProfit = (pos: Position) => {
-    if (goldPrice === 0) return { profit: 0, profitPercent: 0 };
-    
-    // 平仓时：做多用买价，做空用卖价
-    const closePrice = pos.type === 'long' ? goldBid : goldAsk;
-    const priceDiff = closePrice - pos.openPrice;
-    // 考虑杠杆
-    const profit = pos.type === 'long' 
-      ? priceDiff * pos.amount * 100 * LEVERAGE
-      : -priceDiff * pos.amount * 100 * LEVERAGE;
-    const profitPercent = (profit / (pos.openPrice * pos.amount * 100)) * 100;
-    
-    return { profit, profitPercent, closePrice };
-  };
-
-  // 计算总盈亏
-  const totalProfit = positions.reduce((sum, pos) => {
-    const { profit } = calculatePositionProfit(pos);
-    return sum + profit;
-  }, 0);
-
   // 开多单（买入，用卖价）
   const handleLong = async () => {
     if (!session) {
@@ -268,6 +300,13 @@ export default function ChallengePage() {
     }
     if (goldAsk === 0) {
       showToast('价格加载中，请稍后', 'warning');
+      return;
+    }
+    
+    // 检查余额是否足够开仓
+    const marginRequired = goldAsk * CONTRACT_SIZE * lotSize / LEVERAGE;
+    if (marginRequired > balance) {
+      showToast(`余额不足，开仓需要$${marginRequired.toFixed(2)}保证金`, 'warning');
       return;
     }
     
@@ -298,6 +337,13 @@ export default function ChallengePage() {
       return;
     }
     
+    // 检查余额是否足够开仓
+    const marginRequired = goldBid * CONTRACT_SIZE * lotSize / LEVERAGE;
+    if (marginRequired > balance) {
+      showToast(`余额不足，开仓需要$${marginRequired.toFixed(2)}保证金`, 'warning');
+      return;
+    }
+    
     const openPrice = goldBid; // 卖出用买价
     const newPosition: Position = {
       id: `pos_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
@@ -319,10 +365,10 @@ export default function ChallengePage() {
     const pos = positions.find(p => p.id === posId);
     if (!pos) return;
 
-    const { profit, closePrice } = calculatePositionProfit(pos);
+    const { profit } = calculatePositionProfit(pos);
     
-    // 更新净值
-    setEquity(prev => prev + profit);
+    // 更新余额
+    setBalance(prev => prev + profit);
 
     // 从列表中移除
     setPositions(prev => prev.filter(p => p.id !== posId));
@@ -358,8 +404,8 @@ export default function ChallengePage() {
       }
     });
 
-    // 更新净值
-    setEquity(prev => prev + totalClosedProfit);
+    // 更新余额
+    setBalance(prev => prev + totalClosedProfit);
 
     // 移除已平仓的订单
     setPositions(prev => prev.filter(p => !selectedPositions.has(p.id)));
@@ -398,7 +444,7 @@ export default function ChallengePage() {
   // 重置挑战
   const handleReset = () => {
     const config = getLevelConfig(currentLevel);
-    setEquity(config.initialBalance);
+    setBalance(config.initialBalance);
     setPositions([]);
     setEquityHistory([]);
     setSelectedPositions(new Set());
@@ -426,7 +472,7 @@ export default function ChallengePage() {
         setHasRegistered(true);
         // 从配置获取初始净值
         const config = getLevelConfig(1);
-        setEquity(config.initialBalance);
+        setBalance(config.initialBalance);
         setPositions([]);
         setCurrentLevel(1);
         setEquityHistory([]);
@@ -456,26 +502,17 @@ export default function ChallengePage() {
   const currentLevelConfig = getLevelConfig(currentLevel);
   const targetBalance = currentLevelConfig.targetBalance;
   const initialBalance = currentLevelConfig.initialBalance;
-  const progressPercent = equity > 0 ? ((equity - initialBalance) / (targetBalance - initialBalance)) * 100 : 0;
+  const progressPercent = currentEquity > 0 ? ((currentEquity - initialBalance) / (targetBalance - initialBalance)) * 100 : 0;
 
-  // 生成收益曲线SVG路径
-  const generateEquityCurve = () => {
-    if (equityHistory.length < 2) return '';
-    
-    const width = 100;
-    const height = 40;
-    const minEquity = Math.min(...equityHistory.map(h => h.equity)) * 0.95;
-    const maxEquity = Math.max(...equityHistory.map(h => h.equity)) * 1.05;
-    const range = maxEquity - minEquity || 1;
-    
-    const points = equityHistory.map((h, i) => {
-      const x = (i / (equityHistory.length - 1)) * width;
-      const y = height - ((h.equity - minEquity) / range) * height;
-      return `${x},${y}`;
-    });
-    
-    return `M ${points.join(' L ')}`;
-  };
+  // 格式化历史数据用于图表
+  const chartData = useMemo(() => {
+    return equityHistory.map((item, index) => ({
+      time: index,
+      timeLabel: new Date(item.time).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }),
+      equity: item.equity,
+      balance: item.balance
+    }));
+  }, [equityHistory]);
 
   return (
     <div className={styles.pageContainer}>
@@ -552,30 +589,84 @@ export default function ChallengePage() {
             
             {hasRegistered ? (
               <>
-                <div className={styles.accountBalance}>
-                  <span className={styles.balanceLabel}>当前净值</span>
-                  <span className={styles.balanceValue}>${equity.toFixed(2)}</span>
+                {/* 净值和余额显示 */}
+                <div className={styles.balanceRow}>
+                  <div className={styles.balanceItem}>
+                    <span className={styles.balanceItemLabel}>
+                      <Wallet className={styles.balanceIcon} />
+                      余额
+                    </span>
+                    <span className={styles.balanceItemValue}>${balance.toFixed(2)}</span>
+                  </div>
+                  <div className={styles.balanceItem}>
+                    <span className={styles.balanceItemLabel}>
+                      <BarChart3 className={styles.balanceIcon} />
+                      持仓盈亏
+                    </span>
+                    <span className={`${styles.balanceItemValue} ${totalPositionProfit >= 0 ? styles.profitText : styles.lossText}`}>
+                      {totalPositionProfit >= 0 ? '+' : ''}${totalPositionProfit.toFixed(2)}
+                    </span>
+                  </div>
+                </div>
+                
+                <div className={styles.equityDisplay}>
+                  <span className={styles.equityLabel}>净值</span>
+                  <span className={styles.equityValue}>${currentEquity.toFixed(2)}</span>
+                </div>
+
+                {/* 最大可开仓手数 */}
+                <div className={styles.maxLotsInfo}>
+                  <Calculator className={styles.maxLotsIcon} />
+                  <span>最大可开: <strong>{maxLots.toFixed(2)}手</strong></span>
+                  <span className={styles.marginInfo}>保证金 ${(goldAsk * CONTRACT_SIZE * maxLots / LEVERAGE).toFixed(2)}</span>
                 </div>
                 
                 {/* 收益曲线 */}
-                {equityHistory.length >= 2 && (
+                {chartData.length >= 2 && (
                   <div className={styles.equityCurve}>
                     <span className={styles.curveLabel}>收益曲线</span>
-                    <svg viewBox="0 0 100 40" className={styles.curveSvg}>
-                      <defs>
-                        <linearGradient id="curveGradient" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="0%" stopColor="rgba(34, 197, 94, 0.3)" />
-                          <stop offset="100%" stopColor="rgba(34, 197, 94, 0)" />
-                        </linearGradient>
-                      </defs>
-                      <path
-                        d={generateEquityCurve()}
-                        fill="none"
-                        stroke="#22c55e"
-                        strokeWidth="1.5"
-                        vectorEffect="non-scaling-stroke"
-                      />
-                    </svg>
+                    <ResponsiveContainer width="100%" height={80}>
+                      <AreaChart data={chartData} margin={{ top: 5, right: 5, bottom: 5, left: 5 }}>
+                        <defs>
+                          <linearGradient id="equityGradient" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="5%" stopColor="#22c55e" stopOpacity={0.3}/>
+                            <stop offset="95%" stopColor="#22c55e" stopOpacity={0}/>
+                          </linearGradient>
+                        </defs>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#333" vertical={false} />
+                        <XAxis 
+                          dataKey="timeLabel" 
+                          tick={{ fontSize: 10, fill: '#6b7280' }}
+                          axisLine={{ stroke: '#333' }}
+                          tickLine={false}
+                          interval="preserveStartEnd"
+                        />
+                        <YAxis 
+                          tick={{ fontSize: 10, fill: '#6b7280' }}
+                          axisLine={{ stroke: '#333' }}
+                          tickLine={false}
+                          tickFormatter={(v) => `$${v.toFixed(0)}`}
+                          width={50}
+                        />
+                        <Tooltip 
+                          contentStyle={{ 
+                            backgroundColor: '#1e2230', 
+                            border: '1px solid #333',
+                            borderRadius: '8px',
+                            fontSize: '12px'
+                          }}
+                          formatter={(value: number) => [`$${value.toFixed(2)}`, '净值']}
+                        />
+                        <ReferenceLine y={initialBalance} stroke="#D4AF37" strokeDasharray="3 3" />
+                        <Area 
+                          type="monotone" 
+                          dataKey="equity" 
+                          stroke="#22c55e" 
+                          strokeWidth={2}
+                          fill="url(#equityGradient)" 
+                        />
+                      </AreaChart>
+                    </ResponsiveContainer>
                   </div>
                 )}
 
@@ -695,7 +786,7 @@ export default function ChallengePage() {
               >
                 <BarChart3 className={styles.tradeIcon} />
                 <span>平仓({selectedPositions.size})</span>
-                <small>总盈亏 ${totalProfit >= 0 ? '+' : ''}${totalProfit.toFixed(2)}</small>
+                <small>总盈亏 ${totalPositionProfit >= 0 ? '+' : ''}${totalPositionProfit.toFixed(2)}</small>
               </button>
             )}
           </div>
@@ -782,7 +873,7 @@ export default function ChallengePage() {
                     if (hasRegistered && level <= currentLevel) {
                       setCurrentLevel(level);
                       const cfg = getLevelConfig(level);
-                      setEquity(cfg.initialBalance);
+                      setBalance(cfg.initialBalance);
                       setPositions([]);
                       setEquityHistory([]);
                       saveState();

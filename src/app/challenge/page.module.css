@@ -344,6 +344,108 @@
   font-variant-numeric: tabular-nums;
 }
 
+/* 余额和净值行 */
+.balanceRow {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.balanceItem {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 12px;
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 10px;
+}
+
+.balanceItemLabel {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.8rem;
+  color: #6b7280;
+}
+
+.balanceIcon {
+  width: 14px;
+  height: 14px;
+}
+
+.balanceItemValue {
+  font-size: 1.2rem;
+  font-weight: 600;
+  color: #fff;
+  font-variant-numeric: tabular-nums;
+}
+
+.equityDisplay {
+  text-align: center;
+  padding: 1rem;
+  background: linear-gradient(135deg, rgba(212, 175, 55, 0.15) 0%, rgba(212, 175, 55, 0.05) 100%);
+  border: 1px solid rgba(212, 175, 55, 0.3);
+  border-radius: 12px;
+  margin-bottom: 12px;
+}
+
+.equityLabel {
+  display: block;
+  font-size: 0.9rem;
+  color: #a0a5b5;
+  margin-bottom: 4px;
+}
+
+.equityValue {
+  font-size: 2rem;
+  font-weight: 700;
+  color: #D4AF37;
+  font-variant-numeric: tabular-nums;
+}
+
+/* 最大可开仓手数 */
+.maxLotsInfo {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  background: rgba(99, 102, 241, 0.1);
+  border-radius: 8px;
+  margin-bottom: 12px;
+  font-size: 0.9rem;
+  color: #a0a5b5;
+}
+
+.maxLotsIcon {
+  width: 16px;
+  height: 16px;
+  color: #818cf8;
+}
+
+.maxLotsInfo strong {
+  color: #818cf8;
+  font-weight: 600;
+}
+
+.marginInfo {
+  margin-left: auto;
+  font-size: 0.8rem;
+  color: #6b7280;
+}
+
+/* 收益曲线 */
+.equityCurve {
+  margin-bottom: 1rem;
+}
+
+.curveLabel {
+  display: block;
+  font-size: 0.8rem;
+  color: #6b7280;
+  margin-bottom: 0.5rem;
+}
+
 /* 收益曲线 */
 .equityCurve {
   margin-bottom: 1rem;
