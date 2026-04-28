@@ -315,6 +315,26 @@
   margin: 0 0 1.5rem 0;
 }
 
+/* 每日挑战限制提示 */
+.dailyLimitNotice {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  background: rgba(234, 179, 8, 0.15);
+  border: 1px solid rgba(234, 179, 8, 0.3);
+  border-radius: 8px;
+  margin-bottom: 1rem;
+  font-size: 0.85rem;
+  color: #eab308;
+}
+
+.limitIcon {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+}
+
 .cardIcon {
   width: 20px;
   height: 20px;
@@ -402,6 +422,23 @@
   font-weight: 700;
   color: #D4AF37;
   font-variant-numeric: tabular-nums;
+}
+
+.equityFailed {
+  color: #ef4444;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.equityFailed small {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #ef4444;
+  background: rgba(239, 68, 68, 0.15);
+  padding: 2px 8px;
+  border-radius: 4px;
+  margin-top: 4px;
 }
 
 /* 最大可开仓手数 */

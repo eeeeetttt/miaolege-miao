@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useSession } from 'next-auth/react';
 import styles from './page.module.css';
-import { TrendingUp, TrendingDown, Trophy, Zap, Target, Clock, DollarSign, BarChart3, Star, RefreshCw, X, Wallet, Calculator } from 'lucide-react';
+import { TrendingUp, TrendingDown, Trophy, Zap, Target, Clock, DollarSign, BarChart3, Star, RefreshCw, X, Wallet, Calculator, AlertCircle } from 'lucide-react';
 
 interface LevelConfig {
   level: number;
@@ -54,6 +54,7 @@ export default function ChallengePage() {
   const [hasRegistered, setHasRegistered] = useState(false);
   const [lotSize, setLotSize] = useState(0.1);
   const [selectedPositions, setSelectedPositions] = useState<Set<string>>(new Set());
+  const [canChallenge, setCanChallenge] = useState(true); // 每天只能挑战一次
   const priceRef = useRef<number>(0);
 
   const showToast = useCallback((message: string, type: 'success' | 'warning' | 'info' = 'info') => {
@@ -79,7 +80,8 @@ export default function ChallengePage() {
     };
   }, [levelConfigs]);
 
-  // 计算订单盈亏（考虑点差）
+  // 计算订单盈亏（不考虑杠杆，按实际合约价值计算）
+  // 盈亏 = 价格差 × 手数 × 合约单位(100盎司)
   const calculatePositionProfit = useCallback((pos: Position, bid?: number, ask?: number) => {
     const currentBid = bid || goldBid;
     const currentAsk = ask || goldAsk;
@@ -88,15 +90,13 @@ export default function ChallengePage() {
     // 平仓时：做多用买价，做空用卖价
     const closePrice = pos.type === 'long' ? currentBid : currentAsk;
     const priceDiff = closePrice - pos.openPrice;
-    // 考虑杠杆：每手每点$1
+    // 盈亏 = 价格差 × 手数 × 合约单位(100盎司)
+    // 不再乘以杠杆，杠杆只影响保证金
     const profit = pos.type === 'long' 
-      ? priceDiff * pos.amount * CONTRACT_SIZE * LEVERAGE
-      : -priceDiff * pos.amount * CONTRACT_SIZE * LEVERAGE;
-    // 收益率基于保证金计算
-    const marginRequired = pos.openPrice * CONTRACT_SIZE * pos.amount / LEVERAGE;
-    const profitPercent = marginRequired > 0 ? (profit / marginRequired) * 100 : 0;
+      ? priceDiff * pos.amount * CONTRACT_SIZE
+      : -priceDiff * pos.amount * CONTRACT_SIZE;
     
-    return { profit, profitPercent, closePrice };
+    return { profit, profitPercent: 0, closePrice };
   }, [goldBid, goldAsk]);
 
   // 计算总持仓盈亏
@@ -251,10 +251,33 @@ export default function ChallengePage() {
     return null;
   }, [session]);
 
+  // 检查今天是否已挑战过
+  const checkDailyLimit = useCallback(() => {
+    if (typeof window === 'undefined') return { canChallenge: true, lastDate: null };
+    
+    const lastChallenge = localStorage.getItem('challenge_last_date');
+    const today = new Date().toDateString();
+    
+    if (lastChallenge === today) {
+      return { canChallenge: false, lastDate: today };
+    }
+    return { canChallenge: true, lastDate: today };
+  }, []);
+
+  // 设置今天已挑战
+  const setTodayChallenged = useCallback(() => {
+    if (typeof window === 'undefined') return;
+    localStorage.setItem('challenge_last_date', new Date().toDateString());
+  }, []);
+
   // 初始化
   useEffect(() => {
     const init = async () => {
       loadState();
+      
+      // 检查今天是否已挑战过
+      const { canChallenge: canCh } = checkDailyLimit();
+      setCanChallenge(canCh);
       
       if (status === 'authenticated') {
         await fetchLevelConfigs();
@@ -264,7 +287,7 @@ export default function ChallengePage() {
     };
     
     init();
-  }, [status, loadState, fetchLevelConfigs, fetchUserStatus]);
+  }, [status, loadState, fetchLevelConfigs, fetchUserStatus, checkDailyLimit]);
 
   // 实时价格更新
   useEffect(() => {
@@ -282,10 +305,28 @@ export default function ChallengePage() {
     return () => clearInterval(interval);
   }, [hasRegistered, recordEquity]);
 
+  // 检查净值是否低于失败底线
+  useEffect(() => {
+    if (!hasRegistered || currentEquity <= 0) return;
+    
+    const failBalance = getLevelConfig(currentLevel).failBalance;
+    if (currentEquity < failBalance) {
+      showToast(`净值低于底线 $${failBalance}，挑战失败！`, 'warning');
+    }
+  }, [currentEquity, hasRegistered, currentLevel, showToast, getLevelConfig]);
+
   // 开多单（买入，用卖价）
   const handleLong = async () => {
     if (!session) {
       showToast('请先登录', 'warning');
+      return;
+    }
+    if (!canChallenge) {
+      showToast('今日挑战次数已用完，请明天再来', 'warning');
+      return;
+    }
+    if (currentEquity < currentLevelConfig.failBalance) {
+      showToast(`净值已低于失败底线 $${currentLevelConfig.failBalance}，挑战失败！`, 'warning');
       return;
     }
     if (goldAsk === 0) {
@@ -320,6 +361,14 @@ export default function ChallengePage() {
   const handleShort = async () => {
     if (!session) {
       showToast('请先登录', 'warning');
+      return;
+    }
+    if (!canChallenge) {
+      showToast('今日挑战次数已用完，请明天再来', 'warning');
+      return;
+    }
+    if (currentEquity < currentLevelConfig.failBalance) {
+      showToast(`净值已低于失败底线 $${currentLevelConfig.failBalance}，挑战失败！`, 'warning');
       return;
     }
     if (goldBid === 0) {
@@ -460,6 +509,8 @@ export default function ChallengePage() {
       if (res.ok) {
         showToast('报名成功！', 'success');
         setHasRegistered(true);
+        setCanChallenge(true);
+        setTodayChallenged();
         // 从配置获取初始净值
         const config = getLevelConfig(1);
         setBalance(config.initialBalance);
@@ -567,6 +618,14 @@ export default function ChallengePage() {
           <div className={styles.accountCardSmall}>
             <h3><DollarSign className={styles.cardIcon} />账户概览</h3>
             
+            {/* 每日挑战限制提示 */}
+            {!canChallenge && hasRegistered && currentEquity >= currentLevelConfig.failBalance && (
+              <div className={styles.dailyLimitNotice}>
+                <AlertCircle className={styles.limitIcon} />
+                <span>今日挑战次数已用完，明天再来</span>
+              </div>
+            )}
+            
             {hasRegistered ? (
               <>
                 {/* 净值和余额显示 */}
@@ -591,7 +650,14 @@ export default function ChallengePage() {
                 
                 <div className={styles.equityDisplay}>
                   <span className={styles.equityLabel}>净值</span>
-                  <span className={styles.equityValue}>${currentEquity.toFixed(2)}</span>
+                  {hasRegistered && currentEquity < currentLevelConfig.failBalance ? (
+                    <span className={styles.equityValue + ' ' + styles.equityFailed}>
+                      ${currentEquity.toFixed(2)} 
+                      <small>挑战失败</small>
+                    </span>
+                  ) : (
+                    <span className={styles.equityValue}>${currentEquity.toFixed(2)}</span>
+                  )}
                 </div>
 
                 {/* 最大可开仓手数 */}
@@ -674,9 +740,9 @@ export default function ChallengePage() {
                 <button 
                   className={styles.registerBtn}
                   onClick={handleRegister}
-                  disabled={registering || !session}
+                  disabled={registering || !session || !canChallenge}
                 >
-                  {!session ? '请先登录' : registering ? '报名中...' : '立即参赛'}
+                  {!session ? '请先登录' : !canChallenge ? '今日已挑战' : registering ? '报名中...' : '立即参赛'}
                 </button>
               </div>
             )}
