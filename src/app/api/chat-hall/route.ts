@@ -485,10 +485,17 @@ async function triggerAIReply(supabase: any, userId: string, userName: string, u
     const baseDelayMs = baseDelaySeconds * 1000; // 将秒转换为毫秒
     const staggerMs = baseDelayMs * 0.25; // 每个角色之间间隔为基础延迟的25%
 
-    // 检查每个角色是否应该触发
+    // 检查每个角色是否应该触发（最多触发2个）
     const triggeredRoles: { role: any; delay: number }[] = [];
+    const maxTriggerCount = 2; // 最多触发2个AI角色回应用户
 
     for (const role of roles) {
+      // 达到上限后不再触发
+      if (triggeredRoles.length >= maxTriggerCount) {
+        console.log(`[AI] 已触发${maxTriggerCount}个角色，不再触发更多`);
+        break;
+      }
+
       // 检查是否通过触发词匹配
       const triggerKeyword = role.trigger_keyword?.trim();
       let shouldTrigger = false;
@@ -517,13 +524,15 @@ async function triggerAIReply(supabase: any, userId: string, userName: string, u
       return;
     }
 
+    console.log(`[AI] 本次将触发 ${triggeredRoles.length} 个角色回复用户`);
+
     // 为每个被触发的角色创建异步回复任务
     for (let i = 0; i < triggeredRoles.length; i++) {
       const { role, delay } = triggeredRoles[i];
 
       // 使用 setTimeout 延迟执行
       setTimeout(async () => {
-        await sendAIReply(supabase, apiKey, role, userName, userMessage);
+        await sendAIReply(supabase, apiKey, role, userName, userMessage, maxTriggerCount);
       }, delay);
     }
   } catch (error) {
@@ -537,7 +546,8 @@ async function sendAIReply(
   apiKey: string,
   role: any,
   userName: string,
-  userMessage: string
+  userMessage: string,
+  maxTriggerCount: number = 2
 ) {
   try {
     console.log(`[${role.name}] 开始生成回复...`);
@@ -679,7 +689,8 @@ async function checkAdditionalTriggers(
   supabase: any,
   apiKey: string,
   aiName: string,
-  aiMessage: string
+  aiMessage: string,
+  maxTriggerCount: number = 2
 ) {
   try {
     // 获取AI回复间隔配置
@@ -700,29 +711,51 @@ async function checkAdditionalTriggers(
 
     if (!roles || roles.length === 0) return;
 
-    // 触发后续讨论（较高概率，保持话题热度）
-    if (Math.random() > 0.6) return;
+    // 获取最近10分钟的消息，找到已经回复过的角色
+    const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000).toISOString();
+    const { data: recentMessages } = await supabase
+      .from('chat_hall_messages')
+      .select('user_id, user_name, created_at')
+      .gte('created_at', tenMinutesAgo)
+      .order('created_at', { ascending: false });
+
+    // 找出最近回复过的AI角色（排除当前发言的）
+    const recentRepliedAIs = new Set<string>();
+    if (recentMessages) {
+      for (const msg of recentMessages) {
+        if (msg.user_id.startsWith('ai_') && msg.user_name !== aiName) {
+          recentRepliedAIs.add(msg.user_name);
+        }
+        // 只统计最近的几条
+        if (recentRepliedAIs.size >= maxTriggerCount) break;
+      }
+    }
+
+    // 触发后续讨论（较低概率，保持话题热度）
+    if (Math.random() > 0.4) return;
 
     // 找一个还没回复的角色
-    const availableRoles = roles.filter((r: any) => r.name !== aiName);
+    const availableRoles = roles.filter((r: any) => 
+      r.name !== aiName && !recentRepliedAIs.has(r.name)
+    );
     if (!availableRoles || availableRoles.length === 0) return;
 
-    // 随机选择1-2个角色继续讨论
-    const numToTrigger = Math.random() > 0.5 ? 2 : 1;
+    // 最多触发1个角色（AI回复AI时减少干扰）
+    const numToTrigger = 1;
     const shuffled = availableRoles.sort(() => Math.random() - 0.5);
     const toTrigger = shuffled.slice(0, numToTrigger);
 
     for (let i = 0; i < toTrigger.length; i++) {
       const availableRole = toTrigger[i];
-      // 高概率触发（60%）
-      if (Math.random() > 0.6) continue;
+      // 高概率触发（70%）
+      if (Math.random() > 0.7) continue;
 
       // 基础延迟的50%-80% 作为后续讨论间隔
       const delay = baseDelayMs * (0.5 + Math.random() * 0.3) + i * baseDelayMs * 0.25;
       console.log(`[${availableRole.name}] 被AI讨论触发，将在 ${Math.round(delay / 1000)} 秒后回复 (基础: ${baseDelaySeconds}秒)`);
 
       setTimeout(async () => {
-        await sendAIReply(supabase, apiKey, availableRole, aiName, aiMessage);
+        await sendAIReply(supabase, apiKey, availableRole, aiName, aiMessage, 1);
       }, delay);
     }
   } catch (error) {
