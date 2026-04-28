@@ -552,6 +552,20 @@ async function sendAIReply(
   try {
     console.log(`[${role.name}] 开始生成回复...`);
 
+    // 获取当前伦敦金价格作为参考
+    let goldPriceInfo = '';
+    try {
+      const goldResponse = await fetch(`${process.env.NEXTAUTH_URL || 'http://localhost:5000'}/api/gold-price`);
+      const goldData = await goldResponse.json();
+      if (goldData.success && goldData.data) {
+        const price = goldData.data;
+        goldPriceInfo = `【重要】当前伦敦金(XAUUSD)实时价格: $${price.price.toLocaleString()} ${price.change >= 0 ? '+' : ''}${price.changePercent.toFixed(2)}% (更新时间: ${new Date(price.time).toLocaleString('zh-CN')})。请以此为准，不要使用过时或错误的价格数据。`;
+      }
+    } catch (e) {
+      console.log('[价格] 获取实时价格失败，使用默认信息');
+      goldPriceInfo = '【重要】当前伦敦金价格约在4300美元/盎司附近，请以实际行情为准。';
+    }
+
     // 每次发送前获取最新的上下文（包含之前的AI回复）
     const twoHoursAgo = new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString();
     const { data: recentMessages } = await supabase
@@ -583,6 +597,11 @@ async function sendAIReply(
 
     // 构建基础系统提示
     let systemPrompt = role.system_prompt || `你是${role.name}，愿意帮助用户解答问题。`;
+
+    // 添加实时价格信息
+    if (goldPriceInfo) {
+      systemPrompt = systemPrompt + '\n\n' + goldPriceInfo;
+    }
 
     // 添加对话规则
     const rules = `

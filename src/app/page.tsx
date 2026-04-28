@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useSession } from 'next-auth/react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { GoldPriceTicker } from '@/components/gold-price-ticker';
 import { 
   Trophy,
   TrendingUp,
@@ -70,9 +71,15 @@ export default function HomePage() {
         <div className="absolute bottom-10 right-10 w-96 h-96 bg-orange-400/20 rounded-full blur-3xl" />
 
         <div className="relative max-w-6xl mx-auto text-center">
-          <div className="inline-flex items-center gap-2 px-4 py-2 bg-amber-100 dark:bg-amber-900/50 backdrop-blur-sm rounded-full text-sm mb-6 text-amber-700 dark:text-amber-300">
-            <Zap className="w-4 h-4" />
-            <span>K线征途挑战赛 · 火热进行中</span>
+          {/* 标签和价格 */}
+          <div className="flex flex-wrap items-center justify-center gap-3 mb-6">
+            <div className="inline-flex items-center gap-2 px-4 py-2 bg-amber-100 dark:bg-amber-900/50 backdrop-blur-sm rounded-full text-sm text-amber-700 dark:text-amber-300">
+              <Zap className="w-4 h-4" />
+              <span>K线征途挑战赛 · 火热进行中</span>
+            </div>
+            <div className="inline-flex items-center gap-2 px-4 py-2 bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm rounded-full text-sm shadow-sm border border-amber-200 dark:border-amber-800">
+              <GoldPriceTicker />
+            </div>
           </div>
 
           <div className="flex justify-center mb-6">
