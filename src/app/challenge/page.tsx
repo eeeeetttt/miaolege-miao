@@ -2,15 +2,8 @@
 
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useSession } from 'next-auth/react';
-import dynamic from 'next/dynamic';
 import styles from './page.module.css';
 import { TrendingUp, TrendingDown, Trophy, Zap, Target, Clock, DollarSign, BarChart3, Star, RefreshCw, X, Wallet, Calculator } from 'lucide-react';
-
-// 动态导入图表组件，避免SSR问题
-const EquityChart = dynamic(() => import('@/components/challenge/equity-chart').then(mod => mod.default), {
-  ssr: false,
-  loading: () => <div className="h-[80px] bg-gray-800/30 rounded animate-pulse" />
-});
 
 interface LevelConfig {
   level: number;
@@ -501,16 +494,6 @@ export default function ChallengePage() {
   const initialBalance = currentLevelConfig.initialBalance;
   const progressPercent = currentEquity > 0 ? ((currentEquity - initialBalance) / (targetBalance - initialBalance)) * 100 : 0;
 
-  // 格式化历史数据用于图表
-  const chartData = useMemo(() => {
-    return equityHistory.map((item, index) => ({
-      time: index,
-      timeLabel: new Date(item.time).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }),
-      equity: item.equity,
-      balance: item.balance
-    }));
-  }, [equityHistory]);
-
   return (
     <div className={styles.pageContainer}>
       {/* Toast 提示 */}
@@ -618,11 +601,24 @@ export default function ChallengePage() {
                   <span className={styles.marginInfo}>保证金 ${(goldAsk * CONTRACT_SIZE * maxLots / LEVERAGE).toFixed(2)}</span>
                 </div>
                 
-                {/* 收益曲线 */}
-                {chartData.length >= 2 && (
+                {/* 历史盈亏记录 */}
+                {equityHistory.length >= 2 && (
                   <div className={styles.equityCurve}>
-                    <span className={styles.curveLabel}>收益曲线</span>
-                    <EquityChart data={chartData} initialBalance={initialBalance} />
+                    <span className={styles.curveLabel}>历史记录</span>
+                    <div className={styles.historyList}>
+                      <div className={styles.historyItem}>
+                        <span>初始</span>
+                        <span>${equityHistory[0]?.equity.toFixed(2)}</span>
+                      </div>
+                      <div className={styles.historyItem}>
+                        <span>当前</span>
+                        <span className={currentEquity >= (equityHistory[0]?.equity || 0) ? styles.profitText : styles.lossText}>
+                          ${currentEquity.toFixed(2)}
+                          {currentEquity >= (equityHistory[0]?.equity || 0) ? ' (+)' : ' (-)'}
+                          ${Math.abs(currentEquity - (equityHistory[0]?.equity || 0)).toFixed(2)}
+                        </span>
+                      </div>
+                    </div>
                   </div>
                 )}
 

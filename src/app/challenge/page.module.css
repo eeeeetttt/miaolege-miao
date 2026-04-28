@@ -458,11 +458,39 @@
   margin-bottom: 0.5rem;
 }
 
-.curveSvg {
-  width: 100%;
-  height: 60px;
-  background: rgba(255, 255, 255, 0.02);
+.historyList {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.historyItem {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 12px;
+  background: rgba(255, 255, 255, 0.03);
   border-radius: 8px;
+  font-size: 0.9rem;
+}
+
+.historyItem span:first-child {
+  color: #6b7280;
+}
+
+.historyItem span:last-child {
+  font-weight: 600;
+  color: #fff;
+  font-variant-numeric: tabular-nums;
+}
+
+/* 盈利/亏损文字颜色 */
+.profitText {
+  color: #22c55e !important;
+}
+
+.lossText {
+  color: #ef4444 !important;
 }
 
 /* 进度条 */
