@@ -4,7 +4,6 @@ import Link from 'next/link';
 import { useSession } from 'next-auth/react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { GoldPriceTicker } from '@/components/gold-price-ticker';
 import { 
   Trophy,
   TrendingUp,
@@ -76,9 +75,6 @@ export default function HomePage() {
             <div className="inline-flex items-center gap-2 px-4 py-2 bg-amber-100 dark:bg-amber-900/50 backdrop-blur-sm rounded-full text-sm text-amber-700 dark:text-amber-300">
               <Zap className="w-4 h-4" />
               <span>K线征途挑战赛 · 火热进行中</span>
-            </div>
-            <div className="inline-flex items-center gap-2 px-4 py-2 bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm rounded-full text-sm shadow-sm border border-amber-200 dark:border-amber-800">
-              <GoldPriceTicker />
             </div>
           </div>
 

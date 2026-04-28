@@ -1,8 +1,10 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useSession } from 'next-auth/react';
+import Link from 'next/link';
 import styles from './page.module.css';
+import { TrendingUp, TrendingDown, Trophy, Users, Zap, Target, Clock, DollarSign, BarChart3, Star, RefreshCw } from 'lucide-react';
 
 interface LevelConfig {
   level: number;
@@ -14,106 +16,212 @@ interface LevelConfig {
   reward: string | null;
 }
 
-interface ChallengeData {
-  hasActiveChallenge: boolean;
-  hasPendingApplication: boolean;
-  canReapply: boolean;
-  registration: {
-    id: number;
-    status: string;
-    currentLevel: number;
-    completedLevels: number[];
-    startedAt: string | null;
-    serverName: string | null;
-    tradingAccount: string | null;
-    completedAt: string | null;
-    failedAt: string | null;
-    failedLevel: number | null;
-  } | null;
-  registrationFee: number;
-  config: Record<string, string>;
-  levelConfigs: LevelConfig[];
-  message: string;
+interface Position {
+  id: string;
+  type: 'long' | 'short';
+  openPrice: number;
+  amount: number; // 手数
+  openTime: string;
+  currentPrice: number;
+  profit: number;
+  profitPercent: number;
+}
+
+interface Ranking {
+  rank: number;
+  userName: string;
+  level: number;
+  balance: number;
+  profitPercent: number;
 }
 
 export default function ChallengePage() {
   const { data: session, status } = useSession();
-  const [challengeData, setChallengeData] = useState<ChallengeData | null>(null);
-  const [equityData, setEquityData] = useState<{
-    equity: number | null;
-    balance: number | null;
-    profit: number | null;
-    serverName: string | null;
-    accountNumber: string | null;
-    equitySource: 'database' | 'no_data' | 'no_account';
-  } | null>(null);
+  const [goldPrice, setGoldPrice] = useState<number>(0);
+  const [priceChange, setPriceChange] = useState<number>(0);
   const [loading, setLoading] = useState(true);
+  const [equity, setEquity] = useState<number>(1000);
+  const [position, setPosition] = useState<Position | null>(null);
+  const [ranking, setRanking] = useState<Ranking[]>([]);
+  const [currentLevel, setCurrentLevel] = useState(1);
+  const [registrationMode, setRegistrationMode] = useState<'free' | 'paid'>('free');
   const [registering, setRegistering] = useState(false);
   const [toast, setToast] = useState<{ message: string; type: string } | null>(null);
+  const [hasRegistered, setHasRegistered] = useState(false);
+  const [isActive, setIsActive] = useState(false);
+  const [isPending, setIsPending] = useState(false);
+  const [lotSize, setLotSize] = useState(0.1);
+  const priceRef = useRef<number>(0);
 
   const showToast = useCallback((message: string, type: 'success' | 'warning' | 'info' = 'info') => {
     setToast({ message, type });
     setTimeout(() => setToast(null), 2500);
   }, []);
 
-  const fetchEquityData = useCallback(async () => {
+  // 获取实时金价
+  const fetchGoldPrice = useCallback(async () => {
     try {
-      const res = await fetch('/api/challenge/balance');
+      const res = await fetch('/api/gold-price');
       const data = await res.json();
-      if (res.ok) {
-        setEquityData({
-          equity: data.equity,
-          balance: data.balance,
-          profit: data.profit,
-          serverName: data.serverName,
-          accountNumber: data.accountNumber,
-          equitySource: data.equitySource || 'no_data'
-        });
+      if (data.success && data.data) {
+        const newPrice = data.data.price;
+        setGoldPrice(newPrice);
+        if (priceRef.current > 0) {
+          setPriceChange(newPrice - priceRef.current);
+        }
+        priceRef.current = newPrice;
       }
-    } catch {
-      // 忽略错误
+    } catch (e) {
+      console.error('获取金价失败:', e);
     }
   }, []);
 
-  const fetchChallengeData = useCallback(async () => {
+  // 获取排名数据
+  const fetchRanking = useCallback(async () => {
     try {
-      const res = await fetch('/api/challenge/register');
-      const data = await res.json();
+      const res = await fetch('/api/challenge/ranking');
       if (res.ok) {
-        setChallengeData(data);
-        if (data.registration?.status === 'active' || data.registration?.status === 'level_passed') {
-          fetchEquityData();
+        const data = await res.json();
+        if (data.rankings) {
+          setRanking(data.rankings);
         }
-      } else {
-        showToast(data.error || '获取挑战状态失败', 'warning');
       }
-    } catch {
-      showToast('网络错误', 'warning');
-    } finally {
-      setLoading(false);
+    } catch (e) {
+      console.error('获取排名失败:', e);
     }
-  }, [fetchEquityData, showToast]);
+  }, []);
 
+  // 初始化数据
   useEffect(() => {
     if (status === 'authenticated') {
-      fetchChallengeData();
-    } else if (status === 'unauthenticated') {
+      // 获取用户挑战状态
+      fetch('/api/challenge/register')
+        .then(res => res.json())
+        .then(data => {
+          if (data.registration) {
+            setHasRegistered(true);
+            setIsActive(data.registration.status === 'active');
+            setIsPending(data.registration.status === 'pending');
+            if (data.registration.currentLevel) {
+              setCurrentLevel(data.registration.currentLevel);
+            }
+          }
+          setLoading(false);
+        })
+        .catch(() => setLoading(false));
+    } else {
       setLoading(false);
     }
-  }, [status, fetchChallengeData]);
+  }, [status]);
 
-  const handleApply = async () => {
+  // 实时价格更新
+  useEffect(() => {
+    fetchGoldPrice();
+    const interval = setInterval(fetchGoldPrice, 5000); // 5秒更新一次
+    return () => clearInterval(interval);
+  }, [fetchGoldPrice]);
+
+  // 排名数据定期刷新
+  useEffect(() => {
+    if (hasRegistered) {
+      fetchRanking();
+      const interval = setInterval(fetchRanking, 30000);
+      return () => clearInterval(interval);
+    }
+  }, [hasRegistered, fetchRanking]);
+
+  // 计算持仓盈亏
+  useEffect(() => {
+    if (position && goldPrice > 0) {
+      const priceDiff = goldPrice - position.openPrice;
+      const profit = position.type === 'long' 
+        ? priceDiff * position.amount * 100 // 每手每点$1
+        : -priceDiff * position.amount * 100;
+      const profitPercent = (profit / (position.openPrice * position.amount * 100)) * 100;
+      setPosition(prev => prev ? { ...prev, currentPrice: goldPrice, profit, profitPercent } : null);
+    }
+  }, [goldPrice, position]);
+
+  // 开多单
+  const handleLong = () => {
+    if (!session) {
+      showToast('请先登录', 'warning');
+      return;
+    }
+    if (position) {
+      showToast('已有持仓，请先平仓', 'warning');
+      return;
+    }
+    const newPosition: Position = {
+      id: Date.now().toString(),
+      type: 'long',
+      openPrice: goldPrice,
+      amount: lotSize,
+      openTime: new Date().toISOString(),
+      currentPrice: goldPrice,
+      profit: 0,
+      profitPercent: 0
+    };
+    setPosition(newPosition);
+    showToast(`做多成功，开仓价: $${goldPrice.toFixed(2)}`, 'success');
+  };
+
+  // 开空单
+  const handleShort = () => {
+    if (!session) {
+      showToast('请先登录', 'warning');
+      return;
+    }
+    if (position) {
+      showToast('已有持仓，请先平仓', 'warning');
+      return;
+    }
+    const newPosition: Position = {
+      id: Date.now().toString(),
+      type: 'short',
+      openPrice: goldPrice,
+      amount: lotSize,
+      openTime: new Date().toISOString(),
+      currentPrice: goldPrice,
+      profit: 0,
+      profitPercent: 0
+    };
+    setPosition(newPosition);
+    showToast(`做空成功，开仓价: $${goldPrice.toFixed(2)}`, 'success');
+  };
+
+  // 平仓
+  const handleClose = () => {
+    if (!position) {
+      showToast('暂无持仓', 'warning');
+      return;
+    }
+    const closedProfit = position.profit;
+    setEquity(prev => prev + closedProfit);
+    setPosition(null);
+    showToast(`平仓完成，${closedProfit >= 0 ? '盈利' : '亏损'} $${Math.abs(closedProfit).toFixed(2)}`, closedProfit >= 0 ? 'success' : 'warning');
+  };
+
+  // 报名参赛
+  const handleRegister = async () => {
     if (!session) {
       showToast('请先登录', 'warning');
       return;
     }
     setRegistering(true);
     try {
-      const res = await fetch('/api/challenge/register', { method: 'POST' });
+      const res = await fetch('/api/challenge/register', { 
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ mode: registrationMode })
+      });
       const data = await res.json();
       if (res.ok) {
-        showToast(data.message || '报名成功！', 'success');
-        await fetchChallengeData();
+        showToast('报名成功！', 'success');
+        setHasRegistered(true);
+        setIsPending(true);
+        // 模拟净值更新
+        setEquity(1000);
       } else {
         showToast(data.error || '报名失败', 'warning');
       }
@@ -133,26 +241,29 @@ export default function ChallengePage() {
     );
   }
 
-  const registration = challengeData?.registration;
-  const registrationStatus = registration?.status || 'none';
-  const completedLevels = registration?.completedLevels || [];
-  const currentLevel = registration?.currentLevel || 1;
-  const levels = Array.from({ length: 10 }, (_, i) => ({ level: i + 1 }));
-  const registrationFee = challengeData?.registrationFee || 1000;
+  const isPriceUp = priceChange >= 0;
 
-  // 判断状态
-  const showChallengeActive = session && (registrationStatus === 'active' || registrationStatus === 'level_passed');
-  const isRegistered = session && registration !== null;
-  const isCompleted = registrationStatus === 'completed';
-  const isFailed = registrationStatus === 'failed';
-  const isRejected = registrationStatus === 'rejected';
-  const isPending = registrationStatus === 'pending';
-  const isApproved = registrationStatus === 'approved';
-  const isLevelPassed = registrationStatus === 'level_passed';
-  const completedCount = completedLevels.length;
+  // 获取当前关卡配置
+  const getLevelConfig = (level: number) => {
+    const configs: Record<number, LevelConfig> = {
+      1: { level: 1, name: '新手试炼', description: '熟悉交易基础', targetBalance: 1200, initialBalance: 1000, failBalance: 900, reward: null },
+      2: { level: 2, name: '趋势认知', description: '判断方向', targetBalance: 1500, initialBalance: 1200, failBalance: 1000, reward: null },
+      3: { level: 3, name: '支撑阻力', description: '关键位交易', targetBalance: 2000, initialBalance: 1500, failBalance: 1200, reward: null },
+      4: { level: 4, name: '均线战法', description: 'MA均线应用', targetBalance: 2600, initialBalance: 2000, failBalance: 1600, reward: null },
+      5: { level: 5, name: 'K线组合', description: '形态识别', targetBalance: 3400, initialBalance: 2600, failBalance: 2100, reward: null },
+      6: { level: 6, name: 'MACD实战', description: '指标综合运用', targetBalance: 4400, initialBalance: 3400, failBalance: 2700, reward: null },
+      7: { level: 7, name: '布林带策略', description: '波动率交易', targetBalance: 5700, initialBalance: 4400, failBalance: 3500, reward: null },
+      8: { level: 8, name: '斐波那契', description: '回撤位交易', targetBalance: 7400, initialBalance: 5700, failBalance: 4600, reward: null },
+      9: { level: 9, name: '缠中说禅', description: '中枢与背离', targetBalance: 9600, initialBalance: 7400, failBalance: 5900, reward: null },
+      10: { level: 10, name: '黄金猎手', description: '综合实战', targetBalance: 12500, initialBalance: 9600, failBalance: 7700, reward: null },
+    };
+    return configs[level] || configs[1];
+  };
 
-  // 获取比赛说明内容
-  const descriptionContent = challengeData?.config?.description || '「K线征途」伦敦金挑战赛专为黄金交易爱好者设计，横跨10个难度进阶关卡，涵盖K线形态、技术分析、实战心理。完成所有关卡将获得「黄金猎手」认证荣誉。';
+  const currentLevelConfig = getLevelConfig(currentLevel);
+  const targetBalance = currentLevelConfig.targetBalance;
+  const initialBalance = currentLevelConfig.initialBalance;
+  const progressPercent = ((equity - initialBalance) / (targetBalance - initialBalance)) * 100;
 
   return (
     <div className={styles.pageContainer}>
@@ -164,267 +275,265 @@ export default function ChallengePage() {
       )}
 
       <div className={styles.container}>
-        {/* 头部区域 */}
-        <div className={styles.hero}>
-          <h1>
-            <i className="fas fa-chart-line"></i>
-            K线征途 · 伦敦金挑战赛
-          </h1>
-          <div className={styles.heroSub}>10大核心关卡 · 从入门到交易大师</div>
+        {/* 头部 */}
+        <div className={styles.header}>
+          <div className={styles.headerLeft}>
+            <Trophy className={styles.headerIcon} />
+            <div>
+              <h1>K线征途</h1>
+              <span className={styles.headerSub}>伦敦金模拟交易挑战</span>
+            </div>
+          </div>
+          {hasRegistered && (
+            <div className={styles.levelBadge}>
+              <Star className={styles.levelIcon} />
+              <span>第{currentLevel}关</span>
+            </div>
+          )}
         </div>
 
-        {/* 比赛说明 & 报名区域 */}
-        <div className={styles.infoSection}>
-          {/* 比赛说明卡片 */}
-          <div className={`${styles.card} ${styles.descriptionCard}`}>
-            <h2>
-              <i className="fas fa-trophy"></i>
-              比赛说明
-            </h2>
-            <div className={styles.descriptionContent}>
-              {descriptionContent.split('「黄金猎手」').map((part, idx, arr) => 
-                idx === arr.length - 1 ? part : (
-                  <span key={idx}>
-                    {part}
-                    <strong>「黄金猎手」</strong>
-                  </span>
-                )
-              )}
+        {/* 实时行情区域 */}
+        <div className={styles.priceSection}>
+          <div className={styles.priceCard}>
+            <div className={styles.priceHeader}>
+              <span className={styles.priceLabel}>伦敦金 XAUUSD</span>
+              <RefreshCw className={styles.priceRefresh} />
+            </div>
+            <div className={styles.priceMain}>
+              <span className={styles.priceValue}>${goldPrice.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+              <div className={`${styles.priceChange} ${isPriceUp ? styles.up : styles.down}`}>
+                {isPriceUp ? <TrendingUp className={styles.changeIcon} /> : <TrendingDown className={styles.changeIcon} />}
+                <span>{isPriceUp ? '+' : ''}{priceChange.toFixed(2)}</span>
+              </div>
+            </div>
+            <div className={styles.priceTime}>
+              <Clock className={styles.timeIcon} />
+              <span>{new Date().toLocaleTimeString('zh-CN')}</span>
             </div>
           </div>
 
-          {/* 报名/状态卡片 */}
-          <div className={`${styles.card} ${styles.actionCard}`}>
-            {/* 挑战进行中 */}
-            {showChallengeActive && (
-              <div className={styles.activeChallenge}>
-                <div className={styles.activeHeader}>
-                  <span className={styles.levelBadge}>第{currentLevel}关</span>
-                  <span className={styles.challengeTitle}>
-                    {isLevelPassed ? '恭喜过关' : '挑战进行中'}
+          {/* 交易面板 */}
+          <div className={styles.tradeCard}>
+            <div className={styles.tradeHeader}>
+              <span>模拟交易</span>
+              {position && (
+                <span className={styles.positionBadge}>
+                  {position.type === 'long' ? '多' : '空'} ${position.amount}手
+                </span>
+              )}
+            </div>
+            
+            {/* 手数选择 */}
+            <div className={styles.lotSection}>
+              <span className={styles.lotLabel}>交易手数</span>
+              <div className={styles.lotButtons}>
+                {[0.01, 0.05, 0.1, 0.2, 0.5, 1].map(lot => (
+                  <button
+                    key={lot}
+                    className={`${styles.lotBtn} ${lotSize === lot ? styles.lotActive : ''}`}
+                    onClick={() => setLotSize(lot)}
+                    disabled={!!position}
+                  >
+                    {lot}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* 交易按钮 */}
+            <div className={styles.tradeButtons}>
+              <button 
+                className={`${styles.tradeBtn} ${styles.longBtn}`}
+                onClick={handleLong}
+                disabled={!!position}
+              >
+                <TrendingUp className={styles.tradeIcon} />
+                <span>做多</span>
+              </button>
+              <button 
+                className={`${styles.tradeBtn} ${styles.shortBtn}`}
+                onClick={handleShort}
+                disabled={!!position}
+              >
+                <TrendingDown className={styles.tradeIcon} />
+                <span>做空</span>
+              </button>
+              <button 
+                className={`${styles.tradeBtn} ${styles.closeBtn}`}
+                onClick={handleClose}
+                disabled={!position}
+              >
+                <BarChart3 className={styles.tradeIcon} />
+                <span>平仓</span>
+              </button>
+            </div>
+
+            {/* 持仓信息 */}
+            {position && (
+              <div className={styles.positionInfo}>
+                <div className={styles.positionRow}>
+                  <span>持仓方向</span>
+                  <span className={position.type === 'long' ? styles.longText : styles.shortText}>
+                    {position.type === 'long' ? '做多' : '做空'}
                   </span>
+                </div>
+                <div className={styles.positionRow}>
+                  <span>开仓价</span>
+                  <span>${position.openPrice.toFixed(2)}</span>
+                </div>
+                <div className={styles.positionRow}>
+                  <span>当前价</span>
+                  <span>${position.currentPrice.toFixed(2)}</span>
+                </div>
+                <div className={styles.positionRow}>
+                  <span>持仓盈亏</span>
+                  <span className={position.profit >= 0 ? styles.profitText : styles.lossText}>
+                    {position.profit >= 0 ? '+' : ''}${position.profit.toFixed(2)}
+                  </span>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* 账户与排名区域 */}
+        <div className={styles.mainGrid}>
+          {/* 左侧：账户信息 */}
+          <div className={styles.accountCard}>
+            <h3><DollarSign className={styles.cardIcon} />账户概览</h3>
+            
+            {hasRegistered ? (
+              <>
+                <div className={styles.accountBalance}>
+                  <span className={styles.balanceLabel}>当前净值</span>
+                  <span className={styles.balanceValue}>${equity.toFixed(2)}</span>
                 </div>
                 
-                {isLevelPassed ? (
-                  <div className={styles.statusMessage}>
-                    <i className="fas fa-check-circle"></i>
-                    <span>审核中，请等待管理员开启下一关...</span>
+                <div className={styles.progressSection}>
+                  <div className={styles.progressHeader}>
+                    <span>第{currentLevel}关进度</span>
+                    <span>{Math.min(Math.max(progressPercent, 0), 100).toFixed(1)}%</span>
                   </div>
-                ) : (
-                  <>
-                    <div className={styles.accountInfo}>
-                      <i className="fas fa-server"></i>
-                      {equityData?.serverName ? `${equityData.serverName} - ` : ''}
-                      {equityData?.accountNumber || '待分配'}
-                    </div>
-
-                    <div className={styles.balanceDisplay}>
-                      <span className={styles.balanceLabel}>当前净值</span>
-                      <span className={styles.balanceValue}>
-                        {equityData?.equity !== null && equityData?.equity !== undefined ? (
-                          `$${equityData.equity.toFixed(2)}`
-                        ) : (
-                          equityData?.equitySource === 'no_account' ? '待分配' : '加载中...'
-                        )}
-                      </span>
-                    </div>
-
-                    <div className={styles.progressInfo}>
-                      已完成 {completedCount}/10 关
-                    </div>
-                  </>
-                )}
-              </div>
-            )}
-
-            {/* 待审核 */}
-            {isPending && (
-              <div className={styles.statusCard}>
-                <i className="fas fa-clock" style={{fontSize: '2rem', color: '#D4AF37', marginBottom: '0.5rem'}}></i>
-                <h3>申请已提交</h3>
-                <p>管理员审核中，请耐心等待...</p>
-              </div>
-            )}
-
-            {/* 已通过待激活 */}
-            {isApproved && (
-              <div className={styles.statusCard}>
-                <i className="fas fa-check-circle" style={{fontSize: '2rem', color: '#4caf50', marginBottom: '0.5rem'}}></i>
-                <h3>审核已通过</h3>
-                <p>等待管理员分配交易账户并激活挑战</p>
-              </div>
-            )}
-
-            {/* 挑战结束 */}
-            {(isCompleted || isFailed) && (
-              <div className={styles.statusCard}>
-                <i className={`fas ${isCompleted ? 'fa-trophy' : 'fa-times-circle'}`} style={{fontSize: '2rem', color: isCompleted ? '#D4AF37' : '#ef4444', marginBottom: '0.5rem'}}></i>
-                <h3>{isCompleted ? '恭喜通关！' : '挑战结束'}</h3>
-                <p>{challengeData?.message}</p>
-              </div>
-            )}
-
-            {/* 被拒绝 */}
-            {isRejected && (
-              <div className={styles.statusCard}>
-                <i className="fas fa-ban" style={{fontSize: '2rem', color: '#ef4444', marginBottom: '0.5rem'}}></i>
-                <h3>申请被拒绝</h3>
-                <p>您的报名申请未通过审核，可重新报名</p>
-              </div>
-            )}
-
-            {/* 未登录 */}
-            {!session && (
-              <div className={styles.statusCard}>
-                <i className="fas fa-user" style={{fontSize: '2rem', color: '#8b5cf6', marginBottom: '0.5rem'}}></i>
-                <h3>登录后参加</h3>
-                <p>登录后即可参加挑战赛</p>
-              </div>
-            )}
-
-            {/* 未报名或被拒绝可报名 */}
-            {(session && !isRegistered) || isRejected ? (
-              <div className={styles.registerSection}>
-                <div className={styles.actionIcon}>
-                  <i className="fas fa-fire"></i>
+                  <div className={styles.progressBar}>
+                    <div 
+                      className={styles.progressFill}
+                      style={{ width: `${Math.min(Math.max(progressPercent, 0), 100)}%` }}
+                    />
+                  </div>
+                  <div className={styles.progressLabels}>
+                    <span>初始 ${initialBalance}</span>
+                    <span>目标 ${targetBalance}</span>
+                  </div>
                 </div>
-                <div className={styles.actionText}>征途开启资格</div>
-                <button 
-                  className={styles.registerBtn}
-                  onClick={handleApply}
-                  disabled={registering}
-                >
-                  <i className="fas fa-pen-fancy"></i>
-                  {registering ? '申请中...' : isRejected ? '重新报名' : '立即报名'}
-                </button>
-                <div className={styles.statsBadge}>报名费: {registrationFee} U</div>
-              </div>
-            ) : null}
 
-            {/* 已报名状态 */}
-            {isRegistered && !showChallengeActive && (isPending || isApproved) && (
-              <div className={styles.registerSection}>
-                <div className={styles.actionIcon}>
-                  <i className="fas fa-check-double"></i>
+                <div className={styles.levelInfo}>
+                  <div className={styles.levelInfoItem}>
+                    <span>关卡名称</span>
+                    <span>{currentLevelConfig.name}</span>
+                  </div>
+                  <div className={styles.levelInfoItem}>
+                    <span>失败底线</span>
+                    <span className={styles.failText}>${currentLevelConfig.failBalance}</span>
+                  </div>
                 </div>
-                <div className={styles.actionText}>已报名</div>
-              </div>
-            )}
-
-            {/* 再次挑战按钮 */}
-            {(isCompleted || isFailed) && session && (
-              <>
-                <button 
-                  className={styles.registerBtn}
-                  onClick={handleApply}
-                  disabled={registering}
-                >
-                  <i className="fas fa-sync-alt"></i>
-                  {registering ? '申请中...' : '再次挑战'}
-                </button>
               </>
+            ) : (
+              <div className={styles.registerArea}>
+                <p className={styles.registerTitle}>选择参赛模式</p>
+                <div className={styles.modeButtons}>
+                  <button 
+                    className={`${styles.modeBtn} ${registrationMode === 'free' ? styles.modeActive : ''}`}
+                    onClick={() => setRegistrationMode('free')}
+                  >
+                    <Zap className={styles.modeIcon} />
+                    <span>免费模式</span>
+                    <small>模拟练习</small>
+                  </button>
+                  <button 
+                    className={`${styles.modeBtn} ${registrationMode === 'paid' ? styles.modeActive : ''}`}
+                    onClick={() => setRegistrationMode('paid')}
+                  >
+                    <Trophy className={styles.modeIcon} />
+                    <span>付费挑战</span>
+                    <small>1000星球币</small>
+                  </button>
+                </div>
+                <button 
+                  className={styles.registerBtn}
+                  onClick={handleRegister}
+                  disabled={registering || !session}
+                >
+                  {!session ? '请先登录' : registering ? '报名中...' : '立即参赛'}
+                </button>
+              </div>
+            )}
+          </div>
+
+          {/* 右侧：排行榜 */}
+          <div className={styles.rankingCard}>
+            <h3><Trophy className={styles.cardIcon} />收益排行</h3>
+            
+            {hasRegistered ? (
+              <div className={styles.rankingList}>
+                {/* 模拟排行数据 */}
+                {[
+                  { rank: 1, name: '交易高手', level: 8, profit: 285.5 },
+                  { rank: 2, name: '黄金猎手', level: 7, profit: 198.2 },
+                  { rank: 3, name: '趋势追踪', level: 6, profit: 156.8 },
+                  { rank: 4, name: '波段之王', level: 5, profit: 112.3 },
+                  { rank: 5, name: '你的昵称', level: currentLevel, profit: ((equity - 1000) / 1000) * 100 },
+                ].map((item, idx) => (
+                  <div 
+                    key={item.rank} 
+                    className={`${styles.rankingItem} ${idx < 3 ? styles.topThree : ''}`}
+                  >
+                    <div className={styles.rankNumber}>
+                      {idx < 3 ? ['🥇', '🥈', '🥉'][idx] : item.rank}
+                    </div>
+                    <div className={styles.rankInfo}>
+                      <span className={styles.rankName}>{item.name}</span>
+                      <span className={styles.rankLevel}>第{item.level}关</span>
+                    </div>
+                    <div className={styles.rankProfit}>
+                      +{item.profit.toFixed(1)}%
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className={styles.rankingPlaceholder}>
+                <Users className={styles.placeholderIcon} />
+                <p>登录后查看排行</p>
+              </div>
             )}
           </div>
         </div>
 
-        {/* 关卡展示区 */}
+        {/* 关卡展示 */}
         <div className={styles.levelsSection}>
-          <div className={styles.levelsHeader}>
-            <h2>
-              <i className="fas fa-flag-checkered"></i>
-              挑战关卡
-            </h2>
-            <div className={styles.progressBadge}>
-              {isRegistered ? (
-                <>
-                  <i className="fas fa-fire"></i>
-                  已完成 {completedCount} 关
-                </>
-              ) : (
-                <>
-                  <i className="fas fa-star"></i>
-                  报名后开启征途
-                </>
-              )}
-            </div>
-          </div>
-
+          <h3><Target className={styles.cardIcon} />挑战关卡</h3>
           <div className={styles.levelsGrid}>
-            {levels.map((item, idx) => {
-              const levelNum = idx + 1;
-              const isCompletedLevel = completedLevels.includes(levelNum);
-              const isCurrentLevel = showChallengeActive && levelNum === currentLevel;
-              const isUnlocked = isRegistered && (isCompletedLevel || isCurrentLevel || levelNum < currentLevel);
-              
-              let statusClass = styles.lockedLevel;
-              let statusIcon = 'fa-lock';
-              let statusText = '未解锁';
-              
-              if (isCompletedLevel) {
-                statusClass = styles.completedLevel;
-                statusIcon = 'fa-check-circle';
-                statusText = '已通关';
-              } else if (isCurrentLevel) {
-                statusClass = styles.currentLevel;
-                statusIcon = 'fa-unlock-alt';
-                statusText = '进行中';
-              } else if (isUnlocked) {
-                statusClass = styles.unlockedLevel;
-                statusIcon = 'fa-unlock-alt';
-                statusText = '可挑战';
-              }
-              
-              const levelConfig = challengeData?.levelConfigs?.find(l => l.level === levelNum);
-              const levelName = levelConfig?.name || `第${levelNum}关`;
-              const levelDesc = levelConfig?.description || '';
-              const levelInitial = levelConfig?.initialBalance || 1000;
-              const levelTarget = levelConfig?.targetBalance || 2000;
-              const levelFail = levelConfig?.failBalance || 100;
+            {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(level => {
+              const config = getLevelConfig(level);
+              const isUnlocked = hasRegistered && level <= currentLevel;
+              const isCurrent = hasRegistered && level === currentLevel;
               
               return (
                 <div 
-                  key={levelNum} 
-                  className={`${styles.levelCard} ${statusClass}`}
+                  key={level}
+                  className={`${styles.levelCard} ${isCurrent ? styles.currentLevel : ''} ${isUnlocked ? styles.unlocked : ''}`}
                 >
-                  <div className={styles.levelNumber}>{levelNum}</div>
-                  <div className={styles.levelName}>{levelName}</div>
-                  <div className={styles.levelDesc}>
-                    {levelDesc.substring(0, 20)}{levelDesc.length > 20 ? '...' : ''}
-                  </div>
-                  <div className={styles.levelTargets}>
-                    <div className={styles.levelTargetItem}>
-                      <span className={styles.levelTargetLabel}>初始</span>
-                      <span className={styles.levelTargetValue}>${levelInitial}</span>
-                    </div>
-                    <div className={styles.levelTargetArrow}>→</div>
-                    <div className={styles.levelTargetItem}>
-                      <span className={styles.levelTargetLabel}>目标</span>
-                      <span className={`${styles.levelTargetValue} ${styles.targetValue}`}>${levelTarget}</span>
-                    </div>
-                  </div>
-                  <div className={styles.levelFailLine}>
-                    <span className={styles.failLineLabel}>失败底线</span>
-                    <span className={styles.failLineValue}>${levelFail}</span>
-                  </div>
-                  <div className={styles.levelStatus}>
-                    <i className={`fas ${statusIcon}`}></i>
-                    <span>{statusText}</span>
+                  <div className={styles.levelNum}>{level}</div>
+                  <div className={styles.levelName}>{config.name}</div>
+                  <div className={styles.levelRange}>
+                    ${config.initialBalance} → ${config.targetBalance}
                   </div>
                 </div>
               );
             })}
           </div>
         </div>
-
-        {/* 脚注 */}
-        <div className={styles.footerNote}>
-          <i className="fas fa-chart-line"></i>
-          伦敦金模拟挑战 | 每一关都贴近真实市场逻辑，完成挑战解锁下一知识领域
-        </div>
       </div>
-
-      {/* Font Awesome */}
-      <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" />
     </div>
   );
 }
