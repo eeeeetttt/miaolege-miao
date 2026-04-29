@@ -372,9 +372,11 @@ export default function ChallengePage() {
       return;
     }
     
-    // 检查手数是否超过最大可开仓手数
-    if (lotSize > maxLots) {
-      showToast(`手数不能超过最大可开 ${maxLots.toFixed(2)}手`, 'warning');
+    // 检查所有持仓总手数是否超过最大可开仓手数
+    const currentTotalLots = positions.reduce((sum, pos) => sum + pos.amount, 0);
+    const newTotalLots = currentTotalLots + lotSize;
+    if (newTotalLots > maxLots) {
+      showToast(`总持仓${newTotalLots.toFixed(2)}手超过最大可开${maxLots.toFixed(2)}手`, 'warning');
       return;
     }
     
@@ -420,9 +422,11 @@ export default function ChallengePage() {
       return;
     }
     
-    // 检查手数是否超过最大可开仓手数
-    if (lotSize > maxLots) {
-      showToast(`手数不能超过最大可开 ${maxLots.toFixed(2)}手`, 'warning');
+    // 检查所有持仓总手数是否超过最大可开仓手数
+    const currentTotalLots = positions.reduce((sum, pos) => sum + pos.amount, 0);
+    const newTotalLots = currentTotalLots + lotSize;
+    if (newTotalLots > maxLots) {
+      showToast(`总持仓${newTotalLots.toFixed(2)}手超过最大可开${maxLots.toFixed(2)}手`, 'warning');
       return;
     }
     
@@ -470,6 +474,35 @@ export default function ChallengePage() {
     showToast(
       `平仓完成，${profit >= 0 ? '盈利' : '亏损'} $${Math.abs(profit).toFixed(2)}`,
       profit >= 0 ? 'success' : 'warning'
+    );
+    saveState();
+    recordEquity();
+  };
+
+  // 全部平仓
+  const handleCloseAll = async () => {
+    if (positions.length === 0) {
+      showToast('当前没有持仓', 'warning');
+      return;
+    }
+
+    let totalClosedProfit = 0;
+
+    positions.forEach(pos => {
+      const { profit } = calculatePositionProfit(pos);
+      totalClosedProfit += profit;
+    });
+
+    // 更新余额
+    setBalance(prev => prev + totalClosedProfit);
+
+    // 清空所有订单
+    setPositions([]);
+    setSelectedPositions(new Set());
+
+    showToast(
+      `已全部平仓${positions.length}单，${totalClosedProfit >= 0 ? '盈利' : '亏损'} $${Math.abs(totalClosedProfit).toFixed(2)}`,
+      totalClosedProfit >= 0 ? 'success' : 'warning'
     );
     saveState();
     recordEquity();
@@ -605,31 +638,12 @@ export default function ChallengePage() {
       )}
 
       <div className={styles.container}>
-        {/* 头部 */}
-        <div className={styles.header}>
-          <div className={styles.headerLeft}>
-            <Trophy className={styles.headerIcon} />
-            <div>
-              <h1>K线征途</h1>
-              <span className={styles.headerSub}>伦敦金模拟交易 · 杠杆{LEVERAGE}倍</span>
-            </div>
-          </div>
-          <div className={styles.headerRight}>
-            {hasRegistered && (
-              <div className={styles.levelBadge}>
-                <Star className={styles.levelIcon} />
-                <span>第{currentLevel}关</span>
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* 实时行情区域 */}
+        {/* 实时行情与交易区域 */}
         <div className={styles.priceSection}>
           <div className={styles.priceCard}>
             <div className={styles.priceHeader}>
               <span className={styles.priceLabel}>伦敦金 XAUUSD</span>
-              <RefreshCw className={styles.priceRefresh} />
+              <span className={styles.priceTime}>{new Date().toLocaleTimeString('zh-CN')}</span>
             </div>
             <div className={styles.priceMain}>
               <span className={styles.priceValue}>${goldPrice.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
@@ -638,48 +652,66 @@ export default function ChallengePage() {
                 <span>{isPriceUp ? '+' : ''}{priceChange.toFixed(2)}</span>
               </div>
             </div>
-            {/* 买卖价格 */}
-            <div className={styles.bidAsk}>
-              <div className={styles.bidAskItem}>
-                <span className={styles.bidAskLabel}>买价</span>
-                <span className={styles.bidAskValue}>${goldBid.toFixed(2)}</span>
+            
+            {/* 手数选择 */}
+            {hasRegistered && (
+              <div className={styles.lotSection}>
+                <span className={styles.lotLabel}>手数 (最大{maxLots.toFixed(2)}手)</span>
+                <div className={styles.lotButtons}>
+                  {[0.01, 0.05, 0.1, 0.2, 0.5, 1].map(lot => (
+                    <button
+                      key={lot}
+                      className={`${styles.lotBtn} ${lotSize === lot ? styles.lotActive : ''}`}
+                      onClick={() => setLotSize(lot)}
+                      disabled={lot > maxLots}
+                    >
+                      {lot}
+                    </button>
+                  ))}
+                </div>
               </div>
-              <div className={styles.bidAskItem}>
-                <span className={styles.bidAskLabel}>卖价</span>
-                <span className={styles.bidAskValue}>${goldAsk.toFixed(2)}</span>
+            )}
+            
+            {/* 交易按钮 */}
+            {hasRegistered && (
+              <div className={styles.tradeButtons}>
+                <button 
+                  className={`${styles.tradeBtn} ${styles.longBtn}`}
+                  onClick={handleLong}
+                >
+                  <TrendingUp className={styles.tradeIcon} />
+                  <span>做多</span>
+                </button>
+                <button 
+                  className={`${styles.tradeBtn} ${styles.shortBtn}`}
+                  onClick={handleShort}
+                >
+                  <TrendingDown className={styles.tradeIcon} />
+                  <span>做空</span>
+                </button>
+                {positions.length > 0 && (
+                  <button 
+                    className={`${styles.tradeBtn} ${styles.closeBtn}`}
+                    onClick={handleCloseAll}
+                  >
+                    <BarChart3 className={styles.tradeIcon} />
+                    <span>全部平仓</span>
+                  </button>
+                )}
               </div>
-              <div className={styles.bidAskSpread}>
-                <span>点差</span>
-                <span>${(goldAsk - goldBid).toFixed(2)}</span>
-              </div>
-            </div>
-            <div className={styles.priceTime}>
-              <Clock className={styles.timeIcon} />
-              <span>{new Date().toLocaleTimeString('zh-CN')}</span>
-            </div>
+            )}
           </div>
 
           {/* 账户卡片 */}
           <div className={styles.accountCardSmall}>
-            <h3><DollarSign className={styles.cardIcon} />账户概览</h3>
-            
-            {/* 每日挑战限制提示 */}
-            {!canChallenge && hasRegistered && currentEquity >= currentLevelConfig.failBalance && (
-              <div className={styles.dailyLimitNotice}>
-                <AlertCircle className={styles.limitIcon} />
-                <span>今日挑战次数已用完，明天再来</span>
-              </div>
-            )}
-            
             {hasRegistered ? (
               <>
-                {/* 净值显示 */}
                 <div className={styles.equityDisplay}>
                   <span className={styles.equityLabel}>净值</span>
                   {currentEquity < currentLevelConfig.failBalance ? (
                     <span className={styles.equityValue + ' ' + styles.equityFailed}>
                       ${currentEquity.toFixed(2)} 
-                      <small>挑战失败</small>
+                      <small>失败</small>
                     </span>
                   ) : (
                     <span className={styles.equityValue}>${currentEquity.toFixed(2)}</span>
@@ -689,33 +721,24 @@ export default function ChallengePage() {
                 {/* 余额和持仓盈亏显示 */}
                 <div className={styles.balanceRow}>
                   <div className={styles.balanceItem}>
-                    <span className={styles.balanceItemLabel}>
-                      <Wallet className={styles.balanceIcon} />
-                      余额
-                    </span>
+                    <span className={styles.balanceItemLabel}>余额</span>
                     <span className={styles.balanceItemValue}>${balance.toFixed(2)}</span>
                   </div>
                   <div className={styles.balanceItem}>
-                    <span className={styles.balanceItemLabel}>
-                      <BarChart3 className={styles.balanceIcon} />
-                      持仓盈亏
-                    </span>
+                    <span className={styles.balanceItemLabel}>盈亏</span>
                     <span className={`${styles.balanceItemValue} ${totalPositionProfit >= 0 ? styles.profitText : styles.lossText}`}>
                       {totalPositionProfit >= 0 ? '+' : ''}${totalPositionProfit.toFixed(2)}
                     </span>
                   </div>
                   <div className={styles.balanceItem}>
-                    <span className={styles.balanceItemLabel}>
-                      <AlertCircle className={styles.balanceIcon} />
-                      失败底线
-                    </span>
+                    <span className={styles.balanceItemLabel}>底线</span>
                     <span className={styles.balanceItemValue}>${currentLevelConfig.failBalance}</span>
                   </div>
                 </div>
 
                 <div className={styles.progressSection}>
                   <div className={styles.progressHeader}>
-                    <span>第{currentLevel}关进度</span>
+                    <span>第{currentLevel}关</span>
                     <span>{Math.min(Math.max(progressPercent, 0), 100).toFixed(1)}%</span>
                   </div>
                   <div className={styles.progressBar}>
@@ -725,101 +748,43 @@ export default function ChallengePage() {
                     />
                   </div>
                   <div className={styles.progressLabels}>
-                    <span>初始 ${initialBalance.toLocaleString()}</span>
-                    <span>目标 ${targetBalance.toLocaleString()}</span>
+                    <span>${initialBalance.toLocaleString()}</span>
+                    <span>${targetBalance.toLocaleString()}</span>
                   </div>
                 </div>
               </>
             ) : (
-              <div className={styles.registerArea}>
-                <p className={styles.registerTitle}>选择参赛模式</p>
-                <div className={styles.modeButtons}>
+              <>
+                <h3><DollarSign className={styles.cardIcon} />K线征途</h3>
+                <div className={styles.registerArea}>
+                  <p className={styles.registerTitle}>选择参赛模式</p>
+                  <div className={styles.modeButtons}>
+                    <button 
+                      className={`${styles.modeBtn} ${registrationMode === 'free' ? styles.modeActive : ''}`}
+                      onClick={() => setRegistrationMode('free')}
+                    >
+                      <Zap className={styles.modeIcon} />
+                      <span>免费模式</span>
+                      <small>模拟练习</small>
+                    </button>
+                    <button 
+                      className={`${styles.modeBtn} ${registrationMode === 'paid' ? styles.modeActive : ''}`}
+                      onClick={() => setRegistrationMode('paid')}
+                    >
+                      <Trophy className={styles.modeIcon} />
+                      <span>付费挑战</span>
+                      <small>1000星球币</small>
+                    </button>
+                  </div>
                   <button 
-                    className={`${styles.modeBtn} ${registrationMode === 'free' ? styles.modeActive : ''}`}
-                    onClick={() => setRegistrationMode('free')}
+                    className={styles.registerBtn}
+                    onClick={handleRegister}
+                    disabled={registering || !session || !canChallenge}
                   >
-                    <Zap className={styles.modeIcon} />
-                    <span>免费模式</span>
-                    <small>模拟练习</small>
-                  </button>
-                  <button 
-                    className={`${styles.modeBtn} ${registrationMode === 'paid' ? styles.modeActive : ''}`}
-                    onClick={() => setRegistrationMode('paid')}
-                  >
-                    <Trophy className={styles.modeIcon} />
-                    <span>付费挑战</span>
-                    <small>1000星球币</small>
+                    {!session ? '请先登录' : !canChallenge ? '今日已挑战' : registering ? '报名中...' : '立即参赛'}
                   </button>
                 </div>
-                <button 
-                  className={styles.registerBtn}
-                  onClick={handleRegister}
-                  disabled={registering || !session || !canChallenge}
-                >
-                  {!session ? '请先登录' : !canChallenge ? '今日已挑战' : registering ? '报名中...' : '立即参赛'}
-                </button>
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* 交易面板 */}
-        <div className={styles.tradeCard}>
-          <div className={styles.tradeHeader}>
-            <span>模拟交易</span>
-            {positions.length > 0 && (
-              <span className={styles.positionBadge}>
-                {positions.length}单持仓中
-              </span>
-            )}
-          </div>
-          
-          {/* 手数选择 */}
-          <div className={styles.lotSection}>
-            <span className={styles.lotLabel}>交易手数 (1手 = 100盎司)</span>
-            <div className={styles.lotButtons}>
-              {[0.01, 0.05, 0.1, 0.2, 0.5, 1].map(lot => (
-                <button
-                  key={lot}
-                  className={`${styles.lotBtn} ${lotSize === lot ? styles.lotActive : ''}`}
-                  onClick={() => setLotSize(lot)}
-                >
-                  {lot}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* 交易按钮 */}
-          <div className={styles.tradeButtons}>
-            <button 
-              className={`${styles.tradeBtn} ${styles.longBtn}`}
-              onClick={handleLong}
-              disabled={!hasRegistered}
-            >
-              <TrendingUp className={styles.tradeIcon} />
-              <span>买入做多</span>
-              <small>开仓价 ${goldAsk.toFixed(2)}</small>
-            </button>
-            <button 
-              className={`${styles.tradeBtn} ${styles.shortBtn}`}
-              onClick={handleShort}
-              disabled={!hasRegistered}
-            >
-              <TrendingDown className={styles.tradeIcon} />
-              <span>卖出做空</span>
-              <small>开仓价 ${goldBid.toFixed(2)}</small>
-            </button>
-            {positions.length > 0 && (
-              <button 
-                className={`${styles.tradeBtn} ${styles.closeBtn}`}
-                onClick={handleCloseSelected}
-                disabled={selectedPositions.size === 0}
-              >
-                <BarChart3 className={styles.tradeIcon} />
-                <span>平仓({selectedPositions.size})</span>
-                <small>总盈亏 ${totalPositionProfit >= 0 ? '+' : ''}${totalPositionProfit.toFixed(2)}</small>
-              </button>
+              </>
             )}
           </div>
         </div>
