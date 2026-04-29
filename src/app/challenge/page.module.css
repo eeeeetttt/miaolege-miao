@@ -37,14 +37,14 @@
 /* Toast 提示 */
 .toast {
   position: fixed;
-  top: 20px;
+  top: 80px;
   left: 50%;
   transform: translateX(-50%);
   padding: 12px 24px;
   border-radius: 8px;
   font-size: 14px;
   font-weight: 500;
-  z-index: 1000;
+  z-index: 99999;
   animation: slideDown 0.3s ease;
 }
 

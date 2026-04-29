@@ -80,7 +80,7 @@ export async function GET() {
       }
     } else {
       // 使用默认值
-      configMap.registration_fee = '1000';
+      configMap.registration_fee = '40';
       configMap.challenge_enabled = 'true';
       configMap.fail_balance = '100';
       configMap.target_balance = '2000';
@@ -210,7 +210,7 @@ export async function POST(request: Request) {
         configMap[cfg.config_key] = cfg.config_value;
       }
     } else {
-      configMap.registration_fee = '1000';
+      configMap.registration_fee = '40';
       configMap.challenge_enabled = 'true';
     }
 

@@ -804,7 +804,7 @@ function ChallengeContent() {
                     >
                       <Zap className={styles.modeIcon} />
                       <span>免费模式</span>
-                      <small>模拟练习</small>
+                      <small>0星球币</small>
                     </button>
                     <button 
                       className={`${styles.modeBtn} ${registrationMode === 'paid' ? styles.modeActive : ''}`}
@@ -812,7 +812,7 @@ function ChallengeContent() {
                     >
                       <Trophy className={styles.modeIcon} />
                       <span>付费挑战</span>
-                      <small>1000星球币</small>
+                      <small>40星球币</small>
                     </button>
                   </div>
                   <button 
