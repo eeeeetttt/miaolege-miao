@@ -47,8 +47,10 @@ export function Header() {
 
   // 导航处理函数
   const navigate = useCallback((href: string) => {
-    router.push(href);
-  }, [router]);
+    if (typeof window !== 'undefined') {
+      window.location.href = href;
+    }
+  }, []);
 
   // 获取导航栏配置
   useEffect(() => {
