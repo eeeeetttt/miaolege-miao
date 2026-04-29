@@ -319,13 +319,27 @@ export default function ChallengePage() {
     return () => clearInterval(interval);
   }, [hasRegistered, recordEquity]);
 
-  // 检查净值是否低于失败底线
+  // 检查净值是否低于失败底线，如果低于则挑战失败并重置
   useEffect(() => {
     if (!hasRegistered || currentEquity <= 0) return;
     
     const failBalance = getLevelConfig(currentLevel).failBalance;
     if (currentEquity < failBalance) {
       showToast(`净值低于底线 $${failBalance}，挑战失败！`, 'warning');
+      
+      // 强行平仓所有单子
+      setPositions([]);
+      // 重置到第一关
+      setCurrentLevel(1);
+      // 设置余额为第一关初始净值
+      const firstLevelConfig = getLevelConfig(1);
+      setBalance(firstLevelConfig.initialBalance);
+      // 清除历史记录
+      setEquityHistory([]);
+      // 重置挑战状态，需要重新报名
+      setHasRegistered(false);
+      // 清除localStorage中的挑战状态
+      localStorage.removeItem(STORAGE_KEY);
     }
   }, [currentEquity, hasRegistered, currentLevel, showToast, getLevelConfig]);
 
