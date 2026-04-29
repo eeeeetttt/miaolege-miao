@@ -166,12 +166,16 @@ function ChallengeContent() {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
   }, [balance, positions, currentLevel, hasRegistered]);
 
+  // 使用 ref 来跟踪 equityHistory，避免无限循环
+  const equityHistoryRef = useRef(equityHistory);
+  equityHistoryRef.current = equityHistory;
+
   // 记录净值变化到历史
   const recordEquity = useCallback(() => {
     if (typeof window === 'undefined') return;
     if (!hasRegistered) return;
     
-    const history = equityHistory.slice(-99);
+    const history = equityHistoryRef.current.slice(-99);
     history.push({
       time: new Date().toISOString(),
       equity: currentEquity,
@@ -179,7 +183,7 @@ function ChallengeContent() {
     });
     setEquityHistory(history);
     localStorage.setItem(EQUITY_HISTORY_KEY, JSON.stringify(history));
-  }, [hasRegistered, currentEquity, balance, equityHistory]);
+  }, [hasRegistered, currentEquity, balance]);
 
   // 获取实时金价
   const fetchGoldPrice = useCallback(async () => {
