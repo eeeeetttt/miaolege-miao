@@ -69,11 +69,11 @@ export function Header() {
   }, []);
 
   return (
-    <header key={pathname} className="sticky top-0 z-[100] w-full border-b bg-white/80 dark:bg-gray-900/80 backdrop-blur-md supports-[backdrop-filter]:bg-white/60 dark:supports-[backdrop-filter]:bg-gray-900/60">
+    <header key={pathname} className="sticky top-0 z-[9999] w-full border-b bg-white/80 dark:bg-gray-900/80 backdrop-blur-md supports-[backdrop-filter]:bg-white/60 dark:supports-[backdrop-filter]:bg-gray-900/60" style={{ position: 'sticky', top: 0, left: 0, right: 0 }}>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex h-16 items-center justify-between">
+        <div className="flex h-16 items-center justify-between gap-4 overflow-visible">
           {/* Logo */}
-          <button onClick={() => navigate('/')} className="flex items-center gap-3 hover:opacity-80 transition-opacity">
+          <button onClick={() => navigate('/')} className="flex items-center gap-3 hover:opacity-80 transition-opacity flex-shrink-0">
             <Image 
               src="/logo.png" 
               alt="金火火" 
@@ -81,7 +81,7 @@ export function Header() {
               height={40}
               className="rounded-full shadow-lg"
             />
-            <div className="hidden sm:block">
+            <div className="hidden sm:block flex-shrink-0">
               <h1 className="text-xl font-bold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">
                 金火火
               </h1>
@@ -90,7 +90,7 @@ export function Header() {
 
           {/* Navigation */}
           {!configLoading && (
-            <nav className="hidden md:flex items-center gap-6 z-[100] relative">
+            <nav className="hidden lg:flex items-center gap-6 z-[100] relative flex-shrink-0">
               <button onClick={() => navigate('/')} className="text-gray-600 hover:text-purple-600 dark:text-gray-300 dark:hover:text-purple-400 transition-colors flex items-center gap-1">
                 <Home className="w-4 h-4" />
                 首页
