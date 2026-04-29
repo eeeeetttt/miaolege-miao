@@ -169,7 +169,7 @@ export async function GET() {
 }
 
 // 提交挑战赛申请
-export async function POST() {
+export async function POST(request: Request) {
   try {
     const session = await getServerSession(authOptions);
     
@@ -178,6 +178,15 @@ export async function POST() {
         error: '请先登录后再报名',
         errorCode: 'NOT_LOGGED_IN'
       }, { status: 401 });
+    }
+
+    // 解析请求体获取 mode 参数
+    let mode = 'free';
+    try {
+      const body = await request.json();
+      mode = body.mode || 'free';
+    } catch {
+      // 如果解析失败，默认使用免费模式
     }
 
     const userId = session.user.id;
@@ -268,77 +277,84 @@ export async function POST() {
       }, { status: 400 });
     }
 
-    // 检查星球币余额（使用配置中的报名费）
-    const registrationFee = parseInt(configMap.registration_fee || '1000');
+    // 付费模式才需要检查和扣除星球币
+    const registrationFee = mode === 'paid' ? parseInt(configMap.registration_fee || '1000') : 0;
     
-    // 从 coin_balances 表获取用户余额
-    const { data: balanceData, error: balanceError } = await supabase
-      .from('coin_balances')
-      .select('balance')
-      .eq('userId', userId)
-      .single();
-    
-    // 如果 coin_balances 表没有记录，尝试从 MySQL users 表获取
+    // 如果是付费模式，检查星球币余额
     let currentBalance = 0;
-    if (balanceData && !balanceError) {
-      currentBalance = balanceData.balance || 0;
-    } else {
-      // 回退：从 MySQL 获取余额
-      try {
-        const { db } = await import('@/lib/db');
-        const { users } = await import('@/lib/schema');
-        const { eq } = await import('drizzle-orm');
-        const mysqlUsers = await db
-          .select({ coinBalance: users.coinBalance })
-          .from(users)
-          .where(eq(users.userId, userId))
-          .limit(1);
-        if (mysqlUsers && mysqlUsers.length > 0) {
-          currentBalance = mysqlUsers[0].coinBalance || 0;
-        }
-      } catch (e) {
-        console.error('Failed to get balance from MySQL:', e);
-      }
-    }
-    
-    // 检查余额是否足够
-    if (currentBalance < registrationFee) {
-      return NextResponse.json({ 
-        error: `余额不足！当前余额 ${currentBalance} U，报名需要 ${registrationFee} U` 
-      }, { status: 400 });
-    }
-    
-    // 扣除报名费
-    let deductSuccess = false;
-    if (balanceData && !balanceError) {
-      // 更新 coin_balances 表
-      const { error: updateError } = await supabase
+    if (registrationFee > 0) {
+      // 从 coin_balances 表获取用户余额
+      const { data: balanceData, error: balanceError } = await supabase
         .from('coin_balances')
-        .update({ balance: currentBalance - registrationFee })
-        .eq('userId', userId);
-      deductSuccess = !updateError;
-    }
-    
-    // 如果 coin_balances 更新失败，尝试更新 MySQL
-    if (!deductSuccess) {
-      try {
-        const { db } = await import('@/lib/db');
-        const { users } = await import('@/lib/schema');
-        const { eq } = await import('drizzle-orm');
-        await db
-          .update(users)
-          .set({ coinBalance: currentBalance - registrationFee })
-          .where(eq(users.userId, userId));
-        deductSuccess = true;
-      } catch (e) {
-        console.error('Failed to deduct from MySQL:', e);
+        .select('balance')
+        .eq('userId', userId)
+        .single();
+      
+      // 如果 coin_balances 表没有记录，尝试从 MySQL users 表获取
+      if (balanceData && !balanceError) {
+        currentBalance = balanceData.balance || 0;
+      } else {
+        // 回退：从 MySQL 获取余额
+        try {
+          const { db } = await import('@/lib/db');
+          const { users } = await import('@/lib/schema');
+          const { eq } = await import('drizzle-orm');
+          const mysqlUsers = await db
+            .select({ coinBalance: users.coinBalance })
+            .from(users)
+            .where(eq(users.userId, userId))
+            .limit(1);
+          if (mysqlUsers && mysqlUsers.length > 0) {
+            currentBalance = mysqlUsers[0].coinBalance || 0;
+          }
+        } catch (e) {
+          console.error('Failed to get balance from MySQL:', e);
+        }
+      }
+      
+      // 检查余额是否足够
+      if (currentBalance < registrationFee) {
+        return NextResponse.json({ 
+          error: `余额不足！当前余额 ${currentBalance} U，报名需要 ${registrationFee} U` 
+        }, { status: 400 });
       }
     }
     
-    if (!deductSuccess) {
-      return NextResponse.json({ 
-        error: '扣除报名费失败，请重试' 
-      }, { status: 500 });
+    // 扣除报名费（仅付费模式）
+    let deductSuccess = true;
+    if (registrationFee > 0) {
+      deductSuccess = false;
+      if (currentBalance > 0) {
+        // 更新 coin_balances 表
+        const { error: updateError } = await supabase
+          .from('coin_balances')
+          .update({ balance: currentBalance - registrationFee })
+          .eq('userId', userId);
+        
+        if (!updateError) {
+          deductSuccess = true;
+        } else {
+          // 如果 coin_balances 更新失败，尝试更新 MySQL
+          try {
+            const { db } = await import('@/lib/db');
+            const { users } = await import('@/lib/schema');
+            const { eq } = await import('drizzle-orm');
+            await db
+              .update(users)
+              .set({ coinBalance: currentBalance - registrationFee })
+              .where(eq(users.userId, userId));
+            deductSuccess = true;
+          } catch (e) {
+            console.error('Failed to deduct from MySQL:', e);
+          }
+        }
+      }
+      
+      if (!deductSuccess) {
+        return NextResponse.json({ 
+          error: '扣除报名费失败，请重试' 
+        }, { status: 500 });
+      }
     }
 
     // 创建申请记录到Supabase

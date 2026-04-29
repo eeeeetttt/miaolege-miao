@@ -618,10 +618,13 @@ export default function ChallengePage() {
       });
       const data = await res.json();
       if (res.ok) {
-        showToast('报名成功！', 'success');
+        showToast(registrationMode === 'paid' ? '付费报名成功！1000星球币已扣除' : '报名成功！', 'success');
         setHasRegistered(true);
-        setCanChallenge(true);
-        setTodayChallenged();
+        // 只有免费模式才设置每日限制
+        if (registrationMode === 'free') {
+          setCanChallenge(true);
+          setTodayChallenged();
+        }
         // 从配置获取初始净值
         const config = getLevelConfig(1);
         setBalance(config.initialBalance);
@@ -631,6 +634,11 @@ export default function ChallengePage() {
         localStorage.removeItem(STORAGE_KEY);
         localStorage.removeItem(EQUITY_HISTORY_KEY);
         saveState();
+        
+        // 如果是付费模式，刷新用户状态以更新星球币余额
+        if (registrationMode === 'paid') {
+          fetchUserStatus();
+        }
       } else {
         showToast(data.error || '报名失败', 'warning');
       }
@@ -805,9 +813,9 @@ export default function ChallengePage() {
                   <button 
                     className={styles.registerBtn}
                     onClick={handleRegister}
-                    disabled={registering || !session || !canChallenge}
+                    disabled={registering || !session || (registrationMode === 'free' && !canChallenge)}
                   >
-                    {!session ? '请先登录' : !canChallenge ? '今日已挑战' : registering ? '报名中...' : '立即参赛'}
+                    {!session ? '请先登录' : registering ? '报名中...' : registrationMode === 'free' && !canChallenge ? '今日已用完' : '立即参赛'}
                   </button>
                 </div>
               </>
