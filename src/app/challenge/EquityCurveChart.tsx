@@ -1,6 +1,21 @@
 'use client';
 
-import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, ReferenceLine, CartesianGrid } from 'recharts';
+import { useMemo } from 'react';
+import {
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  Tooltip,
+  CartesianGrid,
+  ReferenceLine,
+} from 'recharts';
+import {
+  ChartConfig,
+  ChartContainer,
+  ChartTooltip,
+  ChartTooltipContent,
+} from '@/components/ui/chart';
 
 interface EquityPoint {
   time: string;
@@ -23,66 +38,77 @@ interface EquityCurveChartProps {
 }
 
 export default function EquityCurveChart({ equityHistory, currentLevelConfig, currentEquity }: EquityCurveChartProps) {
+  const chartConfig: ChartConfig = useMemo(() => ({
+    equity: {
+      label: '净值',
+      color: '#f59e0b',
+    },
+    target: {
+      label: '目标',
+      color: '#22c55e',
+    },
+    fail: {
+      label: '底线',
+      color: '#ef4444',
+    },
+  }), []);
+
   if (equityHistory.length === 0) {
     return null;
   }
 
+  const minEquity = Math.min(...equityHistory.map(p => p.equity));
+  const maxEquity = Math.max(...equityHistory.map(p => p.equity));
+  const padding = (maxEquity - minEquity) * 0.1 || 100;
+  const domainMin = Math.floor((minEquity - padding) / 100) * 100;
+  const domainMax = Math.ceil((maxEquity + padding) / 100) * 100;
+
   return (
-    <>
-      <ResponsiveContainer width="100%" height={200}>
-        <LineChart data={equityHistory} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="#2a2a2a" />
-          <XAxis 
-            dataKey="time" 
-            stroke="#888"
-            fontSize={10}
-            tickFormatter={(value, index) => {
-              if (index === 0 || index === equityHistory.length - 1) return value;
-              return '';
-            }}
+    <ChartContainer config={chartConfig} className="h-[200px] w-full">
+      <LineChart 
+        data={equityHistory} 
+        margin={{ top: 10, right: 10, left: 0, bottom: 0 }}
+      >
+        <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+        <XAxis 
+          dataKey="time" 
+          tick={{ fontSize: 10 }}
+          className="text-muted-foreground"
+          tickFormatter={(value, index) => {
+            if (index === 0 || index === equityHistory.length - 1) return value;
+            return '';
+          }}
+        />
+        <YAxis 
+          tick={{ fontSize: 10 }}
+          className="text-muted-foreground"
+          domain={[domainMin, domainMax]}
+          tickFormatter={(value) => `$${value}`}
+        />
+        <ChartTooltip content={<ChartTooltipContent />} />
+        {currentLevelConfig && (
+          <ReferenceLine 
+            y={currentLevelConfig.targetBalance} 
+            stroke="#22c55e" 
+            strokeDasharray="5 5"
           />
-          <YAxis 
-            stroke="#888"
-            fontSize={10}
-            domain={['dataMin - 50', 'dataMax + 50']}
-            tickFormatter={(value) => `$${value}`}
+        )}
+        {currentLevelConfig && (
+          <ReferenceLine 
+            y={currentLevelConfig.failBalance} 
+            stroke="#ef4444" 
+            strokeDasharray="5 5"
           />
-          <Tooltip 
-            contentStyle={{ 
-              backgroundColor: '#1a1a1a', 
-              border: '1px solid #333',
-              borderRadius: '8px',
-              color: '#fff'
-            }}
-            labelStyle={{ color: '#888' }}
-            formatter={(value: number) => [`$${value.toFixed(2)}`, '净值']}
-          />
-          {currentLevelConfig && (
-            <ReferenceLine 
-              y={currentLevelConfig.targetBalance} 
-              stroke="#22c55e" 
-              strokeDasharray="5 5"
-              label={{ value: '目标', fill: '#22c55e', fontSize: 10 }}
-            />
-          )}
-          {currentLevelConfig && (
-            <ReferenceLine 
-              y={currentLevelConfig.failBalance} 
-              stroke="#ef4444" 
-              strokeDasharray="5 5"
-              label={{ value: '底线', fill: '#ef4444', fontSize: 10 }}
-            />
-          )}
-          <Line 
-            type="monotone" 
-            dataKey="equity" 
-            stroke="#f59e0b" 
-            strokeWidth={2}
-            dot={false}
-            activeDot={{ r: 4, fill: '#f59e0b' }}
-          />
-        </LineChart>
-      </ResponsiveContainer>
-    </>
+        )}
+        <Line 
+          type="monotone" 
+          dataKey="equity" 
+          stroke="#f59e0b" 
+          strokeWidth={2}
+          dot={false}
+          activeDot={{ r: 4, fill: '#f59e0b' }}
+        />
+      </LineChart>
+    </ChartContainer>
   );
 }
