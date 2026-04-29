@@ -364,6 +364,42 @@
   font-variant-numeric: tabular-nums;
 }
 
+/* 净值和盈亏行 */
+.equityRow {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.equityItem {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 12px;
+  background: rgba(212, 175, 55, 0.1);
+  border-radius: 10px;
+}
+
+.equityLabel {
+  font-size: 0.8rem;
+  color: #9ca3af;
+}
+
+.equityValue {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #D4AF37;
+  font-variant-numeric: tabular-nums;
+}
+
+.equityFailed {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #ef4444;
+  font-variant-numeric: tabular-nums;
+}
+
 /* 余额和净值行 */
 .balanceRow {
   display: grid;

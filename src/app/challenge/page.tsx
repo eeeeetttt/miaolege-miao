@@ -706,29 +706,27 @@ export default function ChallengePage() {
           <div className={styles.accountCardSmall}>
             {hasRegistered ? (
               <>
-                <div className={styles.equityDisplay}>
-                  <span className={styles.equityLabel}>净值</span>
-                  {currentEquity < currentLevelConfig.failBalance ? (
-                    <span className={styles.equityValue + ' ' + styles.equityFailed}>
-                      ${currentEquity.toFixed(2)} 
-                      <small>失败</small>
+                {/* 净值和盈亏 */}
+                <div className={styles.equityRow}>
+                  <div className={styles.equityItem}>
+                    <span className={styles.equityLabel}>净值</span>
+                    <span className={currentEquity < currentLevelConfig.failBalance ? styles.equityFailed : styles.equityValue}>
+                      ${currentEquity.toFixed(2)}
                     </span>
-                  ) : (
-                    <span className={styles.equityValue}>${currentEquity.toFixed(2)}</span>
-                  )}
+                  </div>
+                  <div className={styles.equityItem}>
+                    <span className={styles.equityLabel}>盈亏</span>
+                    <span className={totalPositionProfit >= 0 ? styles.profitText : styles.lossText}>
+                      {totalPositionProfit >= 0 ? '+' : ''}${totalPositionProfit.toFixed(2)}
+                    </span>
+                  </div>
                 </div>
 
-                {/* 余额和持仓盈亏显示 */}
+                {/* 余额和底线 */}
                 <div className={styles.balanceRow}>
                   <div className={styles.balanceItem}>
                     <span className={styles.balanceItemLabel}>余额</span>
                     <span className={styles.balanceItemValue}>${balance.toFixed(2)}</span>
-                  </div>
-                  <div className={styles.balanceItem}>
-                    <span className={styles.balanceItemLabel}>盈亏</span>
-                    <span className={`${styles.balanceItemValue} ${totalPositionProfit >= 0 ? styles.profitText : styles.lossText}`}>
-                      {totalPositionProfit >= 0 ? '+' : ''}${totalPositionProfit.toFixed(2)}
-                    </span>
                   </div>
                   <div className={styles.balanceItem}>
                     <span className={styles.balanceItemLabel}>底线</span>
@@ -866,17 +864,6 @@ export default function ChallengePage() {
                 <div 
                   key={level}
                   className={`${styles.levelCard} ${isCurrent ? styles.currentLevel : ''} ${isUnlocked ? styles.unlocked : ''}`}
-                  onClick={() => {
-                    if (hasRegistered && level <= currentLevel) {
-                      setCurrentLevel(level);
-                      const cfg = getLevelConfig(level);
-                      setBalance(cfg.initialBalance);
-                      setPositions([]);
-                      setEquityHistory([]);
-                      saveState();
-                      showToast(`切换到第${level}关，初始净值 $${cfg.initialBalance.toLocaleString()}`, 'info');
-                    }
-                  }}
                 >
                   <div className={styles.levelNum}>{level}</div>
                   <div className={styles.levelName}>{config.name}</div>
