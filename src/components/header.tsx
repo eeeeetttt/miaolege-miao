@@ -85,51 +85,51 @@ export function Header() {
 
           {/* Navigation */}
           {!configLoading && (
-            <nav className="hidden md:flex items-center gap-6">
-              <Link href="/" className="text-gray-600 hover:text-purple-600 dark:text-gray-300 dark:hover:text-purple-400 transition-colors flex items-center gap-1">
+            <nav className="hidden md:flex items-center gap-6 z-50 relative">
+              <Link href="/" className="text-gray-600 hover:text-purple-600 dark:text-gray-300 dark:hover:text-purple-400 transition-colors flex items-center gap-1" prefetch={false}>
                 <Home className="w-4 h-4" />
                 首页
               </Link>
               {session && (
                 <>
                   {navConfig.nav_show_challenge_hall && (
-                    <Link href="/challenge/hall" className="text-gray-600 hover:text-purple-600 dark:text-gray-300 dark:hover:text-purple-400 transition-colors flex items-center gap-1">
+                    <Link href="/challenge/hall" className="text-gray-600 hover:text-purple-600 dark:text-gray-300 dark:hover:text-purple-400 transition-colors flex items-center gap-1" prefetch={false}>
                       <Globe className="w-4 h-4" />
                       挑战赛大厅
                     </Link>
                   )}
                   {navConfig.nav_show_kline_challenge && (
-                    <Link href="/challenge" className="text-amber-600 hover:text-amber-500 dark:text-amber-400 dark:hover:text-amber-300 transition-colors flex items-center gap-1 font-semibold">
+                    <Link href="/challenge" className="text-amber-600 hover:text-amber-500 dark:text-amber-400 dark:hover:text-amber-300 transition-colors flex items-center gap-1 font-semibold" prefetch={false}>
                       <Trophy className="w-4 h-4" />
                       K线征途
                     </Link>
                   )}
                   {navConfig.nav_show_social && (
-                    <Link href="/social" className="text-gray-600 hover:text-purple-600 dark:text-gray-300 dark:hover:text-purple-400 transition-colors flex items-center gap-1">
+                    <Link href="/social" className="text-gray-600 hover:text-purple-600 dark:text-gray-300 dark:hover:text-purple-400 transition-colors flex items-center gap-1" prefetch={false}>
                       <MessageCircle className="w-4 h-4" />
                       茶馆
                     </Link>
                   )}
                   {navConfig.nav_show_docs && (
-                    <Link href="/docs" className="text-gray-600 hover:text-purple-600 dark:text-gray-300 dark:hover:text-purple-400 transition-colors flex items-center gap-1">
+                    <Link href="/docs" className="text-gray-600 hover:text-purple-600 dark:text-gray-300 dark:hover:text-purple-400 transition-colors flex items-center gap-1" prefetch={false}>
                       <FileText className="w-4 h-4" />
                       文档中心
                     </Link>
                   )}
                   {navConfig.nav_show_suggestion && (
-                    <Link href="/suggestion" className="text-gray-600 hover:text-purple-600 dark:text-gray-300 dark:hover:text-purple-400 transition-colors flex items-center gap-1">
+                    <Link href="/suggestion" className="text-gray-600 hover:text-purple-600 dark:text-gray-300 dark:hover:text-purple-400 transition-colors flex items-center gap-1" prefetch={false}>
                       <MessageSquare className="w-4 h-4" />
                       建议
                     </Link>
                   )}
                   {navConfig.nav_show_complaint && (
-                    <Link href="/complaint" className="text-gray-600 hover:text-purple-600 dark:text-gray-300 dark:hover:text-purple-400 transition-colors flex items-center gap-1">
+                    <Link href="/complaint" className="text-gray-600 hover:text-purple-600 dark:text-gray-300 dark:hover:text-purple-400 transition-colors flex items-center gap-1" prefetch={false}>
                       <AlertCircle className="w-4 h-4" />
                       投诉
                     </Link>
                   )}
                   {navConfig.nav_show_download && (
-                    <Link href="/download" className="text-gray-600 hover:text-purple-600 dark:text-gray-300 dark:hover:text-purple-400 transition-colors flex items-center gap-1">
+                    <Link href="/download" className="text-gray-600 hover:text-purple-600 dark:text-gray-300 dark:hover:text-purple-400 transition-colors flex items-center gap-1" prefetch={false}>
                       <Download className="w-4 h-4" />
                       软件下载
                     </Link>
