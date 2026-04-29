@@ -270,6 +270,20 @@ export default function ChallengePage() {
     localStorage.setItem('challenge_last_date', new Date().toDateString());
   }, []);
 
+  // 自动保存状态到localStorage（当余额或持仓变化时）
+  useEffect(() => {
+    if (!hasRegistered) return;
+    if (typeof window === 'undefined') return;
+    
+    const state = {
+      balance,
+      positions,
+      currentLevel,
+      hasRegistered
+    };
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  }, [balance, positions, currentLevel, hasRegistered]);
+
   // 初始化
   useEffect(() => {
     const init = async () => {
