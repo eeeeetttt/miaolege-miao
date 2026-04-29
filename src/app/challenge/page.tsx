@@ -679,7 +679,7 @@ export default function ChallengePage() {
           <div className={styles.priceCard}>
             <div className={styles.priceHeader}>
               <span className={styles.priceLabel}>伦敦金 XAUUSD</span>
-              <span className={styles.priceTime}>{new Date().toLocaleTimeString('zh-CN')}</span>
+              <span className={styles.priceTime} suppressHydrationWarning>{new Date().toLocaleTimeString('zh-CN')}</span>
             </div>
             <div className={styles.priceMain}>
               <span className={styles.priceValue}>${goldPrice.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>

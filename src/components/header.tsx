@@ -1,10 +1,9 @@
 'use client';
 
-import Link from 'next/link';
 import Image from 'next/image';
 import { useSession, signOut } from 'next-auth/react';
-import { useEffect, useState } from 'react';
-import { usePathname } from 'next/navigation';
+import { useEffect, useState, useCallback } from 'react';
+import { usePathname, useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { ThemeToggle } from '@/components/theme-toggle'; 
 import { 
@@ -32,6 +31,7 @@ interface NavConfig {
 
 export function Header() {
   const pathname = usePathname();
+  const router = useRouter();
   const { data: session } = useSession();
   const [navConfig, setNavConfig] = useState<NavConfig>({
     nav_show_challenge_hall: true,
@@ -44,6 +44,11 @@ export function Header() {
     nav_show_app_download: true,
   });
   const [configLoading, setConfigLoading] = useState(true);
+
+  // 导航处理函数
+  const navigate = useCallback((href: string) => {
+    router.push(href);
+  }, [router]);
 
   // 获取导航栏配置
   useEffect(() => {
@@ -64,11 +69,11 @@ export function Header() {
   }, []);
 
   return (
-    <header key={pathname} className="sticky top-0 z-50 w-full border-b bg-white/80 dark:bg-gray-900/80 backdrop-blur-md supports-[backdrop-filter]:bg-white/60 dark:supports-[backdrop-filter]:bg-gray-900/60">
+    <header key={pathname} className="sticky top-0 z-[100] w-full border-b bg-white/80 dark:bg-gray-900/80 backdrop-blur-md supports-[backdrop-filter]:bg-white/60 dark:supports-[backdrop-filter]:bg-gray-900/60">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex h-16 items-center justify-between">
           {/* Logo */}
-          <Link href="/" className="flex items-center gap-3 hover:opacity-80 transition-opacity">
+          <button onClick={() => navigate('/')} className="flex items-center gap-3 hover:opacity-80 transition-opacity">
             <Image 
               src="/logo.png" 
               alt="金火火" 
@@ -81,58 +86,58 @@ export function Header() {
                 金火火
               </h1>
             </div>
-          </Link>
+          </button>
 
           {/* Navigation */}
           {!configLoading && (
-            <nav className="hidden md:flex items-center gap-6 z-50 relative">
-              <Link href="/" className="text-gray-600 hover:text-purple-600 dark:text-gray-300 dark:hover:text-purple-400 transition-colors flex items-center gap-1" prefetch={false}>
+            <nav className="hidden md:flex items-center gap-6 z-[100] relative">
+              <button onClick={() => navigate('/')} className="text-gray-600 hover:text-purple-600 dark:text-gray-300 dark:hover:text-purple-400 transition-colors flex items-center gap-1">
                 <Home className="w-4 h-4" />
                 首页
-              </Link>
+              </button>
               {session && (
                 <>
                   {navConfig.nav_show_challenge_hall && (
-                    <Link href="/challenge/hall" className="text-gray-600 hover:text-purple-600 dark:text-gray-300 dark:hover:text-purple-400 transition-colors flex items-center gap-1" prefetch={false}>
+                    <button onClick={() => navigate('/challenge/hall')} className="text-gray-600 hover:text-purple-600 dark:text-gray-300 dark:hover:text-purple-400 transition-colors flex items-center gap-1">
                       <Globe className="w-4 h-4" />
                       挑战赛大厅
-                    </Link>
+                    </button>
                   )}
                   {navConfig.nav_show_kline_challenge && (
-                    <Link href="/challenge" className="text-amber-600 hover:text-amber-500 dark:text-amber-400 dark:hover:text-amber-300 transition-colors flex items-center gap-1 font-semibold" prefetch={false}>
+                    <button onClick={() => navigate('/challenge')} className="text-amber-600 hover:text-amber-500 dark:text-amber-400 dark:hover:text-amber-300 transition-colors flex items-center gap-1 font-semibold">
                       <Trophy className="w-4 h-4" />
                       K线征途
-                    </Link>
+                    </button>
                   )}
                   {navConfig.nav_show_social && (
-                    <Link href="/social" className="text-gray-600 hover:text-purple-600 dark:text-gray-300 dark:hover:text-purple-400 transition-colors flex items-center gap-1" prefetch={false}>
+                    <button onClick={() => navigate('/social')} className="text-gray-600 hover:text-purple-600 dark:text-gray-300 dark:hover:text-purple-400 transition-colors flex items-center gap-1">
                       <MessageCircle className="w-4 h-4" />
                       茶馆
-                    </Link>
+                    </button>
                   )}
                   {navConfig.nav_show_docs && (
-                    <Link href="/docs" className="text-gray-600 hover:text-purple-600 dark:text-gray-300 dark:hover:text-purple-400 transition-colors flex items-center gap-1" prefetch={false}>
+                    <button onClick={() => navigate('/docs')} className="text-gray-600 hover:text-purple-600 dark:text-gray-300 dark:hover:text-purple-400 transition-colors flex items-center gap-1">
                       <FileText className="w-4 h-4" />
                       文档中心
-                    </Link>
+                    </button>
                   )}
                   {navConfig.nav_show_suggestion && (
-                    <Link href="/suggestion" className="text-gray-600 hover:text-purple-600 dark:text-gray-300 dark:hover:text-purple-400 transition-colors flex items-center gap-1" prefetch={false}>
+                    <button onClick={() => navigate('/suggestion')} className="text-gray-600 hover:text-purple-600 dark:text-gray-300 dark:hover:text-purple-400 transition-colors flex items-center gap-1">
                       <MessageSquare className="w-4 h-4" />
                       建议
-                    </Link>
+                    </button>
                   )}
                   {navConfig.nav_show_complaint && (
-                    <Link href="/complaint" className="text-gray-600 hover:text-purple-600 dark:text-gray-300 dark:hover:text-purple-400 transition-colors flex items-center gap-1" prefetch={false}>
+                    <button onClick={() => navigate('/complaint')} className="text-gray-600 hover:text-purple-600 dark:text-gray-300 dark:hover:text-purple-400 transition-colors flex items-center gap-1">
                       <AlertCircle className="w-4 h-4" />
                       投诉
-                    </Link>
+                    </button>
                   )}
                   {navConfig.nav_show_download && (
-                    <Link href="/download" className="text-gray-600 hover:text-purple-600 dark:text-gray-300 dark:hover:text-purple-400 transition-colors flex items-center gap-1" prefetch={false}>
+                    <button onClick={() => navigate('/download')} className="text-gray-600 hover:text-purple-600 dark:text-gray-300 dark:hover:text-purple-400 transition-colors flex items-center gap-1">
                       <Download className="w-4 h-4" />
                       软件下载
-                    </Link>
+                    </button>
                   )}
                 </>
               )}
@@ -162,39 +167,29 @@ export function Header() {
                     </div>
                   </DropdownMenuLabel>
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem asChild>
-                    <Link href="/social" className="cursor-pointer">
-                      <MessageCircle className="mr-2 h-4 w-4" />
-                      社交中心
-                    </Link>
+                  <DropdownMenuItem onClick={() => navigate('/social')} className="cursor-pointer">
+                    <MessageCircle className="mr-2 h-4 w-4" />
+                    社交中心
                   </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link href="/user" className="cursor-pointer">
-                      <UserCircle className="mr-2 h-4 w-4" />
-                      个人中心
-                    </Link>
+                  <DropdownMenuItem onClick={() => navigate('/user')} className="cursor-pointer">
+                    <UserCircle className="mr-2 h-4 w-4" />
+                    个人中心
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem asChild>
-                    <Link href="/planet/my" className="cursor-pointer">
-                      <Globe className="mr-2 h-4 w-4" />
-                      我的星球
-                    </Link>
+                  <DropdownMenuItem onClick={() => navigate('/planet/my')} className="cursor-pointer">
+                    <Globe className="mr-2 h-4 w-4" />
+                    我的星球
                   </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link href="/planet/create" className="cursor-pointer">
-                      <Settings className="mr-2 h-4 w-4" />
-                      创建星球
-                    </Link>
+                  <DropdownMenuItem onClick={() => navigate('/planet/create')} className="cursor-pointer">
+                    <Settings className="mr-2 h-4 w-4" />
+                    创建星球
                   </DropdownMenuItem>
                   {session.user?.role === 'admin' && (
                     <>
                       <DropdownMenuSeparator />
-                      <DropdownMenuItem asChild>
-                        <Link href="/admin" className="cursor-pointer">
-                          <Shield className="mr-2 h-4 w-4" />
-                          后台管理
-                        </Link>
+                      <DropdownMenuItem onClick={() => navigate('/admin')} className="cursor-pointer">
+                        <Shield className="mr-2 h-4 w-4" />
+                        后台管理
                       </DropdownMenuItem>
                     </>
                   )}
@@ -210,14 +205,10 @@ export function Header() {
               </DropdownMenu>
             ) : (
               <div className="flex items-center gap-2">
-                <Link href="/login">
-                  <Button variant="ghost">登录</Button>
-                </Link>
-                <Link href="/register">
-                  <Button className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700">
-                    注册
-                  </Button>
-                </Link>
+                <Button variant="ghost" onClick={() => navigate('/login')}>登录</Button>
+                <Button className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700" onClick={() => navigate('/register')}>
+                  注册
+                </Button>
               </div>
             )}
           </div>
