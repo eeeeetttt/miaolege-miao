@@ -1099,3 +1099,61 @@
   font-size: 0.75rem;
   color: #6b7280;
 }
+
+/* 收益曲线样式 */
+.equityCurve {
+  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+  border: 1px solid #2a2a4a;
+  border-radius: 12px;
+  padding: 16px;
+  margin-top: 20px;
+}
+
+.equityCurve h3 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 1rem;
+  font-weight: 600;
+  color: #fff;
+  margin-bottom: 12px;
+}
+
+.chartContainer {
+  background: #0f0f1a;
+  border-radius: 8px;
+  padding: 8px;
+  margin-bottom: 12px;
+}
+
+.curveStats {
+  display: flex;
+  justify-content: space-around;
+  gap: 16px;
+}
+
+.statItem {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.statLabel {
+  font-size: 0.75rem;
+  color: #6b7280;
+}
+
+.statValue {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #f59e0b;
+}
+
+.statValue.positive {
+  color: #22c55e;
+}
+
+.statValue.negative {
+  color: #ef4444;
+}

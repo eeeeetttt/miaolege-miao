@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useSession } from 'next-auth/react';
 import styles from './page.module.css';
 import { TrendingUp, TrendingDown, Trophy, Zap, Target, Clock, DollarSign, BarChart3, Star, RefreshCw, X, Wallet, Calculator, AlertCircle } from 'lucide-react';
+import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, ReferenceLine, CartesianGrid } from 'recharts';
 
 interface LevelConfig {
   level: number;
@@ -910,6 +911,85 @@ export default function ChallengePage() {
               );
             })}
           </div>
+
+          {/* 收益曲线 */}
+          {hasRegistered && equityHistory.length > 0 && (
+            <div className={styles.equityCurve}>
+              <h3><TrendingUp className={styles.cardIcon} />收益曲线</h3>
+              <div className={styles.chartContainer}>
+                <ResponsiveContainer width="100%" height={200}>
+                  <LineChart data={equityHistory} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#2a2a2a" />
+                    <XAxis 
+                      dataKey="time" 
+                      stroke="#888"
+                      fontSize={10}
+                      tickFormatter={(value, index) => {
+                        if (index === 0 || index === equityHistory.length - 1) return value;
+                        return '';
+                      }}
+                    />
+                    <YAxis 
+                      stroke="#888"
+                      fontSize={10}
+                      domain={['dataMin - 50', 'dataMax + 50']}
+                      tickFormatter={(value) => `$${value}`}
+                    />
+                    <Tooltip 
+                      contentStyle={{ 
+                        backgroundColor: '#1a1a1a', 
+                        border: '1px solid #333',
+                        borderRadius: '8px',
+                        color: '#fff'
+                      }}
+                      labelStyle={{ color: '#888' }}
+                      formatter={(value: number) => [`$${value.toFixed(2)}`, '净值']}
+                    />
+                    {currentLevelConfig && (
+                      <ReferenceLine 
+                        y={currentLevelConfig.targetBalance} 
+                        stroke="#22c55e" 
+                        strokeDasharray="5 5"
+                        label={{ value: '目标', fill: '#22c55e', fontSize: 10 }}
+                      />
+                    )}
+                    {currentLevelConfig && (
+                      <ReferenceLine 
+                        y={currentLevelConfig.failBalance} 
+                        stroke="#ef4444" 
+                        strokeDasharray="5 5"
+                        label={{ value: '底线', fill: '#ef4444', fontSize: 10 }}
+                      />
+                    )}
+                    <Line 
+                      type="monotone" 
+                      dataKey="equity" 
+                      stroke="#f59e0b" 
+                      strokeWidth={2}
+                      dot={false}
+                      activeDot={{ r: 4, fill: '#f59e0b' }}
+                    />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+              <div className={styles.curveStats}>
+                <div className={styles.statItem}>
+                  <span className={styles.statLabel}>最高净值</span>
+                  <span className={styles.statValue}>${Math.max(...equityHistory.map(h => h.equity)).toFixed(2)}</span>
+                </div>
+                <div className={styles.statItem}>
+                  <span className={styles.statLabel}>当前净值</span>
+                  <span className={`${styles.statValue} ${currentEquity >= (currentLevelConfig?.targetBalance || 0) ? styles.positive : currentEquity <= (currentLevelConfig?.failBalance || 0) ? styles.negative : ''}`}>
+                    ${currentEquity.toFixed(2)}
+                  </span>
+                </div>
+                <div className={styles.statItem}>
+                  <span className={styles.statLabel}>交易次数</span>
+                  <span className={styles.statValue}>{equityHistory.length > 0 ? equityHistory.length - 1 : 0}</span>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>
