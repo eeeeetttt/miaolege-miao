@@ -15,7 +15,7 @@ import {
   DropdownMenuTrigger 
 } from '@/components/ui/dropdown-menu';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { User, LogOut, Globe, Settings, Download, Home, Shield, FileText, Trophy, MessageCircle, UserCircle, Wallet, MessageSquare, AlertCircle } from 'lucide-react';
+import { User, LogOut, Globe, Settings, Download, Home, Shield, FileText, Trophy, MessageCircle, UserCircle, Wallet, MessageSquare, AlertCircle, Menu, X } from 'lucide-react';
 
 // 导航栏配置接口
 interface NavConfig {
@@ -44,6 +44,7 @@ export function Header() {
     nav_show_app_download: true,
   });
   const [configLoading, setConfigLoading] = useState(true);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   // 导航处理函数
   const navigate = useCallback((href: string) => {
@@ -89,6 +90,16 @@ export function Header() {
               </h1>
             </div>
           </button>
+
+          {/* Mobile Menu Button */}
+          {!configLoading && session && (
+            <button 
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              className="lg:hidden p-2 text-gray-600 hover:text-purple-600 dark:text-gray-300 dark:hover:text-purple-400"
+            >
+              {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+            </button>
+          )}
 
           {/* Navigation */}
           {!configLoading && (
@@ -215,6 +226,48 @@ export function Header() {
             )}
           </div>
         </div>
+        
+        {/* Mobile Navigation */}
+        {mobileMenuOpen && session && (
+          <div className="lg:hidden py-4 border-t">
+            <nav className="flex flex-col gap-2">
+              <button onClick={() => { navigate('/'); setMobileMenuOpen(false); }} className="text-left px-4 py-2 text-gray-600 hover:text-purple-600 dark:text-gray-300 dark:hover:text-purple-400 flex items-center gap-2">
+                <Home className="w-4 h-4" />
+                首页
+              </button>
+              {navConfig.nav_show_challenge_hall && (
+                <button onClick={() => { navigate('/challenge/hall'); setMobileMenuOpen(false); }} className="text-left px-4 py-2 text-gray-600 hover:text-purple-600 dark:text-gray-300 dark:hover:text-purple-400 flex items-center gap-2">
+                  <Globe className="w-4 h-4" />
+                  挑战赛大厅
+                </button>
+              )}
+              {navConfig.nav_show_kline_challenge && (
+                <button onClick={() => { navigate('/challenge'); setMobileMenuOpen(false); }} className="text-left px-4 py-2 text-amber-600 hover:text-amber-500 dark:text-amber-400 dark:hover:text-amber-300 flex items-center gap-2 font-semibold">
+                  <Trophy className="w-4 h-4" />
+                  K线征途
+                </button>
+              )}
+              {navConfig.nav_show_social && (
+                <button onClick={() => { navigate('/social'); setMobileMenuOpen(false); }} className="text-left px-4 py-2 text-gray-600 hover:text-purple-600 dark:text-gray-300 dark:hover:text-purple-400 flex items-center gap-2">
+                  <MessageCircle className="w-4 h-4" />
+                  茶馆
+                </button>
+              )}
+              {navConfig.nav_show_docs && (
+                <button onClick={() => { navigate('/docs'); setMobileMenuOpen(false); }} className="text-left px-4 py-2 text-gray-600 hover:text-purple-600 dark:text-gray-300 dark:hover:text-purple-400 flex items-center gap-2">
+                  <FileText className="w-4 h-4" />
+                  文档中心
+                </button>
+              )}
+              {navConfig.nav_show_download && (
+                <button onClick={() => { navigate('/download'); setMobileMenuOpen(false); }} className="text-left px-4 py-2 text-gray-600 hover:text-purple-600 dark:text-gray-300 dark:hover:text-purple-400 flex items-center gap-2">
+                  <Download className="w-4 h-4" />
+                  软件下载
+                </button>
+              )}
+            </nav>
+          </div>
+        )}
       </div>
     </header>
   );

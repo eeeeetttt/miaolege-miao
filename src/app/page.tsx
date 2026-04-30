@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { useSession } from 'next-auth/react';
+import { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { 
@@ -14,11 +15,63 @@ import {
   ArrowRight,
   CheckCircle2,
   BarChart3,
-  MessageSquare
+  MessageSquare,
+  Gift,
+  Crown,
+  Award
 } from 'lucide-react';
+
+interface PrizeConfig {
+  title: string;
+  subtitle: string;
+  description: string;
+  imageUrl: string;
+  prizes: {
+    title: string;
+    description: string;
+    icon: string;
+  }[];
+}
 
 export default function HomePage() {
   const { data: session } = useSession();
+  const [prizeConfig, setPrizeConfig] = useState<PrizeConfig | null>(null);
+
+  useEffect(() => {
+    const fetchPrizeConfig = async () => {
+      try {
+        const res = await fetch('/api/challenge/prize-config');
+        if (res.ok) {
+          const data = await res.json();
+          if (data.success && data.config) {
+            setPrizeConfig(data.config);
+          }
+        }
+      } catch (e) {
+        console.error('获取奖品配置失败:', e);
+      }
+    };
+    fetchPrizeConfig();
+  }, []);
+
+  const defaultPrizeConfig: PrizeConfig = {
+    title: '丰厚奖励',
+    subtitle: '通关即可获得',
+    description: '完成挑战即可获得丰厚奖励，实盘账户 + 无责底薪 + 专业培训',
+    imageUrl: '',
+    prizes: [
+      { title: '实盘账户', description: '获得真实账户进行交易', icon: 'account' },
+      { title: '无责底薪', description: '合作期间享有无责底薪保障', icon: 'salary' },
+      { title: '专业培训', description: '获得专业交易培训和技术支持', icon: 'training' },
+    ],
+  };
+
+  const config = prizeConfig || defaultPrizeConfig;
+  const iconMap: Record<string, React.ReactNode> = {
+    account: <Trophy className="w-8 h-8" />,
+    salary: <Crown className="w-8 h-8" />,
+    training: <Award className="w-8 h-8" />,
+  };
 
   const challengeFeatures = [
     {
@@ -144,6 +197,53 @@ export default function HomePage() {
                 {item.step < 4 && (
                   <div className="hidden md:block absolute top-8 left-full w-full h-0.5 bg-gradient-to-r from-amber-300 to-orange-300 dark:from-amber-700 dark:to-orange-700 -translate-x-8" />
                 )}
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Prize Section */}
+      <section className="py-20 px-4 bg-gradient-to-br from-amber-50 to-orange-50 dark:from-gray-900 dark:to-amber-950/20">
+        <div className="max-w-6xl mx-auto">
+          <div className="text-center mb-12">
+            <Gift className="w-16 h-16 text-amber-500 mx-auto mb-4" />
+            <h2 className="text-3xl md:text-4xl font-bold text-gray-900 dark:text-white mb-4">
+              {config.title}
+            </h2>
+            <p className="text-xl text-amber-600 dark:text-amber-400 mb-2">
+              {config.subtitle}
+            </p>
+            <p className="text-lg text-gray-600 dark:text-gray-400 max-w-2xl mx-auto">
+              {config.description}
+            </p>
+          </div>
+
+          {config.imageUrl && (
+            <div className="mb-12 text-center">
+              <img 
+                src={config.imageUrl} 
+                alt="奖品图片" 
+                className="max-w-full md:max-w-2xl mx-auto rounded-lg shadow-xl"
+              />
+            </div>
+          )}
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            {config.prizes.map((prize, index) => (
+              <div 
+                key={index}
+                className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-lg border border-amber-200 dark:border-amber-800 text-center hover:shadow-xl transition-shadow"
+              >
+                <div className="w-16 h-16 rounded-full bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center mx-auto mb-4 text-white">
+                  {iconMap[prize.icon] || <Trophy className="w-8 h-8" />}
+                </div>
+                <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">
+                  {prize.title}
+                </h3>
+                <p className="text-gray-600 dark:text-gray-400">
+                  {prize.description}
+                </p>
               </div>
             ))}
           </div>

@@ -229,21 +229,28 @@ function ChallengeContent() {
     if (!session?.user?.id) return null;
     
     try {
+      // 先检查localStorage是否有有效数据
+      const saved = localStorage.getItem(STORAGE_KEY);
+      const savedState = saved ? JSON.parse(saved) : null;
+      const hasLocalData = savedState && savedState.hasRegistered;
+      
       const res = await fetch('/api/challenge/register');
       if (res.ok) {
         const data = await res.json();
         if (data.registration) {
           setHasRegistered(true);
-          if (data.registration.currentLevel) {
+          
+          // 只有在没有localStorage数据时才从API设置currentLevel
+          // 避免API返回的旧数据覆盖localStorage中的正确关卡
+          if (!hasLocalData && data.registration.currentLevel) {
             setCurrentLevel(data.registration.currentLevel);
           }
-          // 初始净值从关卡配置获取
-          const level = data.registration.currentLevel || 1;
-          const config = data.levelConfigs?.find((c: LevelConfig) => c.level === level);
-          if (config && config.initialBalance) {
-            // 只有在未从localStorage加载到有效数据时才使用配置值
-            const saved = localStorage.getItem(STORAGE_KEY);
-            if (!saved || !JSON.parse(saved).hasRegistered) {
+          
+          // 初始净值从关卡配置获取（只在没有localStorage数据时）
+          if (!hasLocalData) {
+            const level = data.registration.currentLevel || 1;
+            const config = data.levelConfigs?.find((c: LevelConfig) => c.level === level);
+            if (config && config.initialBalance) {
               setBalance(config.initialBalance);
             }
           }
