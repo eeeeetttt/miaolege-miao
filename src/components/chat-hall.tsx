@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useSession } from 'next-auth/react';
-import { Card } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -24,104 +24,6 @@ interface ChatMessage {
   is_system: number;
   is_premium: number;
   created_at: string;
-}
-
-// Canvas火焰背景组件
-function FireCanvas() {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-    
-    let animationId: number;
-    
-    const resize = () => {
-      canvas.width = canvas.offsetWidth;
-      canvas.height = canvas.offsetHeight;
-    };
-    
-    resize();
-    window.addEventListener('resize', resize);
-    
-    // 火焰粒子
-    const particles: Array<{
-      x: number;
-      y: number;
-      vx: number;
-      vy: number;
-      size: number;
-      alpha: number;
-      hue: number;
-    }> = [];
-    
-    const createParticle = () => {
-      particles.push({
-        x: Math.random() * canvas.width,
-        y: canvas.height,
-        vx: (Math.random() - 0.5) * 0.5,
-        vy: -Math.random() * 2 - 1,
-        size: Math.random() * 3 + 1,
-        alpha: Math.random() * 0.5 + 0.3,
-        hue: Math.random() * 30 + 15 // 火焰色：15-45（橙到黄）
-      });
-    };
-    
-    const animate = () => {
-      ctx.fillStyle = 'rgba(20, 10, 5, 0.15)';
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
-      
-      // 随机生成粒子
-      if (Math.random() < 0.3) {
-        createParticle();
-      }
-      
-      // 更新和绘制粒子
-      for (let i = particles.length - 1; i >= 0; i--) {
-        const p = particles[i];
-        
-        p.x += p.vx;
-        p.y += p.vy;
-        p.alpha -= 0.003;
-        p.size *= 0.99;
-        
-        if (p.alpha <= 0 || p.y < 0 || p.size < 0.5) {
-          particles.splice(i, 1);
-          continue;
-        }
-        
-        const gradient = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, p.size * 3);
-        gradient.addColorStop(0, `hsla(${p.hue}, 100%, 70%, ${p.alpha})`);
-        gradient.addColorStop(0.5, `hsla(${p.hue}, 100%, 50%, ${p.alpha * 0.5})`);
-        gradient.addColorStop(1, `hsla(${p.hue}, 100%, 30%, 0)`);
-        
-        ctx.beginPath();
-        ctx.arc(p.x, p.y, p.size * 3, 0, Math.PI * 2);
-        ctx.fillStyle = gradient;
-        ctx.fill();
-      }
-      
-      animationId = requestAnimationFrame(animate);
-    };
-    
-    animate();
-    
-    return () => {
-      window.removeEventListener('resize', resize);
-      cancelAnimationFrame(animationId);
-    };
-  }, []);
-  
-  return (
-    <canvas
-      ref={canvasRef}
-      className="absolute inset-0 w-full h-full"
-      style={{ pointerEvents: 'none' }}
-    />
-  );
 }
 
 // 店小二配置
@@ -394,247 +296,221 @@ export function ChatHall() {
     return date.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
   };
 
-  // 获取消息样式 - 篝火夜谈风格
+  // 获取消息样式
   const getMessageStyle = (msg: ChatMessage) => {
     if (msg.user_id === DIAN_XIAO_ER.user_id) {
-      return 'bg-gradient-to-r from-amber-500/20 to-orange-500/20 backdrop-blur-md border border-amber-500/30';
+      return 'bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-900/20 dark:to-orange-900/20 border border-amber-200 dark:border-amber-800';
     }
     if (msg.is_system === 1) {
-      return 'bg-gradient-to-r from-amber-500/20 to-orange-500/20 backdrop-blur-md border border-amber-500/30';
+      return 'bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-900/20 dark:to-orange-900/20 border border-amber-200 dark:border-amber-800';
     }
     if (msg.is_premium === 1) {
-      return 'bg-gradient-to-r from-purple-500/15 to-pink-500/15 backdrop-blur-md border border-purple-500/30';
+      return 'bg-purple-50 dark:bg-purple-900/20 border border-purple-200 dark:border-purple-800';
     }
-    // 普通用户 - 透明磨砂效果
-    return 'bg-white/10 dark:bg-gray-900/30 backdrop-blur-md border border-white/20 dark:border-gray-700/30';
+    return 'bg-white dark:bg-gray-800';
   };
 
   // 获取用户名样式
   const getUserNameStyle = (msg: ChatMessage) => {
     if (msg.user_id === DIAN_XIAO_ER.user_id) {
-      return 'text-amber-300 font-semibold';
+      return 'text-amber-600 dark:text-amber-400 font-semibold';
     }
     if (msg.is_system === 1) {
-      return 'text-amber-300 font-semibold';
+      return 'text-amber-600 dark:text-amber-400 font-semibold';
     }
     if (msg.is_premium === 1) {
       const colors = [
-        'text-pink-400',
-        'text-purple-400',
-        'text-blue-400',
-        'text-green-400',
-        'text-amber-400',
-        'text-red-400',
+        'text-pink-500',
+        'text-purple-500',
+        'text-blue-500',
+        'text-green-500',
+        'text-amber-500',
+        'text-red-500',
       ];
       const colorIndex = msg.user_id.charCodeAt(0) % colors.length;
       return `${colors[colorIndex]} font-semibold`;
     }
-    return 'text-gray-200';
+    return 'text-gray-700 dark:text-gray-300';
   };
 
   return (
-    <div className="relative h-full rounded-2xl overflow-hidden" style={{
-      background: 'linear-gradient(135deg, rgba(40, 20, 10, 0.95) 0%, rgba(20, 10, 5, 0.98) 100%)',
-      boxShadow: 'inset 0 0 100px rgba(255, 150, 50, 0.1), 0 0 50px rgba(255, 100, 50, 0.2)'
-    }}>
-      {/* 火焰背景 */}
-      <FireCanvas />
-      
-      {/* 顶部标题栏 */}
-      <div className="relative z-10 flex items-center justify-between px-4 py-3 border-b border-amber-500/20">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-full bg-gradient-to-br from-amber-500/30 to-orange-500/30 backdrop-blur-sm flex items-center justify-center border border-amber-500/30">
-            <Users className="w-5 h-5 text-amber-300" />
-          </div>
-          <div>
-            <h2 className="text-lg font-bold text-amber-100">茶馆·闲聊室</h2>
-            <div className="flex items-center gap-2 mt-0.5">
-              {isOpen ? (
-                <span className="flex items-center gap-1 text-xs text-green-400">
-                  <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse"></span>
-                  开放中
-                </span>
-              ) : (
-                <span className="flex items-center gap-1 text-xs text-gray-400">
-                  <span className="w-1.5 h-1.5 rounded-full bg-gray-500"></span>
-                  休息中
-                </span>
-              )}
-              {aiTyping && (
-                <span className="flex items-center gap-1 text-xs text-amber-400">
-                  <Spinner className="w-3 h-3" />
-                  店小二回复中...
-                </span>
-              )}
-            </div>
+    <Card className="h-[600px] flex flex-col">
+      <CardHeader className="flex-row items-center justify-between pb-4 border-b">
+        <CardTitle className="flex items-center gap-2">
+          <Users className="w-5 h-5 text-purple-500" />
+          茶馆·闲聊室
+          {isOpen ? (
+            <Badge variant="secondary" className="ml-2 bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400">
+              <span className="w-2 h-2 rounded-full bg-green-500 mr-1"></span>
+              开放中
+            </Badge>
+          ) : (
+            <Badge variant="secondary" className="ml-2 bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400">
+              <span className="w-2 h-2 rounded-full bg-gray-400 mr-1"></span>
+              休息中
+            </Badge>
+          )}
+          {aiTyping && (
+            <Badge variant="secondary" className="ml-2 bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">
+              <Spinner className="w-3 h-3 mr-1" />
+              店小二回复中...
+            </Badge>
+          )}
+        </CardTitle>
+        <div className="flex items-center gap-2">
+          <div className="hidden sm:flex items-center gap-2 text-xs text-gray-400">
+            {openTimeStart && openTimeEnd && (
+              <span className="flex items-center gap-1">
+                <Clock className="w-3 h-3" />
+                {openTimeStart} - {openTimeEnd}
+              </span>
+            )}
           </div>
         </div>
-        <div className="flex items-center gap-2 text-xs text-gray-400">
-          {openTimeStart && openTimeEnd && (
-            <span className="flex items-center gap-1">
-              <Clock className="w-3 h-3" />
-              {openTimeStart} - {openTimeEnd}
-            </span>
+      </CardHeader>
+
+      <CardContent className="flex-1 flex flex-col p-0 overflow-hidden">
+        {/* 聊天区域 */}
+        <div className="flex-1 overflow-y-auto p-4 space-y-3">
+          {loading ? (
+            <div className="flex items-center justify-center h-full">
+              <Spinner />
+            </div>
+          ) : messages.length === 0 ? (
+            <div className="flex items-center justify-center h-full text-gray-500">
+              <div className="text-center">
+                <Users className="w-12 h-12 mx-auto mb-3 opacity-50" />
+                <p>暂无消息，快来发言吧</p>
+              </div>
+            </div>
+          ) : (
+            messages.map(msg => (
+              <div
+                key={msg.id}
+                className={`rounded-lg p-3 ${getMessageStyle(msg)}`}
+              >
+                {msg.is_system === 1 ? (
+                  <div className="flex items-start gap-2">
+                    <div className="w-8 h-8 rounded-full bg-amber-100 dark:bg-amber-900 flex items-center justify-center flex-shrink-0">
+                      <span className="text-lg">📢</span>
+                    </div>
+                    <div className="flex-1">
+                      <p className="text-sm text-gray-800 dark:text-gray-200 whitespace-pre-wrap">
+                        {msg.content}
+                      </p>
+                      <p className="text-xs text-gray-400 mt-1">
+                        {formatTime(msg.created_at)}
+                      </p>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex items-start gap-2">
+                    <Avatar className="w-8 h-8 flex-shrink-0">
+                      {msg.user_id === DIAN_XIAO_ER.user_id ? (
+                        <AvatarFallback className="bg-gradient-to-br from-amber-500 to-orange-500 text-white text-xs">
+                          店
+                        </AvatarFallback>
+                      ) : msg.is_premium === 1 ? (
+                        <AvatarFallback className="bg-gradient-to-br from-purple-500 to-pink-500 text-white text-xs">
+                          {msg.user_name.slice(0, 1)}
+                        </AvatarFallback>
+                      ) : (
+                        <AvatarFallback className="bg-gray-200 dark:bg-gray-700 text-xs">
+                          {msg.user_name.slice(0, 1)}
+                        </AvatarFallback>
+                      )}
+                      {msg.user_avatar && <AvatarImage src={msg.user_avatar} />}
+                    </Avatar>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className={`text-sm ${getUserNameStyle(msg)}`}>
+                          {msg.user_name}
+                          {msg.is_premium === 1 && msg.user_id !== DIAN_XIAO_ER.user_id && (
+                            <Badge variant="secondary" className="ml-1 text-xs py-0 px-1 bg-gradient-to-r from-purple-500 to-pink-500 text-white border-0">
+                              VIP
+                            </Badge>
+                          )}
+                        </span>
+                        <span className="text-xs text-gray-400">
+                          {formatTime(msg.created_at)}
+                        </span>
+                      </div>
+                      <p className={`text-sm mt-0.5 whitespace-pre-wrap ${
+                        msg.is_premium === 1 ? 'font-medium' : 'text-gray-700 dark:text-gray-300'
+                      }`}>
+                        {msg.content}
+                      </p>
+                    </div>
+                  </div>
+                )}
+              </div>
+            ))
+          )}
+          <div ref={messagesEndRef} />
+        </div>
+
+        {/* 错误提示 */}
+        {error && (
+          <div className="px-4 py-2 bg-red-50 dark:bg-red-900/20 border-t border-red-200 dark:border-red-800">
+            <p className="text-sm text-red-600 dark:text-red-400 flex items-center gap-2">
+              <AlertCircle className="w-4 h-4" />
+              {error}
+              {isMuted && muteExpiresAt && (
+                <span className="text-xs">
+                  解封时间: {new Date(muteExpiresAt).toLocaleString()}
+                </span>
+              )}
+            </p>
+          </div>
+        )}
+
+        {/* 输入框 */}
+        <div className="p-4 border-t bg-gray-50 dark:bg-gray-800/50">
+          {!isOpen ? (
+            <div className="text-center text-gray-500 py-4">
+              <Clock className="w-8 h-8 mx-auto mb-2 opacity-50" />
+              <p className="text-sm font-medium">聊天室休息中</p>
+              {openTimeStart && openTimeEnd && (
+                <p className="text-xs mt-1">
+                  开放时间: {openTimeStart} - {openTimeEnd}
+                </p>
+              )}
+            </div>
+          ) : isMuted ? (
+            <div className="text-center text-gray-500 py-4">
+              <AlertCircle className="w-8 h-8 mx-auto mb-2 opacity-50" />
+              <p className="text-sm">您已被禁言，无法发言</p>
+              {muteExpiresAt && (
+                <p className="text-xs mt-1">
+                  解封时间: {new Date(muteExpiresAt).toLocaleString()}
+                </p>
+              )}
+            </div>
+          ) : (
+            <div className="space-y-2">
+              <div className="flex gap-2">
+                <Input
+                  ref={inputRef}
+                  value={newMessage}
+                  onChange={e => setNewMessage(e.target.value)}
+                  placeholder="输入消息..."
+                  disabled={sending}
+                  maxLength={500}
+                  onKeyDown={e => e.key === 'Enter' && handleSend()}
+                  className="flex-1"
+                />
+                <Button
+                  onClick={handleSend}
+                  disabled={sending || !newMessage.trim() || remainingCount <= 0}
+                  className={isPremium ? 'bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600' : ''}
+                >
+                  {sending ? <Spinner className="w-4 h-4" /> : <Send className="w-4 h-4" />}
+                </Button>
+              </div>
+            </div>
           )}
         </div>
-      </div>
-
-      {/* 聊天区域 */}
-      <div className="relative z-10 flex-1 overflow-y-auto p-4 space-y-3 h-[calc(100%-140px)]">
-        {loading ? (
-          <div className="flex items-center justify-center h-full">
-            <Spinner />
-          </div>
-        ) : messages.length === 0 ? (
-          <div className="flex items-center justify-center h-full text-gray-400">
-            <div className="text-center">
-              <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-amber-500/10 flex items-center justify-center">
-                <Users className="w-8 h-8 text-amber-400/50" />
-              </div>
-              <p className="text-amber-200/70">围坐在篝火旁，畅所欲言</p>
-              <p className="text-xs mt-2 text-gray-500">暂无消息，快来发言吧</p>
-            </div>
-          </div>
-        ) : (
-          messages.map(msg => (
-            <div
-              key={msg.id}
-              className={`rounded-xl p-3 ${getMessageStyle(msg)}`}
-            >
-              {msg.is_system === 1 ? (
-                <div className="flex items-start gap-3">
-                  <div className="w-8 h-8 rounded-full bg-amber-500/20 flex items-center justify-center flex-shrink-0 border border-amber-500/30">
-                    <span className="text-sm">📢</span>
-                  </div>
-                  <div className="flex-1">
-                    <p className="text-sm text-amber-200 whitespace-pre-wrap">
-                      {msg.content}
-                    </p>
-                    <p className="text-xs text-amber-400/50 mt-1">
-                      {formatTime(msg.created_at)}
-                    </p>
-                  </div>
-                </div>
-              ) : (
-                <div className="flex items-start gap-3">
-                  <Avatar className="w-8 h-8 flex-shrink-0 ring-2 ring-amber-500/20">
-                    {msg.user_id === DIAN_XIAO_ER.user_id ? (
-                      <AvatarFallback className="bg-gradient-to-br from-amber-500 to-orange-500 text-white text-xs">
-                        店
-                      </AvatarFallback>
-                    ) : msg.is_premium === 1 ? (
-                      <AvatarFallback className="bg-gradient-to-br from-purple-500 to-pink-500 text-white text-xs">
-                        {msg.user_name.slice(0, 1)}
-                      </AvatarFallback>
-                    ) : (
-                      <AvatarFallback className="bg-white/20 text-white text-xs">
-                        {msg.user_name.slice(0, 1)}
-                      </AvatarFallback>
-                    )}
-                    {msg.user_avatar && <AvatarImage src={msg.user_avatar} />}
-                  </Avatar>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
-                      <span className={`text-sm ${getUserNameStyle(msg)}`}>
-                        {msg.user_name}
-                        {msg.is_premium === 1 && msg.user_id !== DIAN_XIAO_ER.user_id && (
-                          <Badge variant="secondary" className="ml-1 text-xs py-0 px-1.5 bg-gradient-to-r from-purple-500 to-pink-500 text-white border-0">
-                            VIP
-                          </Badge>
-                        )}
-                      </span>
-                      <span className="text-xs text-gray-500">
-                        {formatTime(msg.created_at)}
-                      </span>
-                    </div>
-                    <p className={`text-sm mt-1 whitespace-pre-wrap ${
-                      msg.is_premium === 1 ? 'font-medium text-gray-100' : 'text-gray-200'
-                    }`}>
-                      {msg.content}
-                    </p>
-                  </div>
-                </div>
-              )}
-            </div>
-          ))
-        )}
-        <div ref={messagesEndRef} />
-      </div>
-
-      {/* 错误提示 */}
-      {error && (
-        <div className="relative z-10 px-4 py-2 bg-red-500/20 border-t border-red-500/30">
-          <p className="text-sm text-red-300 flex items-center gap-2">
-            <AlertCircle className="w-4 h-4" />
-            {error}
-            {isMuted && muteExpiresAt && (
-              <span className="text-xs">
-                解封时间: {new Date(muteExpiresAt).toLocaleString()}
-              </span>
-            )}
-          </p>
-        </div>
-      )}
-
-      {/* 输入框 */}
-      <div className="relative z-10 p-4 border-t border-amber-500/20" style={{
-        background: 'linear-gradient(to top, rgba(30, 15, 5, 0.9), rgba(30, 15, 5, 0.6))'
-      }}>
-        {!isOpen ? (
-          <div className="text-center text-gray-400 py-4">
-            <Clock className="w-8 h-8 mx-auto mb-2 opacity-50" />
-            <p className="text-sm font-medium">聊天室休息中</p>
-            {openTimeStart && openTimeEnd && (
-              <p className="text-xs mt-1 text-amber-400/50">
-                开放时间: {openTimeStart} - {openTimeEnd}
-              </p>
-            )}
-          </div>
-        ) : isMuted ? (
-          <div className="text-center text-gray-400 py-4">
-            <AlertCircle className="w-8 h-8 mx-auto mb-2 opacity-50" />
-            <p className="text-sm">您已被禁言，无法发言</p>
-            {muteExpiresAt && (
-              <p className="text-xs mt-1 text-amber-400/50">
-                解封时间: {new Date(muteExpiresAt).toLocaleString()}
-              </p>
-            )}
-          </div>
-        ) : (
-          <div className="space-y-2">
-            <div className="flex gap-2">
-              <input
-                type="text"
-                value={newMessage}
-                onChange={e => setNewMessage(e.target.value)}
-                placeholder="围坐在篝火旁..."
-                disabled={sending}
-                maxLength={500}
-                onKeyDown={e => e.key === 'Enter' && handleSend()}
-                className="flex-1 px-4 py-2.5 rounded-xl bg-white/10 backdrop-blur-sm border border-amber-500/30 text-white placeholder-gray-400 focus:outline-none focus:border-amber-400/50 focus:ring-2 focus:ring-amber-500/20 transition-all disabled:opacity-50"
-              />
-              <Button
-                onClick={handleSend}
-                disabled={sending || !newMessage.trim() || remainingCount <= 0}
-                className={`rounded-xl ${
-                  isPremium 
-                    ? 'bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600' 
-                    : 'bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600'
-                }`}
-              >
-                {sending ? <Spinner className="w-4 h-4" /> : <Send className="w-4 h-4" />}
-              </Button>
-            </div>
-            {/* 剩余次数提示 */}
-            <div className="flex items-center justify-between text-xs">
-              <span className="text-gray-500">
-                剩余发言: <span className="text-amber-400">{remainingCount}</span> / {hourlyLimit}
-              </span>
-              <span className="text-gray-500">@店小二 获得AI回复</span>
-            </div>
-          </div>
-        )}
-      </div>
-    </div>
+      </CardContent>
+    </Card>
   );
 }
