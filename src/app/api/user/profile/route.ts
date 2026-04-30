@@ -17,11 +17,14 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ success: false, error: '缺少用户ID' }, { status: 400 });
     }
 
+    const supabaseUrl = process.env.COZE_SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+    const supabaseKey = process.env.COZE_SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
+    
     // 获取用户信息
-    const userRes = await fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/users?userId=eq.${targetUserId}&select=*`, {
+    const userRes = await fetch(`${supabaseUrl}/rest/v1/users?userId=eq.${targetUserId}&select=*`, {
       headers: {
         'Content-Type': 'application/json',
-        'apikey': process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '',
+        'apikey': supabaseKey,
         'Authorization': `Bearer ${session.user.accessToken || ''}`,
       },
       cache: 'no-store',
@@ -43,11 +46,11 @@ export async function GET(request: NextRequest) {
     let coinBalance = 0;
     try {
       const balanceRes = await fetch(
-        `${process.env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/coin_balances?userId=eq.${targetUserId}&select=balance`,
+        `${supabaseUrl}/rest/v1/coin_balances?userId=eq.${targetUserId}&select=balance`,
         {
           headers: {
             'Content-Type': 'application/json',
-            'apikey': process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '',
+            'apikey': supabaseKey,
           },
         }
       );
@@ -65,11 +68,11 @@ export async function GET(request: NextRequest) {
     let medals: string[] = [];
     try {
       const medalsRes = await fetch(
-        `${process.env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/user_medals?userId=eq.${targetUserId}&select=*`,
+        `${supabaseUrl}/rest/v1/user_medals?userId=eq.${targetUserId}&select=*`,
         {
           headers: {
             'Content-Type': 'application/json',
-            'apikey': process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '',
+            'apikey': supabaseKey,
           },
         }
       );
