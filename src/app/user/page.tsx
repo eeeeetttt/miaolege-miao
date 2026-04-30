@@ -39,6 +39,18 @@ import {
   QrCode,
   ArrowRight,
   Bot,
+  Send,
+  Search,
+  UserPlus,
+  UserCheck,
+  UserX,
+  ArrowRightLeft,
+  RefreshCw,
+  ChevronRight,
+  Calendar,
+  Trophy,
+  X,
+  Image,
 } from 'lucide-react';
 
 interface UserInfo {
@@ -67,6 +79,64 @@ interface FollowInfo {
   signalAccount: string;
   status: string;
   createdAt: string;
+}
+
+// 社交相关类型
+interface Conversation {
+  userId: string;
+  userName: string;
+  userAvatar: string | null;
+  uBalance?: number;
+  lastMessage: {
+    id: number;
+    content: string;
+    senderId: string;
+    createdAt: string;
+  };
+  unreadCount: number;
+}
+
+interface ChatMessage {
+  id: number;
+  sender_id: string;
+  receiver_id: string;
+  content: string;
+  image_url: string | null;
+  is_read: number;
+  created_at: string;
+}
+
+interface TransferRecord {
+  id: number;
+  fromUserId: string;
+  fromUserName: string;
+  fromUserAvatar: string | null;
+  toUserId: string;
+  toUserName: string;
+  toUserAvatar: string | null;
+  amount: number;
+  remark: string | null;
+  status: string;
+  createdAt: string;
+  isSent: boolean;
+}
+
+interface SearchedUser {
+  userId: string;
+  name: string;
+  email: string | null;
+  avatar: string | null;
+}
+
+interface UserProfile {
+  userId: string;
+  name: string;
+  email: string | null;
+  avatar: string | null;
+  coinBalance: number;
+  createdAt: string;
+  medals: string[];
+  bio: string | null;
 }
 
 // 会员等级配置
@@ -111,6 +181,41 @@ export default function UserCenterPage() {
   const [canChangeName, setCanChangeName] = useState(true);
   const [nextNameChangeDate, setNextNameChangeDate] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // 社交相关状态
+  const [socialSection, setSocialSection] = useState<'messages' | 'transfer' | 'search' | 'follow'>('messages');
+  const [conversations, setConversations] = useState<Conversation[]>([]);
+  const [selectedConversation, setSelectedConversation] = useState<Conversation | null>(null);
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [newMessage, setNewMessage] = useState('');
+  const [sendLoading, setSendLoading] = useState(false);
+  const [conversationsLoading, setConversationsLoading] = useState(true);
+  const [messagesLoading, setMessagesLoading] = useState(false);
+  const [uploadingImage, setUploadingImage] = useState(false);
+  const [selectedImage, setSelectedImage] = useState<string | null>(null);
+  const [previewImage, setPreviewImage] = useState<string | null>(null);
+  
+  // 转账相关状态
+  const [transfers, setTransfers] = useState<TransferRecord[]>([]);
+  const [transferLoading, setTransferLoading] = useState(false);
+  const [transferForm, setTransferForm] = useState({ toEmail: '', amount: '', remark: '' });
+  const [transferSuccess, setTransferSuccess] = useState('');
+  const [transferError, setTransferError] = useState('');
+  
+  // 搜索相关状态
+  const [searchKeyword, setSearchKeyword] = useState('');
+  const [searchResults, setSearchResults] = useState<SearchedUser[]>([]);
+  const [searchLoading, setSearchLoading] = useState(false);
+  const [followingIds, setFollowingIds] = useState<Set<string>>(new Set());
+  
+  // 关注列表相关状态
+  const [followList, setFollowList] = useState<SearchedUser[]>([]);
+  const [followListType, setFollowListType] = useState<'following' | 'followers'>('following');
+  const [followLoading, setFollowLoading] = useState(false);
+
+  // 用户资料弹窗
+  const [viewingUser, setViewingUser] = useState<UserProfile | null>(null);
+  const [viewProfileLoading, setViewProfileLoading] = useState(false);
 
   useEffect(() => {
     if (status === 'unauthenticated') {
@@ -167,6 +272,302 @@ export default function UserCenterPage() {
       setCanChangeName(true);
     }
   };
+
+  // 社交相关函数
+  const loadConversations = async () => {
+    setConversationsLoading(true);
+    try {
+      const res = await fetch('/api/message/conversations');
+      const data = await res.json();
+      if (data.success) {
+        setConversations(data.data || []);
+      }
+    } catch (err) {
+      console.error('Failed to load conversations:', err);
+    } finally {
+      setConversationsLoading(false);
+    }
+  };
+
+  const loadMessages = async (targetUserId: string) => {
+    setMessagesLoading(true);
+    try {
+      const res = await fetch(`/api/message/send?userId=${targetUserId}`);
+      const data = await res.json();
+      if (data.success) {
+        setMessages(data.data || []);
+      }
+    } catch (err) {
+      console.error('Failed to load messages:', err);
+    } finally {
+      setMessagesLoading(false);
+    }
+  };
+
+  const handleSendMessage = async () => {
+    if ((!newMessage.trim() && !selectedImage) || !selectedConversation || sendLoading) return;
+    
+    setSendLoading(true);
+    try {
+      const res = await fetch('/api/message/send', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          receiverId: selectedConversation.userId,
+          content: newMessage.trim(),
+          imageUrl: selectedImage,
+        }),
+      });
+      const data = await res.json();
+      
+      if (data.success) {
+        setNewMessage('');
+        setSelectedImage(null);
+        setPreviewImage(null);
+        await loadMessages(selectedConversation.userId);
+        await loadConversations();
+      } else {
+        setError(data.error || '发送失败');
+      }
+    } catch (err) {
+      console.error('Failed to send message:', err);
+      setError('发送失败');
+    } finally {
+      setSendLoading(false);
+    }
+  };
+
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+    if (!allowedTypes.includes(file.type)) {
+      alert('仅支持 JPG、PNG、GIF、WebP 格式');
+      return;
+    }
+
+    if (file.size > 2 * 1024 * 1024) {
+      alert('文件大小不能超过 2MB');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      setPreviewImage(ev.target?.result as string);
+    };
+    reader.readAsDataURL(file);
+
+    setUploadingImage(true);
+    const formData = new FormData();
+    formData.append('file', file);
+
+    try {
+      const res = await fetch('/api/message/upload', {
+        method: 'POST',
+        body: formData,
+      });
+      const data = await res.json();
+      if (data.success) {
+        setSelectedImage(data.imageUrl);
+      } else {
+        alert(data.error || '上传失败');
+        setPreviewImage(null);
+      }
+    } catch (err) {
+      console.error('Failed to upload image:', err);
+      alert('上传失败');
+      setPreviewImage(null);
+    } finally {
+      setUploadingImage(false);
+    }
+  };
+
+  const handleRemoveImage = () => {
+    setSelectedImage(null);
+    setPreviewImage(null);
+  };
+
+  const loadTransfers = async () => {
+    setTransferLoading(true);
+    try {
+      const res = await fetch('/api/coin/transfer');
+      const data = await res.json();
+      if (data.success) {
+        setTransfers(data.data || []);
+      }
+    } catch (err) {
+      console.error('Failed to load transfers:', err);
+    } finally {
+      setTransferLoading(false);
+    }
+  };
+
+  const handleTransfer = async () => {
+    if (!transferForm.toEmail || !transferForm.amount) return;
+    
+    setTransferError('');
+    setTransferSuccess('');
+    
+    const amount = parseInt(transferForm.amount);
+    if (isNaN(amount) || amount <= 0) {
+      setTransferError('请输入有效金额');
+      return;
+    }
+    
+    if ((user?.coinBalance || 0) < amount) {
+      setTransferError(`余额不足，当前余额: ${user?.coinBalance || 0} U`);
+      return;
+    }
+    
+    setTransferLoading(true);
+    try {
+      const res = await fetch('/api/coin/transfer', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          toEmail: transferForm.toEmail,
+          amount,
+          remark: transferForm.remark,
+        }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setTransferSuccess(data.message);
+        setTransferForm({ toEmail: '', amount: '', remark: '' });
+        loadTransfers();
+        fetchData();
+      } else {
+        setTransferError(data.error);
+      }
+    } catch (err) {
+      setTransferError('转账失败');
+    } finally {
+      setTransferLoading(false);
+    }
+  };
+
+  const handleSearch = async () => {
+    if (!searchKeyword.trim()) return;
+    
+    setSearchLoading(true);
+    try {
+      const res = await fetch(`/api/user/search?keyword=${encodeURIComponent(searchKeyword)}`);
+      const data = await res.json();
+      if (data.success) {
+        setSearchResults(data.data || []);
+        const ids = data.data?.map((u: SearchedUser) => u.userId) || [];
+        checkFollowStatus(ids);
+      }
+    } catch (err) {
+      console.error('Failed to search users:', err);
+    } finally {
+      setSearchLoading(false);
+    }
+  };
+
+  const handleViewProfile = async (targetUserId: string) => {
+    setViewProfileLoading(true);
+    try {
+      const res = await fetch(`/api/user/profile?userId=${targetUserId}`);
+      const data = await res.json();
+      if (data.success) {
+        setViewingUser(data.data);
+      } else {
+        alert('无法查看该用户资料');
+      }
+    } catch (err) {
+      console.error('Failed to load profile:', err);
+    } finally {
+      setViewProfileLoading(false);
+    }
+  };
+
+  const checkFollowStatus = async (userIds: string[]) => {
+    const newFollowing = new Set<string>();
+    for (const uid of userIds) {
+      try {
+        const res = await fetch(`/api/user/follow?followedId=${uid}`);
+        const data = await res.json();
+        if (data.success && data.isFollowing) {
+          newFollowing.add(uid);
+        }
+      } catch {}
+    }
+    setFollowingIds(newFollowing);
+  };
+
+  const handleFollow = async (targetUserId: string) => {
+    try {
+      const res = await fetch('/api/user/follow', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ followedId: targetUserId }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setFollowingIds(prev => {
+          const newSet = new Set(prev);
+          if (data.isFollowing) {
+            newSet.add(targetUserId);
+          } else {
+            newSet.delete(targetUserId);
+          }
+          return newSet;
+        });
+      }
+    } catch (err) {
+      console.error('Failed to follow/unfollow:', err);
+    }
+  };
+
+  const loadFollowList = async (type: 'following' | 'followers') => {
+    setFollowLoading(true);
+    try {
+      const res = await fetch(`/api/user/follow/list?type=${type}`);
+      const data = await res.json();
+      if (data.success) {
+        setFollowList(data.data || []);
+      }
+    } catch (err) {
+      console.error('Failed to load follow list:', err);
+    } finally {
+      setFollowLoading(false);
+    }
+  };
+
+  const handleUnfollow = async (targetUserId: string) => {
+    try {
+      const res = await fetch('/api/user/follow', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ targetUserId, action: 'unfollow' }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        loadFollowList('following');
+        loadFollowList('followers');
+      }
+    } catch (err) {
+      console.error('Failed to unfollow:', err);
+    }
+  };
+
+  // 初始化社交数据
+  useEffect(() => {
+    if (user) {
+      loadConversations();
+      loadTransfers();
+      loadFollowList('following');
+    }
+  }, [user]);
+
+  // 选中会话时加载消息
+  useEffect(() => {
+    if (selectedConversation) {
+      loadMessages(selectedConversation.userId);
+    }
+  }, [selectedConversation]);
 
   const handleBindMTAccount = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -375,7 +776,7 @@ export default function UserCenterPage() {
 
         {/* Tabs */}
         <Tabs defaultValue="profile" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-2 lg:w-auto lg:inline-grid">
+          <TabsList className="grid w-full grid-cols-3 lg:w-auto lg:inline-grid">
             <TabsTrigger value="profile" className="flex items-center gap-2">
               <UserIcon className="w-4 h-4" />
               个人资料
@@ -383,6 +784,10 @@ export default function UserCenterPage() {
             <TabsTrigger value="recharge" className="flex items-center gap-2">
               <Wallet className="w-4 h-4" />
               充值
+            </TabsTrigger>
+            <TabsTrigger value="social" className="flex items-center gap-2">
+              <MessageSquare className="w-4 h-4" />
+              社交
             </TabsTrigger>
           </TabsList>
 
@@ -674,6 +1079,665 @@ export default function UserCenterPage() {
                 </p>
               </CardContent>
             </Card>
+          </TabsContent>
+
+          {/* Social Tab */}
+          <TabsContent value="social">
+            <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+              {/* 左侧导航 */}
+              <Card className="lg:col-span-1">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <MessageSquare className="w-5 h-5" />
+                    功能菜单
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-2">
+                  <button
+                    onClick={() => { setSocialSection('messages'); setSelectedConversation(null); }}
+                    className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
+                      socialSection === 'messages' ? 'bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300' : 'hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-300'
+                    }`}
+                  >
+                    <MessageSquare className="w-5 h-5" />
+                    <span>私信</span>
+                    {conversations.filter(c => c.unreadCount > 0).length > 0 && (
+                      <Badge className="ml-auto bg-red-500">{conversations.filter(c => c.unreadCount > 0).length}</Badge>
+                    )}
+                  </button>
+                  <button
+                    onClick={() => { setSocialSection('follow'); setSelectedConversation(null); }}
+                    className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
+                      socialSection === 'follow' ? 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300' : 'hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-300'
+                    }`}
+                  >
+                    <UserPlus className="w-5 h-5" />
+                    <span>关注列表</span>
+                  </button>
+                  <button
+                    onClick={() => { setSocialSection('transfer'); setSelectedConversation(null); }}
+                    className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
+                      socialSection === 'transfer' ? 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300' : 'hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-300'
+                    }`}
+                  >
+                    <ArrowRightLeft className="w-5 h-5" />
+                    <span>转账</span>
+                  </button>
+                  <button
+                    onClick={() => { setSocialSection('search'); setSelectedConversation(null); }}
+                    className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
+                      socialSection === 'search' ? 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300' : 'hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-300'
+                    }`}
+                  >
+                    <Search className="w-5 h-5" />
+                    <span>搜索用户</span>
+                  </button>
+                </CardContent>
+              </Card>
+
+              {/* 右侧内容区 */}
+              <div className="lg:col-span-3">
+                {/* 私信列表/聊天 */}
+                {socialSection === 'messages' && !selectedConversation && (
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>私信</CardTitle>
+                      <CardDescription>与用户的对话列表</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      {conversationsLoading ? (
+                        <div className="flex justify-center py-12">
+                          <Spinner />
+                        </div>
+                      ) : conversations.length === 0 ? (
+                        <div className="text-center py-12 text-gray-500">
+                          <MessageSquare className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                          <p>暂无私信记录</p>
+                          <p className="text-sm mt-2">在搜索用户中找到感兴趣的人，给他发私信吧</p>
+                        </div>
+                      ) : (
+                        <div className="space-y-2">
+                          {conversations.map(conv => (
+                            <button
+                              key={conv.userId}
+                              onClick={() => setSelectedConversation(conv)}
+                              className="w-full flex items-center gap-4 p-4 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors text-left"
+                            >
+                              <Avatar className="w-12 h-12">
+                                <AvatarFallback className="bg-gradient-to-br from-amber-500 to-orange-600 text-white">
+                                  {conv.userName.slice(0, 1)}
+                                </AvatarFallback>
+                                {conv.userAvatar && <AvatarImage src={conv.userAvatar} />}
+                              </Avatar>
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center justify-between">
+                                  <div className="flex items-center gap-2">
+                                    <span className="font-medium truncate">{conv.userName}</span>
+                                    {conv.uBalance !== undefined && (
+                                      <Badge variant="outline" className="text-xs bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400 border-green-200 dark:border-green-800">
+                                        {conv.uBalance} U
+                                      </Badge>
+                                    )}
+                                  </div>
+                                  <span className="text-xs text-gray-500">
+                                    {new Date(conv.lastMessage.createdAt).toLocaleDateString()}
+                                  </span>
+                                </div>
+                                <p className="text-sm text-gray-500 truncate">
+                                  {conv.lastMessage.senderId === user?.userId ? '我: ' : ''}
+                                  {conv.lastMessage.content}
+                                </p>
+                              </div>
+                              {conv.unreadCount > 0 && (
+                                <Badge className="bg-red-500">{conv.unreadCount}</Badge>
+                              )}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                )}
+
+                {/* 聊天界面 */}
+                {socialSection === 'messages' && selectedConversation && (
+                  <Card className="h-[600px] flex flex-col">
+                    <CardHeader className="flex-row items-center gap-4 pb-4 border-b">
+                      <Button variant="ghost" size="sm" onClick={() => setSelectedConversation(null)}>
+                        ← 返回
+                      </Button>
+                      <Avatar className="w-10 h-10">
+                        <AvatarFallback className="bg-gradient-to-br from-amber-500 to-orange-600 text-white">
+                          {selectedConversation.userName.slice(0, 1)}
+                        </AvatarFallback>
+                        {selectedConversation.userAvatar && <AvatarImage src={selectedConversation.userAvatar} />}
+                      </Avatar>
+                      <CardTitle className="text-lg flex items-center gap-2">
+                        {selectedConversation.userName}
+                        {selectedConversation.uBalance !== undefined && (
+                          <Badge variant="outline" className="text-xs bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400 border-green-200 dark:border-green-800">
+                            {selectedConversation.uBalance} U
+                          </Badge>
+                        )}
+                      </CardTitle>
+                      <Button variant="outline" size="sm" className="ml-auto" onClick={() => handleViewProfile(selectedConversation.userId)}>
+                        查看资料
+                      </Button>
+                    </CardHeader>
+                    <CardContent className="flex-1 overflow-y-auto p-4 space-y-4">
+                      {messagesLoading ? (
+                        <div className="text-center py-8">
+                          <Spinner />
+                        </div>
+                      ) : messages.length === 0 ? (
+                        <div className="text-center py-8 text-gray-500">暂无消息，开始对话吧</div>
+                      ) : (
+                        messages.map(msg => {
+                          const imageUrlMatch = msg.content?.match(/\[图片\](https?:\/\/[^\s]+)/);
+                          const imageUrl = imageUrlMatch ? imageUrlMatch[1] : null;
+                          const textContent = msg.content?.replace(/\[图片\]https?:\/\/[^\s]+/, '').trim() || '';
+                          
+                          return (
+                            <div
+                              key={msg.id}
+                              className={`flex ${msg.sender_id === user?.userId ? 'justify-end' : 'justify-start'}`}
+                            >
+                              <div
+                                className={`max-w-[70%] px-4 py-2 rounded-lg ${
+                                  msg.sender_id === user?.userId
+                                    ? 'bg-amber-500 text-white'
+                                    : 'bg-gray-100 dark:bg-gray-800'
+                                }`}
+                              >
+                                {imageUrl && (
+                                  <img 
+                                    src={imageUrl} 
+                                    alt="图片消息" 
+                                    className="rounded-lg mb-2 max-w-full cursor-pointer hover:opacity-90"
+                                    onClick={() => window.open(imageUrl, '_blank')}
+                                  />
+                                )}
+                                {textContent && <p>{textContent}</p>}
+                                <p className={`text-xs mt-1 ${
+                                  msg.sender_id === user?.userId ? 'text-amber-200' : 'text-gray-500'
+                                }`}>
+                                  {new Date(msg.created_at).toLocaleString()}
+                                </p>
+                              </div>
+                            </div>
+                          );
+                        })
+                      )}
+                    </CardContent>
+                    <div className="p-4 border-t space-y-3">
+                      {previewImage && (
+                        <div className="relative inline-block">
+                          <img 
+                            src={previewImage} 
+                            alt="预览" 
+                            className="w-20 h-20 object-cover rounded-lg border" 
+                          />
+                          <button
+                            onClick={handleRemoveImage}
+                            className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center hover:bg-red-600"
+                          >
+                            <X className="w-4 h-4" />
+                          </button>
+                          {uploadingImage && (
+                            <div className="absolute inset-0 bg-black/50 rounded-lg flex items-center justify-center">
+                              <Spinner className="w-6 h-6 text-white" />
+                            </div>
+                          )}
+                        </div>
+                      )}
+                      <div className="flex gap-2">
+                        <input
+                          type="file"
+                          id="message-image-user"
+                          accept="image/jpeg,image/png,image/gif,image/webp"
+                          className="hidden"
+                          onChange={handleImageUpload}
+                          disabled={uploadingImage}
+                        />
+                        <label
+                          htmlFor="message-image-user"
+                          className={`p-2 rounded-lg cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800 ${uploadingImage ? 'opacity-50 cursor-not-allowed' : ''}`}
+                        >
+                          <Image className="w-5 h-5 text-gray-500" />
+                        </label>
+                        <div className="flex-1">
+                          <Input
+                            value={newMessage}
+                            onChange={e => setNewMessage(e.target.value)}
+                            placeholder="输入消息..."
+                            onKeyDown={e => e.key === 'Enter' && handleSendMessage()}
+                            disabled={sendLoading}
+                          />
+                        </div>
+                        <Button onClick={handleSendMessage} disabled={sendLoading || (!newMessage.trim() && !selectedImage)}>
+                          <Send className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  </Card>
+                )}
+
+                {/* 转账界面 */}
+                {socialSection === 'transfer' && (
+                  <div className="space-y-6">
+                    <Card>
+                      <CardHeader>
+                        <CardTitle className="flex items-center gap-2">
+                          <ArrowRightLeft className="w-5 h-5" />
+                          转账
+                        </CardTitle>
+                        <CardDescription>
+                          向其他用户转账 U，当前余额: <span className="font-bold text-amber-600">{user?.coinBalance || 0}</span>
+                        </CardDescription>
+                      </CardHeader>
+                      <CardContent className="space-y-4">
+                        {transferSuccess && (
+                          <Alert className="border-green-200 bg-green-50">
+                            <CheckCircle2 className="h-4 w-4 text-green-600" />
+                            <AlertDescription className="text-green-700">{transferSuccess}</AlertDescription>
+                          </Alert>
+                        )}
+                        {transferError && (
+                          <Alert className="border-red-200 bg-red-50">
+                            <XCircle className="h-4 w-4 text-red-600" />
+                            <AlertDescription className="text-red-700">{transferError}</AlertDescription>
+                          </Alert>
+                        )}
+                        <div className="space-y-4">
+                          <div className="space-y-2">
+                            <Label>收款方邮箱</Label>
+                            <Input
+                              type="email"
+                              value={transferForm.toEmail}
+                              onChange={e => setTransferForm({ ...transferForm, toEmail: e.target.value })}
+                              placeholder="输入收款方邮箱"
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <Label>转账金额</Label>
+                            <Input
+                              type="number"
+                              value={transferForm.amount}
+                              onChange={e => setTransferForm({ ...transferForm, amount: e.target.value })}
+                              placeholder="输入转账金额"
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <Label>备注 (可选)</Label>
+                            <Input
+                              value={transferForm.remark}
+                              onChange={e => setTransferForm({ ...transferForm, remark: e.target.value })}
+                              placeholder="输入备注"
+                            />
+                          </div>
+                          <Button
+                            onClick={handleTransfer}
+                            disabled={transferLoading || !transferForm.toEmail || !transferForm.amount}
+                            className="w-full bg-gradient-to-r from-amber-600 to-orange-600"
+                          >
+                            {transferLoading ? '转账中...' : '确认转账'}
+                          </Button>
+                        </div>
+                      </CardContent>
+                    </Card>
+
+                    <Card>
+                      <CardHeader>
+                        <CardTitle className="flex items-center gap-2">
+                          <RefreshCw className="w-5 h-5" />
+                          转账记录
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        {transferLoading && transfers.length === 0 ? (
+                          <div className="flex justify-center py-8">
+                            <Spinner />
+                          </div>
+                        ) : transfers.length === 0 ? (
+                          <div className="text-center py-8 text-gray-500">暂无转账记录</div>
+                        ) : (
+                          <div className="space-y-3">
+                            {transfers.map(t => (
+                              <div key={t.id} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                                <div className="flex items-center gap-3">
+                                  <Avatar className="w-10 h-10">
+                                    <AvatarFallback className="bg-gradient-to-br from-amber-500 to-orange-600 text-white text-sm">
+                                      {(t.isSent ? t.toUserName : t.fromUserName).slice(0, 1)}
+                                    </AvatarFallback>
+                                  </Avatar>
+                                  <div>
+                                    <p className="font-medium">
+                                      {t.isSent ? `转给 ${t.toUserName}` : `收到 ${t.fromUserName}`}
+                                    </p>
+                                    <p className="text-xs text-gray-500">
+                                      {new Date(t.createdAt).toLocaleString()}
+                                      {t.remark && ` · ${t.remark}`}
+                                    </p>
+                                  </div>
+                                </div>
+                                <span className={`font-bold ${t.isSent ? 'text-red-500' : 'text-green-500'}`}>
+                                  {t.isSent ? '-' : '+'}{t.amount}
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </CardContent>
+                    </Card>
+                  </div>
+                )}
+
+                {/* 搜索用户 */}
+                {socialSection === 'search' && (
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2">
+                        <Search className="w-5 h-5" />
+                        搜索用户
+                      </CardTitle>
+                      <CardDescription>搜索并关注其他用户，或给他们发私信</CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      <div className="flex gap-2">
+                        <Input
+                          value={searchKeyword}
+                          onChange={e => setSearchKeyword(e.target.value)}
+                          placeholder="输入昵称、邮箱或ID搜索..."
+                          onKeyDown={e => e.key === 'Enter' && handleSearch()}
+                        />
+                        <Button onClick={handleSearch} disabled={searchLoading}>
+                          {searchLoading ? '搜索中...' : '搜索'}
+                        </Button>
+                      </div>
+
+                      {searchResults.length === 0 && !searchLoading && (
+                        <div className="text-center py-8 text-gray-500">
+                          <UserIcon className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                          <p>搜索用户以关注或发私信</p>
+                        </div>
+                      )}
+
+                      {searchResults.length > 0 && (
+                        <div className="space-y-3">
+                          {searchResults.map(userResult => (
+                            <div key={userResult.userId} className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                              <button 
+                                className="flex items-center gap-3 flex-1 text-left"
+                                onClick={() => handleViewProfile(userResult.userId)}
+                              >
+                                <Avatar className="w-12 h-12">
+                                  <AvatarFallback className="bg-gradient-to-br from-amber-500 to-orange-600 text-white">
+                                    {userResult.name.slice(0, 1)}
+                                  </AvatarFallback>
+                                  {userResult.avatar && <AvatarImage src={userResult.avatar} />}
+                                </Avatar>
+                                <div>
+                                  <p className="font-medium">{userResult.name}</p>
+                                  {userResult.email && <p className="text-xs text-gray-500">{userResult.email}</p>}
+                                </div>
+                              </button>
+                              <div className="flex items-center gap-2">
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => handleViewProfile(userResult.userId)}
+                                >
+                                  <ChevronRight className="w-4 h-4" />
+                                </Button>
+                                <Button
+                                  variant={followingIds.has(userResult.userId) ? 'outline' : 'default'}
+                                  size="sm"
+                                  onClick={() => handleFollow(userResult.userId)}
+                                  className={followingIds.has(userResult.userId) ? '' : 'bg-amber-600'}
+                                >
+                                  {followingIds.has(userResult.userId) ? (
+                                    <>
+                                      <UserCheck className="w-4 h-4 mr-1" />
+                                      已关注
+                                    </>
+                                  ) : (
+                                    <>
+                                      <UserPlus className="w-4 h-4 mr-1" />
+                                      关注
+                                    </>
+                                  )}
+                                </Button>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => {
+                                    setSocialSection('messages');
+                                    setSelectedConversation({
+                                      userId: userResult.userId,
+                                      userName: userResult.name,
+                                      userAvatar: userResult.avatar,
+                                      lastMessage: { id: 0, content: '', senderId: '', createdAt: '' },
+                                      unreadCount: 0,
+                                    });
+                                  }}
+                                >
+                                  <MessageSquare className="w-4 h-4" />
+                                </Button>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                )}
+
+                {/* 关注列表 */}
+                {socialSection === 'follow' && (
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2">
+                        <UserPlus className="w-5 h-5" />
+                        关注列表
+                      </CardTitle>
+                      <CardDescription>管理您的关注和粉丝</CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      <div className="flex gap-2">
+                        <Button 
+                          variant={followListType === 'following' ? 'default' : 'outline'}
+                          onClick={() => setFollowListType('following')}
+                          className={followListType === 'following' ? 'bg-amber-600' : ''}
+                        >
+                          <UserCheck className="w-4 h-4 mr-1" />
+                          我的关注 ({followList.length})
+                        </Button>
+                        <Button 
+                          variant={followListType === 'followers' ? 'default' : 'outline'}
+                          onClick={() => {
+                            setFollowListType('followers');
+                            loadFollowList('followers');
+                          }}
+                          className={followListType === 'followers' ? 'bg-amber-600' : ''}
+                        >
+                          <UserX className="w-4 h-4 mr-1" />
+                          我的粉丝
+                        </Button>
+                      </div>
+                      
+                      {followLoading ? (
+                        <div className="flex justify-center py-8">
+                          <Spinner />
+                        </div>
+                      ) : followList.length === 0 ? (
+                        <div className="text-center py-8 text-gray-500">
+                          <UserIcon className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                          <p>{followListType === 'following' ? '暂无关注' : '暂无粉丝'}</p>
+                          <p className="text-sm mt-2">在搜索用户中关注感兴趣的人吧</p>
+                        </div>
+                      ) : (
+                        <div className="space-y-3">
+                          {followList.map(item => (
+                            <div key={item.userId} className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                              <button 
+                                className="flex items-center gap-3 flex-1 text-left"
+                                onClick={() => handleViewProfile(item.userId)}
+                              >
+                                <Avatar className="w-12 h-12">
+                                  <AvatarFallback className="bg-gradient-to-br from-amber-500 to-orange-600 text-white">
+                                    {item.name.slice(0, 1)}
+                                  </AvatarFallback>
+                                  {item.avatar && <AvatarImage src={item.avatar} />}
+                                </Avatar>
+                                <div>
+                                  <p className="font-medium">{item.name}</p>
+                                  {item.email && <p className="text-xs text-gray-500">{item.email}</p>}
+                                </div>
+                              </button>
+                              <div className="flex items-center gap-2">
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => {
+                                    setSocialSection('messages');
+                                    setSelectedConversation({
+                                      userId: item.userId,
+                                      userName: item.name,
+                                      userAvatar: item.avatar,
+                                      lastMessage: { id: 0, content: '', senderId: '', createdAt: '' },
+                                      unreadCount: 0,
+                                    });
+                                  }}
+                                >
+                                  <MessageSquare className="w-4 h-4 mr-1" />
+                                  发私信
+                                </Button>
+                                {followListType === 'following' && (
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => handleUnfollow(item.userId)}
+                                  >
+                                    取消关注
+                                  </Button>
+                                )}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                )}
+              </div>
+            </div>
+
+            {/* 用户资料弹窗 */}
+            {viewingUser && (
+              <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+                <Card className="w-full max-w-md">
+                  <CardHeader className="relative">
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      className="absolute top-2 right-2"
+                      onClick={() => setViewingUser(null)}
+                    >
+                      <X className="w-4 h-4" />
+                    </Button>
+                    <div className="flex flex-col items-center">
+                      <Avatar className="w-20 h-20 mb-4">
+                        <AvatarFallback className="bg-gradient-to-br from-amber-500 to-orange-600 text-white text-2xl">
+                          {viewingUser.name.slice(0, 1)}
+                        </AvatarFallback>
+                        {viewingUser.avatar && <AvatarImage src={viewingUser.avatar} />}
+                      </Avatar>
+                      <CardTitle className="text-2xl">{viewingUser.name}</CardTitle>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="flex items-center gap-3 p-3 bg-amber-50 dark:bg-amber-900/20 rounded-lg">
+                      <Coins className="w-5 h-5 text-amber-600" />
+                      <div>
+                        <p className="text-sm text-gray-500">拥有 U</p>
+                        <p className="font-bold text-amber-600">{viewingUser.coinBalance?.toLocaleString() || 0}</p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-3 p-3 bg-purple-50 dark:bg-purple-900/20 rounded-lg">
+                      <Trophy className="w-5 h-5 text-purple-600" />
+                      <div className="flex-1">
+                        <p className="text-sm text-gray-500">获得勋章</p>
+                        <div className="flex flex-wrap gap-2 mt-1">
+                          {viewingUser.medals && viewingUser.medals.length > 0 ? (
+                            viewingUser.medals.map((medal, idx) => (
+                              <Badge key={idx} className="bg-purple-500">{medal}</Badge>
+                            ))
+                          ) : (
+                            <span className="text-sm text-gray-400">暂无勋章</span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-3 p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                      <Calendar className="w-5 h-5 text-gray-600" />
+                      <div>
+                        <p className="text-sm text-gray-500">注册时间</p>
+                        <p className="font-medium">{viewingUser.createdAt ? new Date(viewingUser.createdAt).toLocaleDateString() : '-'}</p>
+                      </div>
+                    </div>
+
+                    {viewingUser.bio && (
+                      <div className="p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                        <p className="text-sm text-gray-500 mb-1">个人介绍</p>
+                        <p className="text-gray-700 dark:text-gray-300">{viewingUser.bio}</p>
+                      </div>
+                    )}
+
+                    <div className="flex gap-2 pt-2">
+                      <Button
+                        variant={followingIds.has(viewingUser.userId) ? 'outline' : 'default'}
+                        className="flex-1"
+                        onClick={() => {
+                          handleFollow(viewingUser.userId);
+                        }}
+                      >
+                        {followingIds.has(viewingUser.userId) ? (
+                          <>
+                            <UserCheck className="w-4 h-4 mr-1" />
+                            已关注
+                          </>
+                        ) : (
+                          <>
+                            <UserPlus className="w-4 h-4 mr-1" />
+                            关注
+                          </>
+                        )}
+                      </Button>
+                      <Button
+                        variant="outline"
+                        className="flex-1"
+                        onClick={() => {
+                          setSocialSection('messages');
+                          setSelectedConversation({
+                            userId: viewingUser.userId,
+                            userName: viewingUser.name,
+                            userAvatar: viewingUser.avatar,
+                            lastMessage: { id: 0, content: '', senderId: '', createdAt: '' },
+                            unreadCount: 0,
+                          });
+                          setViewingUser(null);
+                        }}
+                      >
+                        <MessageSquare className="w-4 h-4 mr-1" />
+                        发私信
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+            )}
           </TabsContent>
         </Tabs>
       </div>
