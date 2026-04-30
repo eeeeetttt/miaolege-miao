@@ -100,13 +100,6 @@ export default function HomePage() {
     },
   ];
 
-  const steps = [
-    { step: 1, title: '报名参赛', desc: '支付报名费参加挑战' },
-    { step: 2, title: '审核激活', desc: '等待管理员分配账号' },
-    { step: 3, title: '开始挑战', desc: '使用分配账号进行交易' },
-    { step: 4, title: '通关领奖', desc: '达成目标领取丰厚奖励' },
-  ];
-
   return (
     <div className="flex flex-col">
       {/* Hero Section */}
@@ -147,36 +140,6 @@ export default function HomePage() {
             通关即有机会获得巨额奖励
           </p>
 
-        </div>
-      </section>
-
-      {/* How it Works */}
-      <section className="py-20 px-4 bg-gray-50 dark:bg-gray-800/50">
-        <div className="max-w-6xl mx-auto">
-          <div className="text-center mb-16">
-            <h2 className="text-3xl md:text-4xl font-bold text-gray-900 dark:text-white mb-4">
-              如何参赛
-            </h2>
-            <p className="text-xl text-gray-600 dark:text-gray-400">
-              简单四步，开启您的挑战之旅
-            </p>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
-            {steps.map((item) => (
-              <div key={item.step} className="relative text-center">
-                <div className="w-16 h-16 rounded-full bg-gradient-to-br from-amber-500 to-orange-600 text-white flex items-center justify-center mx-auto mb-4 text-2xl font-bold shadow-lg shadow-amber-500/30">
-                  {item.step}
-                </div>
-                <h3 className="text-lg font-semibold mb-2 text-gray-900 dark:text-white">{item.title}</h3>
-                <p className="text-gray-600 dark:text-gray-400 text-sm">{item.desc}</p>
-                
-                {item.step < 4 && (
-                  <div className="hidden md:block absolute top-8 left-full w-full h-0.5 bg-gradient-to-r from-amber-300 to-orange-300 dark:from-amber-700 dark:to-orange-700 -translate-x-8" />
-                )}
-              </div>
-            ))}
-          </div>
         </div>
       </section>
 

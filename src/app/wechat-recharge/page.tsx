@@ -17,9 +17,9 @@ import {
   XCircle,
   AlertCircle,
   QrCode,
-  Upload,
   Clock,
   ArrowLeft,
+  Hash,
 } from 'lucide-react';
 
 interface WechatPayConfig {
@@ -63,6 +63,7 @@ export default function WechatRechargePage() {
   const [records, setRecords] = useState<RechargeRecord[]>([]);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [transactionId, setTransactionId] = useState('');
   const screenshotInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -237,8 +238,8 @@ export default function WechatRechargePage() {
       return;
     }
 
-    if (!screenshot) {
-      setError('请上传付款截图');
+    if (!transactionId || transactionId.length !== 6) {
+      setError('请输入交易（转账）单号后6位数字');
       return;
     }
 
@@ -261,32 +262,26 @@ export default function WechatRechargePage() {
 
       const newApplicationId = orderData.applicationId;
 
-      // 上传截图
-      if (screenshot && !screenshot.startsWith('http')) {
-        const formData = new FormData();
-        const res = await fetch(screenshot);
-        const blob = await res.blob();
-        const file = new File([blob], 'screenshot.png', { type: 'image/png' });
-        formData.append('file', file);
-        formData.append('applicationId', String(newApplicationId));
-        
-        const uploadRes = await fetch('/api/wechat-pay/upload', {
-          method: 'POST',
-          body: formData,
-        });
-        const uploadData = await uploadRes.json();
-        if (!uploadData.success) {
-          console.error('截图上传失败:', uploadData.error);
-        }
+      // 提交交易单号
+      const submitRes = await fetch('/api/wechat-pay/submit-transaction', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          applicationId: newApplicationId,
+          transactionId 
+        }),
+      });
+      const submitData = await submitRes.json();
+      if (!submitData.success) {
+        setError(submitData.error || '提交失败');
+        setSubmitting(false);
+        return;
       }
 
       setSuccess('付款确认已提交，请等待后台审核，审核通过后 U 将自动到账');
       setSelectedAmount(null);
       setCustomAmount('');
-      setScreenshot(null);
-      setScreenshotPreview(null);
-      setApplicationId(null);
-      setCnyAmount(0);
+      setTransactionId('');
       fetchRecords();
     } catch (err) {
       console.error('确认付款失败:', err);
@@ -449,25 +444,35 @@ export default function WechatRechargePage() {
               </div>
             )}
 
-            {/* 截图上传 - 只要选择了金额就显示 */}
+            {/* 交易单号输入 */}
             {(selectedAmount || (customAmount && parseInt(customAmount) > 0)) && (
               <div className="space-y-3">
-                <Label>上传付款截图 *</Label>
-                <ImageUploader
-                  onUpload={(base64) => {
-                    setScreenshot(base64);
-                    setScreenshotPreview(base64);
+                <Label htmlFor="transactionId" className="flex items-center gap-2">
+                  <Hash className="w-4 h-4" />
+                  请输入交易（转账）单号后6位数字 *
+                </Label>
+                <Input
+                  id="transactionId"
+                  type="text"
+                  placeholder="例：123456"
+                  value={transactionId}
+                  onChange={(e) => {
+                    const value = e.target.value.replace(/\D/g, '').slice(0, 6);
+                    setTransactionId(value);
                   }}
-                  preview={screenshotPreview}
                   disabled={loading}
+                  className="text-center text-lg tracking-widest font-mono"
                 />
+                <p className="text-xs text-gray-500 text-center">
+                  请在微信/支付宝转账记录中查看交易单号
+                </p>
               </div>
             )}
 
-            {/* 提交按钮 - 简化流程：直接提交 */}
+            {/* 提交按钮 */}
             <Button 
               className="w-full bg-green-600 hover:bg-green-700"
-              disabled={submitting || (!selectedAmount && (!customAmount || parseInt(customAmount) <= 0)) || !screenshot}
+              disabled={submitting || (!selectedAmount && (!customAmount || parseInt(customAmount) <= 0)) || !transactionId}
               onClick={handleConfirmPayment}
             >
               {submitting ? '提交中...' : '确认充值并提交'}

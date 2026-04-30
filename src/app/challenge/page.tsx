@@ -721,7 +721,7 @@ function ChallengeContent() {
               <div className={styles.lotSection}>
                 <span className={styles.lotLabel}>手数 (最大{maxLots.toFixed(2)}手)</span>
                 <div className={styles.lotButtons}>
-                  {[0.01, 0.05, 0.1, 0.2, 0.5, 1].map(lot => (
+                  {[0.01, 0.05, 0.1, 0.5, 1].map(lot => (
                     <button
                       key={lot}
                       className={`${styles.lotBtn} ${lotSize === lot ? styles.lotActive : ''}`}
