@@ -39,36 +39,7 @@ import {
   QrCode,
   ArrowRight,
   Bot,
-  Search,
-  Users,
-  Heart,
-  Send,
-  Copy,
-  Check,
-  ChevronDown,
-  ChevronUp,
-  X,
 } from 'lucide-react';
-
-// User type for search and follow features
-interface User {
-  id: string;
-  name: string;
-  email?: string;
-  image?: string;
-  createdAt?: string;
-}
-
-// Conversation type for messages
-interface Conversation {
-  id: string;
-  userId: string;
-  userName: string;
-  userImage?: string;
-  lastMessage: string;
-  lastMessageTime: string;
-  unreadCount: number;
-}
 
 interface UserInfo {
   userId: string;
@@ -139,29 +110,6 @@ export default function UserCenterPage() {
   const [newName, setNewName] = useState('');
   const [canChangeName, setCanChangeName] = useState(true);
   const [nextNameChangeDate, setNextNameChangeDate] = useState<string | null>(null);
-
-  // Search and follow state
-  const [searchQuery, setSearchQuery] = useState('');
-  const [searchResults, setSearchResults] = useState<User[]>([]);
-  const [searchLoading, setSearchLoading] = useState(false);
-  const [followingList, setFollowingList] = useState<User[]>([]);
-  const [followersList, setFollowersList] = useState<User[]>([]);
-  const [followingLoading, setFollowingLoading] = useState(false);
-  const [followStatus, setFollowStatus] = useState<Record<string, boolean>>({});
-
-  // Transfer state
-  const [transferAmount, setTransferAmount] = useState('');
-  const [transferUserId, setTransferUserId] = useState('');
-  const [transferNote, setTransferNote] = useState('');
-  const [transferLoading, setTransferLoading] = useState(false);
-  const [transferHistory, setTransferHistory] = useState<any[]>([]);
-
-  // Messages state
-  const [conversations, setConversations] = useState<Conversation[]>([]);
-  const [selectedConversation, setSelectedConversation] = useState<Conversation | null>(null);
-  const [messages, setMessages] = useState<any[]>([]);
-  const [newMessage, setNewMessage] = useState('');
-  const [messagesLoading, setMessagesLoading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -217,98 +165,6 @@ export default function UserCenterPage() {
       setNextNameChangeDate(oneYearLater.toLocaleDateString());
     } else {
       setCanChangeName(true);
-    }
-  };
-
-  const handleSearch = async () => {
-    if (!searchQuery.trim()) return;
-    setSearchLoading(true);
-    try {
-      const res = await fetch(`/api/user/search?nickname=${encodeURIComponent(searchQuery)}`);
-      const data = await res.json();
-      if (data.success) {
-        const withFollowStatus = await Promise.all(
-          data.users.map(async (user: any) => {
-            const statusRes = await fetch(`/api/user/follow?targetId=${user.id}`);
-            const statusData = await statusRes.json();
-            return { ...user, is_following: statusData.is_following };
-          })
-        );
-        setSearchResults(withFollowStatus);
-      }
-    } catch (err) {
-      console.error('搜索失败', err);
-    } finally {
-      setSearchLoading(false);
-    }
-  };
-
-  const handleTransfer = async () => {
-    if (!transferUserId || !transferAmount) {
-      alert('请填写用户ID和转账金额');
-      return;
-    }
-    setTransferLoading(true);
-    try {
-      const res = await fetch('/api/coin/transfer', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          targetUserId: transferUserId,
-          amount: parseFloat(transferAmount),
-          note: transferNote,
-        }),
-      });
-      const data = await res.json();
-      if (data.success) {
-        alert(`转账成功！已向用户 ${transferUserId} 转账 ${transferAmount} 星球币`);
-        setTransferAmount('');
-        setTransferUserId('');
-        setTransferNote('');
-        fetchUserInfo();
-      } else {
-        alert(data.error || '转账失败');
-      }
-    } catch (err) {
-      console.error('转账失败', err);
-      alert('转账失败，请重试');
-    } finally {
-      setTransferLoading(false);
-    }
-  };
-
-  const fetchUserInfo = async () => {
-    if (!session?.user?.id) return;
-    try {
-      const res = await fetch(`/api/user/${session.user.id}`);
-      const data = await res.json();
-      if (data.success && data.user) {
-        setUser({
-          ...data.user,
-          stars_coin: data.user.stars_coin ?? 0,
-          mt_accounts: data.user.mt_accounts ?? [],
-        });
-      }
-    } catch (err) {
-      console.error('获取用户信息失败', err);
-    }
-  };
-
-  const handleFollowToggle = async (user: any) => {
-    try {
-      const res = await fetch('/api/user/follow', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ targetId: user.id, action: user.is_following ? 'unfollow' : 'follow' }),
-      });
-      const data = await res.json();
-      if (data.success) {
-        setSearchResults(searchResults.map((u: any) => 
-          u.id === user.id ? { ...u, is_following: !u.is_following } : u
-        ));
-      }
-    } catch (err) {
-      console.error('关注操作失败', err);
     }
   };
 
@@ -519,7 +375,7 @@ export default function UserCenterPage() {
 
         {/* Tabs */}
         <Tabs defaultValue="profile" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-3 lg:w-auto lg:inline-grid">
+          <TabsList className="grid w-full grid-cols-2 lg:w-auto lg:inline-grid">
             <TabsTrigger value="profile" className="flex items-center gap-2">
               <UserIcon className="w-4 h-4" />
               个人资料
@@ -527,10 +383,6 @@ export default function UserCenterPage() {
             <TabsTrigger value="recharge" className="flex items-center gap-2">
               <Wallet className="w-4 h-4" />
               充值
-            </TabsTrigger>
-            <TabsTrigger value="social" className="flex items-center gap-2">
-              <MessageSquare className="w-4 h-4" />
-              社交
             </TabsTrigger>
           </TabsList>
 
@@ -820,176 +672,6 @@ export default function UserCenterPage() {
                 <p className="text-xs text-gray-500 text-center mt-4">
                   * 充值申请提交后，后台将在1-24小时内审核，审核通过后 U 将自动到账
                 </p>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          {/* 社交 Tab */}
-          <TabsContent value="social">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Users className="w-5 h-5" />
-                  社交中心
-                </CardTitle>
-                <CardDescription>私信、关注、转账和搜索用户</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                {/* 搜索用户 */}
-                <div>
-                  <h3 className="text-sm font-medium mb-2 flex items-center gap-2">
-                    <Search className="w-4 h-4" />
-                    搜索用户
-                  </h3>
-                  <div className="flex gap-2">
-                    <Input
-                      placeholder="输入用户昵称或ID..."
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                      onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-                    />
-                    <Button onClick={handleSearch} variant="default">
-                      搜索
-                    </Button>
-                  </div>
-                  {searchResults.length > 0 && (
-                    <div className="mt-3 space-y-2">
-                      {searchResults.map((user: any) => (
-                        <div key={user.id} className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
-                          <div className="flex items-center gap-3">
-                            <Avatar>
-                              <AvatarImage src={user.avatar_url} />
-                              <AvatarFallback>{user.nickname?.charAt(0) || 'U'}</AvatarFallback>
-                            </Avatar>
-                            <div>
-                              <p className="font-medium">{user.nickname || '未知用户'}</p>
-                              <p className="text-xs text-muted-foreground">ID: {user.id}</p>
-                            </div>
-                          </div>
-                          <Button
-                            size="sm"
-                            variant={user.is_following ? "outline" : "default"}
-                            onClick={() => handleFollowToggle(user)}
-                          >
-                            {user.is_following ? '取消关注' : '关注'}
-                          </Button>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-
-                {/* 关注列表 */}
-                <div>
-                  <h3 className="text-sm font-medium mb-2 flex items-center gap-2">
-                    <Heart className="w-4 h-4" />
-                    我的关注 ({followingList.length})
-                  </h3>
-                  {followingList.length > 0 ? (
-                    <div className="space-y-2">
-                      {followingList.map((user: any) => (
-                        <div key={user.id} className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
-                          <div className="flex items-center gap-3">
-                            <Avatar>
-                              <AvatarImage src={user.avatar_url} />
-                              <AvatarFallback>{user.nickname?.charAt(0) || 'U'}</AvatarFallback>
-                            </Avatar>
-                            <div>
-                              <p className="font-medium">{user.nickname || '未知用户'}</p>
-                              <p className="text-xs text-muted-foreground">ID: {user.id}</p>
-                            </div>
-                          </div>
-                          <Button size="sm" variant="outline" onClick={() => handleFollowToggle(user)}>
-                            取消关注
-                          </Button>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <p className="text-sm text-muted-foreground">暂无关注</p>
-                  )}
-                </div>
-
-                {/* 粉丝列表 */}
-                <div>
-                  <h3 className="text-sm font-medium mb-2 flex items-center gap-2">
-                    <Users className="w-4 h-4" />
-                    我的粉丝 ({followersList.length})
-                  </h3>
-                  {followersList.length > 0 ? (
-                    <div className="space-y-2">
-                      {followersList.map((user: any) => (
-                        <div key={user.id} className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
-                          <div className="flex items-center gap-3">
-                            <Avatar>
-                              <AvatarImage src={user.avatar_url} />
-                              <AvatarFallback>{user.nickname?.charAt(0) || 'U'}</AvatarFallback>
-                            </Avatar>
-                            <div>
-                              <p className="font-medium">{user.nickname || '未知用户'}</p>
-                              <p className="text-xs text-muted-foreground">ID: {user.id}</p>
-                            </div>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <p className="text-sm text-muted-foreground">暂无粉丝</p>
-                  )}
-                </div>
-
-                {/* 转账 */}
-                <div>
-                  <h3 className="text-sm font-medium mb-2 flex items-center gap-2">
-                    <Coins className="w-4 h-4" />
-                    转账
-                  </h3>
-                  <div className="space-y-3">
-                    <Input
-                      placeholder="输入目标用户ID..."
-                      value={transferUserId}
-                      onChange={(e) => setTransferUserId(e.target.value)}
-                    />
-                    <Input
-                      type="number"
-                      placeholder="输入转账金额..."
-                      value={transferAmount}
-                      onChange={(e) => setTransferAmount(e.target.value)}
-                    />
-                    <Button onClick={handleTransfer} variant="default" className="w-full">
-                      转账
-                    </Button>
-                  </div>
-                </div>
-
-                {/* 私信会话 */}
-                <div>
-                  <h3 className="text-sm font-medium mb-2 flex items-center gap-2">
-                    <MessageSquare className="w-4 h-4" />
-                    私信会话
-                  </h3>
-                  {conversations.length > 0 ? (
-                    <div className="space-y-2">
-                      {conversations.map((conv: any) => (
-                        <div key={conv.id} className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg">
-                          <Avatar>
-                            <AvatarImage src={conv.avatar_url} />
-                            <AvatarFallback>{conv.nickname?.charAt(0) || 'U'}</AvatarFallback>
-                          </Avatar>
-                          <div className="flex-1 min-w-0">
-                            <p className="font-medium">{conv.nickname || '未知用户'}</p>
-                            <p className="text-xs text-muted-foreground truncate">{conv.last_message || '暂无消息'}</p>
-                          </div>
-                          {conv.unread_count > 0 && (
-                            <Badge variant="destructive">{conv.unread_count}</Badge>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <p className="text-sm text-muted-foreground">暂无私信会话</p>
-                  )}
-                </div>
               </CardContent>
             </Card>
           </TabsContent>
