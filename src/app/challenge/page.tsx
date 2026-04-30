@@ -57,6 +57,7 @@ function ChallengeContent() {
   const [selectedPositions, setSelectedPositions] = useState<Set<string>>(new Set());
   const [canChallenge, setCanChallenge] = useState(true); // 每天只能挑战一次
   const priceRef = useRef<number>(0);
+  const positionsRef = useRef<Position[]>([]); // 用于跟踪最新持仓，避免闭包问题
   const isResettingRef = useRef(false); // 标记是否正在重置状态，避免自动保存覆盖
 
   const showToast = useCallback((message: string, type: 'success' | 'warning' | 'info' = 'info') => {
@@ -369,10 +370,19 @@ function ChallengeContent() {
     const cfg = getLevelConfig(currentLevel);
     // 净值达到目标值
     if (currentEquity >= cfg.targetBalance) {
-      // 如果有持仓，先自动平仓
-      if (positions.length > 0) {
+      // 使用 positionsRef 获取最新的持仓状态
+      if (positionsRef.current.length > 0) {
         // 全部平仓
+        const closePrice = goldPrice || priceRef.current; // 使用当前价格
+        const closedPositions = positionsRef.current.map(p => {
+          const { profit } = calculatePositionProfit(p, closePrice);
+          return { ...p, closePrice, profit, closedAt: Date.now() };
+        });
+        
+        setBalance(b => b + closedPositions.reduce((sum, p) => sum + p.profit, 0));
         setPositions([]);
+        positionsRef.current = [];
+        showToast('净值达标！自动平仓所有单子...', 'success');
         // 保存平仓后的状态
         localStorage.setItem(STORAGE_KEY, JSON.stringify({
           balance,
@@ -380,7 +390,6 @@ function ChallengeContent() {
           currentLevel,
           hasRegistered
         }));
-        showToast('净值达标！自动平仓所有单子...', 'success');
         return;
       }
       
@@ -408,7 +417,7 @@ function ChallengeContent() {
         showToast(`恭喜通关所有关卡！最终净值 $${currentEquity.toFixed(2)}`, 'success');
       }
     }
-  }, [hasRegistered, currentEquity, positions, currentLevel, getLevelConfig, showToast, balance]);
+  }, [hasRegistered, currentEquity, currentLevel, getLevelConfig, showToast]);
 
   useEffect(() => {
     const timer = setTimeout(checkAndLevelUp, 1000);
