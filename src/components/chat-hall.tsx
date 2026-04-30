@@ -299,42 +299,42 @@ export function ChatHall() {
   // 获取消息样式
   const getMessageStyle = (msg: ChatMessage) => {
     if (msg.user_id === DIAN_XIAO_ER.user_id) {
-      return 'bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-900/20 dark:to-orange-900/20 border border-amber-200 dark:border-amber-800';
+      return 'bg-black/30 border border-amber-500/30';
     }
     if (msg.is_system === 1) {
-      return 'bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-900/20 dark:to-orange-900/20 border border-amber-200 dark:border-amber-800';
+      return 'bg-black/30 border border-amber-500/30';
     }
     if (msg.is_premium === 1) {
-      return 'bg-purple-50 dark:bg-purple-900/20 border border-purple-200 dark:border-purple-800';
+      return 'bg-black/30 border border-purple-500/30';
     }
-    return 'bg-white dark:bg-gray-800';
+    return 'bg-black/30';
   };
 
   // 获取用户名样式
   const getUserNameStyle = (msg: ChatMessage) => {
     if (msg.user_id === DIAN_XIAO_ER.user_id) {
-      return 'text-amber-600 dark:text-amber-400 font-semibold';
+      return 'text-gray-300 font-semibold';
     }
     if (msg.is_system === 1) {
-      return 'text-amber-600 dark:text-amber-400 font-semibold';
+      return 'text-gray-300 font-semibold';
     }
     if (msg.is_premium === 1) {
       const colors = [
-        'text-pink-500',
-        'text-purple-500',
-        'text-blue-500',
-        'text-green-500',
-        'text-amber-500',
-        'text-red-500',
+        'text-pink-400',
+        'text-purple-400',
+        'text-blue-400',
+        'text-green-400',
+        'text-amber-400',
+        'text-red-400',
       ];
       const colorIndex = msg.user_id.charCodeAt(0) % colors.length;
       return `${colors[colorIndex]} font-semibold`;
     }
-    return 'text-gray-700 dark:text-gray-300';
+    return 'text-gray-300';
   };
 
   return (
-    <Card className="h-[600px] flex flex-col">
+    <Card className="h-[33vh] flex flex-col bg-black/30 backdrop-blur-sm border-white/20">
       <CardHeader className="flex-row items-center justify-between pb-4 border-b">
         <CardTitle className="flex items-center gap-2">
           <Users className="w-5 h-5 text-purple-500" />
@@ -423,7 +423,7 @@ export function ChatHall() {
                     </Avatar>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">
-                        <span className={`text-sm ${getUserNameStyle(msg)}`}>
+                        <span className={`text-sm ${getUserNameStyle(msg)} text-gray-200`}>
                           {msg.user_name}
                           {msg.is_premium === 1 && msg.user_id !== DIAN_XIAO_ER.user_id && (
                             <Badge variant="secondary" className="ml-1 text-xs py-0 px-1 bg-gradient-to-r from-purple-500 to-pink-500 text-white border-0">
@@ -435,8 +435,8 @@ export function ChatHall() {
                           {formatTime(msg.created_at)}
                         </span>
                       </div>
-                      <p className={`text-sm mt-0.5 whitespace-pre-wrap ${
-                        msg.is_premium === 1 ? 'font-medium' : 'text-gray-700 dark:text-gray-300'
+                      <p className={`text-sm mt-0.5 whitespace-pre-wrap text-gray-300 ${
+                        msg.is_premium === 1 ? 'font-medium text-yellow-300' : ''
                       }`}>
                         {msg.content}
                       </p>
