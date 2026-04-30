@@ -48,6 +48,7 @@ const withPWA = require('next-pwa')({
 
 const nextConfig: NextConfig = {
   allowedDevOrigins: ['*.dev.coze.site'],
+  serverExternalPackages: ['mysql2', 'pg', 'drizzle-orm', '@langchain/core'],
   images: {
     remotePatterns: [
       {

@@ -1,100 +1,115 @@
-'use client';
-
+import { createClient } from '@supabase/supabase-js';
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { db } from '@/lib/db';
-import { challengeConfig } from '@/lib/schema';
-import { eq } from 'drizzle-orm';
 
-const PRIZE_CONFIG_KEY = 'prize_config';
+// 获取 Supabase 客户端
+function getSupabaseClient() {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.COZE_SUPABASE_URL;
+  const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.COZE_SUPABASE_ANON_KEY;
+
+  if (!supabaseUrl || !supabaseKey) {
+    return null;
+  }
+
+  return createClient(supabaseUrl, supabaseKey);
+}
 
 export async function GET() {
+  const supabase = getSupabaseClient();
+  if (!supabase) {
+    return NextResponse.json({ 
+      title: 'K线征途挑战赛',
+      description: '挑战自我，赢取丰厚奖品！',
+      image: '/prize-default.png',
+      enabled: true 
+    });
+  }
+
   try {
-    // 查询奖品配置
-    const result = await db
-      .select()
-      .from(challengeConfig)
-      .where(eq(challengeConfig.configKey, PRIZE_CONFIG_KEY))
+    const { data, error } = await supabase
+      .from('challenge_prize_config')
+      .select('*')
+      .order('id', { ascending: true })
       .limit(1);
 
-    if (result.length > 0 && result[0].configValue) {
-      return NextResponse.json({
-        success: true,
-        config: JSON.parse(result[0].configValue),
+    if (error) {
+      // 返回默认配置
+      return NextResponse.json({ 
+        title: 'K线征途挑战赛',
+        description: '挑战自我，赢取丰厚奖品！',
+        image: '/prize-default.png',
+        enabled: true 
       });
     }
 
-    // 返回默认配置
-    return NextResponse.json({
-      success: true,
-      config: null, // 前端会使用默认配置
+    // 如果没有配置，返回默认配置
+    if (!data || data.length === 0) {
+      return NextResponse.json({ 
+        title: 'K线征途挑战赛',
+        description: '挑战自我，赢取丰厚奖品！',
+        image: '/prize-default.png',
+        enabled: true 
+      });
+    }
+
+    return NextResponse.json(data[0]);
+  } catch (err) {
+    console.error('Error fetching prize config:', err);
+    return NextResponse.json({ 
+      title: 'K线征途挑战赛',
+      description: '挑战自我，赢取丰厚奖品！',
+      image: '/prize-default.png',
+      enabled: true 
     });
-  } catch (error) {
-    console.error('获取奖品配置失败:', error);
-    return NextResponse.json(
-      { success: false, error: '获取奖品配置失败' },
-      { status: 500 }
-    );
   }
 }
 
 export async function POST(request: NextRequest) {
+  const supabase = getSupabaseClient();
+  if (!supabase) {
+    return NextResponse.json({ error: 'Database not configured' }, { status: 500 });
+  }
+
   try {
-    const session = await getServerSession();
-    
-    if (!session?.user) {
-      return NextResponse.json(
-        { success: false, error: '请先登录' },
-        { status: 401 }
-      );
-    }
-
-    // 检查是否为管理员
-    const userRole = (session.user as any)?.role;
-    if (userRole !== 'admin') {
-      return NextResponse.json(
-        { success: false, error: '只有管理员可以修改奖品配置' },
-        { status: 403 }
-      );
-    }
-
     const body = await request.json();
-    const configValue = JSON.stringify(body);
+    const { title, description, image, enabled } = body;
 
-    // 检查配置是否已存在
-    const existing = await db
-      .select()
-      .from(challengeConfig)
-      .where(eq(challengeConfig.configKey, PRIZE_CONFIG_KEY))
+    // 获取当前配置
+    const { data: existing } = await supabase
+      .from('challenge_prize_config')
+      .select('id')
       .limit(1);
 
-    if (existing.length > 0) {
+    let result;
+    if (existing && existing.length > 0) {
       // 更新现有配置
-      await db
-        .update(challengeConfig)
-        .set({ 
-          configValue,
-          description: 'K线征途奖品配置',
-        })
-        .where(eq(challengeConfig.configKey, PRIZE_CONFIG_KEY));
+      const { data, error } = await supabase
+        .from('challenge_prize_config')
+        .update({ title, description, image, enabled })
+        .eq('id', existing[0].id)
+        .select()
+        .single();
+
+      if (error) {
+        return NextResponse.json({ error: error.message }, { status: 500 });
+      }
+      result = data;
     } else {
       // 创建新配置
-      await db.insert(challengeConfig).values({
-        configKey: PRIZE_CONFIG_KEY,
-        configValue,
-        description: 'K线征途奖品配置',
-      });
+      const { data, error } = await supabase
+        .from('challenge_prize_config')
+        .insert({ title, description, image, enabled })
+        .select()
+        .single();
+
+      if (error) {
+        return NextResponse.json({ error: error.message }, { status: 500 });
+      }
+      result = data;
     }
 
-    return NextResponse.json({
-      success: true,
-      message: '奖品配置已保存',
-    });
-  } catch (error) {
-    console.error('保存奖品配置失败:', error);
-    return NextResponse.json(
-      { success: false, error: '保存奖品配置失败' },
-      { status: 500 }
-    );
+    return NextResponse.json(result);
+  } catch (err) {
+    console.error('Error saving prize config:', err);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
