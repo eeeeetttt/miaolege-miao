@@ -645,7 +645,7 @@ function ChallengeContent() {
       });
       const data = await res.json();
       if (res.ok) {
-        showToast(registrationMode === 'paid' ? '付费报名成功！1000星球币已扣除' : '报名成功！', 'success');
+        showToast(registrationMode === 'paid' ? '付费报名成功！40星球币已扣除' : '报名成功！', 'success');
         setHasRegistered(true);
         // 只有免费模式才设置每日限制
         if (registrationMode === 'free') {
