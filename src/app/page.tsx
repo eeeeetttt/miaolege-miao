@@ -147,29 +147,6 @@ export default function HomePage() {
             通关即有机会获得巨额奖励
           </p>
 
-          <div className="flex flex-col sm:flex-row justify-center gap-4">
-            {session ? (
-              <Link href="/challenge">
-                <Button size="lg" className="w-full sm:w-auto bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-700 hover:to-orange-700 text-white text-lg px-8 py-6 shadow-lg shadow-amber-500/30">
-                  <Trophy className="mr-2 w-5 h-5" />
-                  立即报名挑战
-                </Button>
-              </Link>
-            ) : (
-              <Link href="/register">
-                <Button size="lg" className="w-full sm:w-auto bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-700 hover:to-orange-700 text-white text-lg px-8 py-6 shadow-lg shadow-amber-500/30">
-                  注册参赛
-                  <ArrowRight className="ml-2 w-5 h-5" />
-                </Button>
-              </Link>
-            )}
-            <Link href="/challenge/hall">
-              <Button size="lg" variant="outline" className="w-full sm:w-auto border-2 border-amber-300 dark:border-amber-700 text-amber-600 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-900/30 text-lg px-8 py-6">
-                <Users className="mr-2 w-5 h-5" />
-                查看挑战大厅
-              </Button>
-            </Link>
-          </div>
         </div>
       </section>
 

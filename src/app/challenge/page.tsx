@@ -355,13 +355,28 @@ function ChallengeContent() {
     }
   }, [currentEquity, hasRegistered, currentLevel, showToast, getLevelConfig]);
 
-  // 检查净值是否达标，自动通关下一关
+  // 检查净值是否达标，自动平仓并通关下一关
   const checkAndLevelUp = useCallback(() => {
-    if (!hasRegistered || currentEquity <= 0 || positions.length > 0) return;
+    if (!hasRegistered || currentEquity <= 0) return;
     
     const cfg = getLevelConfig(currentLevel);
     // 净值达到目标值
     if (currentEquity >= cfg.targetBalance) {
+      // 如果有持仓，先自动平仓
+      if (positions.length > 0) {
+        // 全部平仓
+        setPositions([]);
+        // 保存平仓后的状态
+        localStorage.setItem(STORAGE_KEY, JSON.stringify({
+          balance,
+          positions: [],
+          currentLevel,
+          hasRegistered
+        }));
+        showToast('净值达标！自动平仓所有单子...', 'success');
+        return;
+      }
+      
       const nextLevel = currentLevel + 1;
       const nextCfg = getLevelConfig(nextLevel);
       
@@ -386,7 +401,7 @@ function ChallengeContent() {
         showToast(`恭喜通关所有关卡！最终净值 $${currentEquity.toFixed(2)}`, 'success');
       }
     }
-  }, [hasRegistered, currentEquity, positions.length, currentLevel, getLevelConfig, showToast]);
+  }, [hasRegistered, currentEquity, positions, currentLevel, getLevelConfig, showToast, balance]);
 
   useEffect(() => {
     const timer = setTimeout(checkAndLevelUp, 1000);
