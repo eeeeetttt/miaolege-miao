@@ -57,6 +57,7 @@ function ChallengeContent() {
   const [selectedPositions, setSelectedPositions] = useState<Set<string>>(new Set());
   const [canChallenge, setCanChallenge] = useState(true); // 每天只能挑战一次
   const priceRef = useRef<number>(0);
+  const isResettingRef = useRef(false); // 标记是否正在重置状态，避免自动保存覆盖
 
   const showToast = useCallback((message: string, type: 'success' | 'warning' | 'info' = 'info') => {
     setToast({ message, type });
@@ -284,6 +285,8 @@ function ChallengeContent() {
 
   // 自动保存状态到localStorage（当余额或持仓变化时）
   useEffect(() => {
+    // 如果正在重置状态，不保存
+    if (isResettingRef.current) return;
     if (!hasRegistered) return;
     if (typeof window === 'undefined') return;
     
@@ -337,21 +340,25 @@ function ChallengeContent() {
     
     const failBalance = getLevelConfig(currentLevel).failBalance;
     if (currentEquity < failBalance) {
+      // 标记正在重置，避免自动保存覆盖
+      isResettingRef.current = true;
       showToast(`净值低于底线 $${failBalance}，挑战失败！`, 'warning');
       
-      // 强行平仓所有单子
+      // 重置所有状态
       setPositions([]);
-      // 重置到第一关
       setCurrentLevel(1);
-      // 设置余额为第一关初始净值
       const firstLevelConfig = getLevelConfig(1);
       setBalance(firstLevelConfig.initialBalance);
-      // 清除历史记录
       setEquityHistory([]);
-      // 重置挑战状态，需要重新报名
       setHasRegistered(false);
+      
       // 清除localStorage中的挑战状态
       localStorage.removeItem(STORAGE_KEY);
+      
+      // 重置完成后取消标记
+      setTimeout(() => {
+        isResettingRef.current = false;
+      }, 100);
     }
   }, [currentEquity, hasRegistered, currentLevel, showToast, getLevelConfig]);
 
