@@ -20,53 +20,40 @@ export async function GET(request: NextRequest) {
     }
 
     const searchParams = request.nextUrl.searchParams;
-    const level = searchParams.get('level') || '1';
+    const levelParam = searchParams.get('level') || '1';
 
     const supabase = getSupabase();
     
     // 尝试从challenge_user_states表获取
     const { data, error } = await supabase
       .from('challenge_user_states')
-      .select('equity, positions')
+      .select('equity, positions, level')
       .eq('user_id', session.user.id)
-      .eq('level', parseInt(level))
-      .single();
+      .single(); // 不限制level，获取最新的
 
-    if (error || !data) {
-      // 如果表不存在或没有数据，尝试从registrations表获取
-      const { data: regData } = await supabase
-        .from('challenge_registrations')
-        .select('current_level')
-        .eq('user_id', session.user.id)
-        .eq('status', 'active')
-        .single();
-
-      if (regData) {
-        // 获取关卡配置
-        const { data: levelConfig } = await supabase
-          .from('challenge_level_config')
-          .select('initial_balance')
-          .eq('level', regData.current_level)
-          .single();
-
-        return NextResponse.json({
-          equity: levelConfig?.initial_balance || 1000,
-          level: regData.current_level
-        });
-      }
-
-      // 返回默认净值
-      return NextResponse.json({ equity: 1000, level: 1 });
+    if (data && !error) {
+      return NextResponse.json({
+        equity: data.equity,
+        positions: data.positions || [],
+        level: data.level
+      });
     }
 
+    // 如果表没有数据，获取第一关的配置作为默认值
+    const { data: levelConfig } = await supabase
+      .from('challenge_level_config')
+      .select('initial_balance')
+      .eq('level', 1)
+      .single();
+
     return NextResponse.json({
-      equity: data.equity,
-      positions: data.positions || [],
-      level: parseInt(level)
+      equity: levelConfig?.initial_balance || 3000,
+      positions: [],
+      level: 1
     });
   } catch (error) {
     console.error('净值API错误:', error);
-    return NextResponse.json({ equity: 1000, level: 1 });
+    return NextResponse.json({ equity: 3000, level: 1 });
   }
 }
 
