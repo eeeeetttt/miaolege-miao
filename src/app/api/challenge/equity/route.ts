@@ -39,17 +39,12 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    // 如果表没有数据，获取第一关的配置作为默认值
-    const { data: levelConfig } = await supabase
-      .from('challenge_level_config')
-      .select('initial_balance')
-      .eq('level', 1)
-      .single();
-
+    // 如果表没有数据，返回null让前端使用本地状态
     return NextResponse.json({
-      equity: levelConfig?.initial_balance || 3000,
+      equity: null,
       positions: [],
-      level: 1
+      level: 1,
+      hasData: false
     });
   } catch (error) {
     console.error('净值API错误:', error);

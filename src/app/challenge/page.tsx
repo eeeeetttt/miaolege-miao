@@ -178,9 +178,9 @@ function ChallengeContent() {
       const res = await fetch('/api/challenge/equity');
       const data = await res.json();
       
-      // 如果有 equity 数据且 level 为 1（第一关），从数据库加载
-      // 否则不加载，因为可能是旧的或多关卡数据
-      if (data.equity !== null && data.level === 1) {
+      // 只有当数据库有数据(hasData=true)时才加载
+      // 否则保留本地状态
+      if (data.hasData === true && data.equity !== null && data.level === 1) {
         setBalance(data.equity);
         setPositions(data.positions || []);
         setCurrentLevel(1);
@@ -194,10 +194,10 @@ function ChallengeContent() {
           hasRegistered: true
         };
         localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+        console.log('从数据库加载状态成功');
       } else {
-        // 没有数据或不是第一关，不加载
-        // 用户需要重新报名
-        console.log('数据库无有效数据或非第一关，用户需重新报名');
+        // 数据库无数据，保留本地状态
+        console.log('数据库无数据，使用本地状态');
       }
     } catch (e) {
       console.error('从数据库加载状态失败:', e);
@@ -433,7 +433,10 @@ function ChallengeContent() {
       setCanChallenge(false); // 失败后当天不能再次报名
       setIsCompleted(false); // 重置通关状态
       
-      // 清除localStorage中的挑战状态
+      // 设置今天已挑战（这样刷新后也不会再次报名）
+      setTodayChallenged();
+      
+      // 清除localStorage中的挑战状态（但保留challenge_last_date）
       localStorage.removeItem(STORAGE_KEY);
       
       // 重置完成后取消标记
