@@ -217,17 +217,19 @@ function ChallengeContent() {
     };
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
     
-    // 同步到数据库
-    fetch('/api/challenge/equity', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        equity: balance,
-        positions: positions,
-        level: currentLevel
-      })
-    }).catch(err => console.error('同步净值到数据库失败:', err));
-  }, [balance, positions, currentLevel, hasRegistered]);
+    // 只有登录用户才同步到数据库
+    if (session?.user?.id) {
+      fetch('/api/challenge/equity', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          equity: balance,
+          positions: positions,
+          level: currentLevel
+        })
+      }).catch(err => console.error('同步净值到数据库失败:', err));
+    }
+  }, [balance, positions, currentLevel, hasRegistered, session?.user?.id]);
 
   // 使用 ref 来跟踪 equityHistory，避免无限循环
   const equityHistoryRef = useRef(equityHistory);
@@ -852,6 +854,15 @@ function ChallengeContent() {
       <div className={styles.loadingContainer}>
         <div className={styles.loadingSpinner}></div>
         <p>加载中...</p>
+      </div>
+    );
+  }
+
+  // 检查登录状态
+  if (!session) {
+    return (
+      <div className={styles.loadingContainer}>
+        <p>请先登录后再使用K线征途功能</p>
       </div>
     );
   }
