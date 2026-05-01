@@ -321,24 +321,34 @@ function ChallengeContent() {
     return null;
   }, [session]);
 
-  // 检查今天是否已挑战过
+  // 获取北京时间日期字符串
+  const getBeijingDateString = useCallback(() => {
+    const now = new Date();
+    // 北京时间 = UTC + 8
+    const beijingOffset = 8 * 60 * 60 * 1000;
+    const beijingTime = new Date(now.getTime() + (now.getTimezoneOffset() * 60 * 1000) + beijingOffset);
+    return beijingTime.toDateString();
+  }, []);
+
+  // 检查今天是否已挑战过（北京时间）
   const checkDailyLimit = useCallback(() => {
     if (typeof window === 'undefined') return { canChallenge: true, lastDate: null };
     
     const lastChallenge = localStorage.getItem('challenge_last_date');
-    const today = new Date().toDateString();
+    const today = getBeijingDateString();
     
     if (lastChallenge === today) {
       return { canChallenge: false, lastDate: today };
     }
     return { canChallenge: true, lastDate: today };
-  }, []);
+  }, [getBeijingDateString]);
 
-  // 设置今天已挑战
+  // 设置今天已挑战（北京时间）
   const setTodayChallenged = useCallback(() => {
     if (typeof window === 'undefined') return;
-    localStorage.setItem('challenge_last_date', new Date().toDateString());
-  }, []);
+    const today = getBeijingDateString();
+    localStorage.setItem('challenge_last_date', today);
+  }, [getBeijingDateString]);
 
   // 自动保存状态到localStorage（当余额或持仓变化时）
   useEffect(() => {

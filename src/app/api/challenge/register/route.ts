@@ -100,9 +100,9 @@ export async function GET() {
       level: row.level,
       name: row.name,
       description: row.description,
-      targetBalance: row.target_balance,
-      initialBalance: row.initial_balance,
-      failBalance: row.fail_balance,
+      targetBalance: typeof row.target_balance === 'number' ? row.target_balance / 100 : row.target_balance,
+      initialBalance: typeof row.initial_balance === 'number' ? row.initial_balance / 100 : row.initial_balance,
+      failBalance: typeof row.fail_balance === 'number' ? row.fail_balance / 100 : row.fail_balance,
       reward: row.reward,
     })) || [];
 
