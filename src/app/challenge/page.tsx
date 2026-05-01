@@ -154,10 +154,25 @@ function ChallengeContent() {
     }
   }, []);
 
-  // 从数据库加载状态
+  // 从数据库加载状态（只在没有localStorage数据时）
   const loadStateFromDb = useCallback(async () => {
     if (typeof window === 'undefined') return;
     if (!session?.user?.id) return;
+    
+    // 检查是否已有本地数据，如果有则不覆盖
+    const saved = localStorage.getItem(STORAGE_KEY);
+    if (saved) {
+      try {
+        const state = JSON.parse(saved);
+        if (state.hasRegistered && state.balance !== undefined) {
+          // 已有本地有效数据，不从数据库覆盖
+          console.log('已有本地数据，跳过数据库加载');
+          return;
+        }
+      } catch (e) {
+        console.error('解析本地状态失败:', e);
+      }
+    }
     
     try {
       const res = await fetch('/api/challenge/equity');
@@ -713,13 +728,31 @@ function ChallengeContent() {
         }
         // 从配置获取初始净值
         const config = getLevelConfig(1);
-        setBalance(config.initialBalance);
+        const initialBalance = config.initialBalance;
+        
+        // 先清空本地存储
+        localStorage.removeItem(STORAGE_KEY);
+        localStorage.removeItem(EQUITY_HISTORY_KEY);
+        
+        // 设置状态
+        setBalance(initialBalance);
         setPositions([]);
         setCurrentLevel(1);
         setEquityHistory([]);
-        localStorage.removeItem(STORAGE_KEY);
-        localStorage.removeItem(EQUITY_HISTORY_KEY);
-        saveState();
+        
+        // 等待状态更新后，手动保存到数据库（使用正确的初始净值）
+        setTimeout(() => {
+          // 保存到数据库
+          fetch('/api/challenge/equity', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              equity: initialBalance,
+              positions: [],
+              level: 1
+            })
+          }).catch(err => console.error('同步净值到数据库失败:', err));
+        }, 100);
         
         // 如果是付费模式，刷新用户状态以更新星球币余额
         if (registrationMode === 'paid') {
