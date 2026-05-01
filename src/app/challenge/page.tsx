@@ -56,6 +56,7 @@ function ChallengeContent() {
   const [lotSize, setLotSize] = useState(0.1);
   const [selectedPositions, setSelectedPositions] = useState<Set<string>>(new Set());
   const [canChallenge, setCanChallenge] = useState(true); // 每天只能挑战一次
+  const [isCompleted, setIsCompleted] = useState(false); // 第十关通关状态
   const priceRef = useRef<number>(0);
   const positionsRef = useRef<Position[]>([]); // 用于跟踪最新持仓，避免闭包问题
   const isResettingRef = useRef(false); // 标记是否正在重置状态，避免自动保存覆盖
@@ -427,6 +428,8 @@ function ChallengeContent() {
       setBalance(firstLevelConfig.initialBalance);
       setEquityHistory([]);
       setHasRegistered(false);
+      setCanChallenge(false); // 失败后当天不能再次报名
+      setIsCompleted(false); // 重置通关状态
       
       // 清除localStorage中的挑战状态
       localStorage.removeItem(STORAGE_KEY);
@@ -496,7 +499,13 @@ function ChallengeContent() {
           }));
           localStorage.setItem(EQUITY_HISTORY_KEY, JSON.stringify([]));
         } else {
-          showToast(`恭喜通关所有关卡！最终净值 $${newBalance.toFixed(2)}`, 'success');
+          // 第十关通关成功！
+          setIsCompleted(true);
+          setHasRegistered(false);
+          setCanChallenge(false);
+          localStorage.removeItem(STORAGE_KEY);
+          localStorage.removeItem(EQUITY_HISTORY_KEY);
+          showToast(`🎉 恭喜通关所有关卡！最终净值 $${newBalance.toFixed(2)}`, 'success');
         }
       }, 1000);
       return;
@@ -843,6 +852,45 @@ function ChallengeContent() {
       <div className={styles.loadingContainer}>
         <div className={styles.loadingSpinner}></div>
         <p>加载中...</p>
+      </div>
+    );
+  }
+
+  // 第十关通关成功，显示奖杯界面
+  if (isCompleted) {
+    return (
+      <div className={styles.victoryContainer}>
+        <div className={styles.victoryOverlay}></div>
+        <div className={styles.victoryContent}>
+          <div className={styles.trophyIcon}>
+            <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M12 15C15.866 15 19 12.538 19 9.5V4H5V9.5C5 12.538 8.134 15 12 15Z" fill="#FFD700" stroke="#FFA500" strokeWidth="1.5"/>
+              <path d="M5 6H3C2.44772 6 2 6.44772 2 7V8C2 9.65685 3.34315 11 5 11V6Z" fill="#FFD700" stroke="#FFA500" strokeWidth="1.5"/>
+              <path d="M19 6H17C17.5523 6 18 6.44772 18 7V8C18 9.65685 16.6569 11 15 11V6Z" fill="#FFD700" stroke="#FFA500" strokeWidth="1.5"/>
+              <path d="M8 21H16M12 15V11" stroke="#FFA500" strokeWidth="1.5" strokeLinecap="round"/>
+              <path d="M9 18H15" stroke="#FFA500" strokeWidth="1.5" strokeLinecap="round"/>
+            </svg>
+          </div>
+          <h1 className={styles.victoryTitle}>恭喜通关！</h1>
+          <p className={styles.victorySubtitle}>您已成功挑战全部10关</p>
+          <div className={styles.victoryStats}>
+            <div className={styles.victoryStat}>
+              <span className={styles.victoryStatValue}>10</span>
+              <span className={styles.victoryStatLabel}>通关关卡</span>
+            </div>
+            <div className={styles.victoryStat}>
+              <span className={styles.victoryStatValue}>{equityHistory.length > 0 ? Math.round(equityHistory[equityHistory.length - 1]?.equity) : 0}</span>
+              <span className={styles.victoryStatLabel}>最终净值</span>
+            </div>
+          </div>
+          <p className={styles.victoryHint}>明天北京时间00:00可再次免费挑战</p>
+          <button 
+            className={styles.victoryBtn}
+            onClick={() => window.location.reload()}
+          >
+            页面刷新
+          </button>
+        </div>
       </div>
     );
   }
