@@ -444,44 +444,82 @@ function ChallengeContent() {
     if (!hasRegistered || currentEquity <= 0) return;
     
     const cfg = getLevelConfig(currentLevel);
-    // 净值达到目标值
-    if (currentEquity >= cfg.targetBalance) {
-      // 使用 positionsRef 获取最新的持仓状态
+    
+    // 计算平仓后的净值（如果需要平仓的话）
+    const totalProfit = positionsRef.current.reduce((sum, p) => {
+      const { profit } = calculatePositionProfit(p);
+      return sum + profit;
+    }, 0);
+    const equityAfterClose = balance + totalProfit;
+    
+    // 如果净值达到目标值
+    if (equityAfterClose >= cfg.targetBalance) {
+      // 如果有持仓，先全部平仓
       if (positionsRef.current.length > 0) {
-        // 全部平仓
-        const closePrice = goldPrice || priceRef.current; // 使用当前价格
-        const closedPositions = positionsRef.current.map(p => {
+        const closePrice = goldPrice || priceRef.current;
+        const closedProfit = positionsRef.current.reduce((sum, p) => {
           const { profit } = calculatePositionProfit(p, closePrice);
-          return { ...p, closePrice, profit, closedAt: Date.now() };
-        });
+          return sum + profit;
+        }, 0);
         
-        setBalance(b => b + closedPositions.reduce((sum, p) => sum + p.profit, 0));
+        // 计算平仓后的余额和净值
+        const newBalance = balance + closedProfit;
+        const newEquity = newBalance; // 平仓后净值 = 余额
+        
+        // 清空持仓
         setPositions([]);
         positionsRef.current = [];
-        showToast('净值达标！自动平仓所有单子...', 'success');
-        // 保存平仓后的状态
-        localStorage.setItem(STORAGE_KEY, JSON.stringify({
-          balance,
-          positions: [],
-          currentLevel,
-          hasRegistered
-        }));
+        
+        // 立即更新余额
+        setBalance(newBalance);
+        
+        // 同步更新 equityHistory 的最新值
+        setEquityHistory(prev => {
+          if (prev.length > 0) {
+            const updated = [...prev];
+            updated[updated.length - 1] = { ...updated[updated.length - 1], equity: newEquity, balance: newBalance };
+            return updated;
+          }
+          return prev;
+        });
+        
+        showToast(`净值达标！自动平仓所有单子，平仓盈亏 $${closedProfit.toFixed(2)}`, 'success');
+        
+        // 检查平仓后净值是否仍然达标
+        if (newEquity >= cfg.targetBalance) {
+          const nextLevel = currentLevel + 1;
+          const nextCfg = getLevelConfig(nextLevel);
+          
+          if (nextCfg) {
+            setTimeout(() => {
+              setBalance(nextCfg.initialBalance);
+              setEquityHistory([]);
+              setCurrentLevel(nextLevel);
+              showToast(`恭喜通关第${currentLevel}关！自动进入第${nextLevel}关，初始净值 $${nextCfg.initialBalance}`, 'success');
+              localStorage.setItem(STORAGE_KEY, JSON.stringify({
+                balance: nextCfg.initialBalance,
+                positions: [],
+                currentLevel: nextLevel,
+                hasRegistered: true
+              }));
+              localStorage.setItem(EQUITY_HISTORY_KEY, JSON.stringify([]));
+            }, 500);
+          } else {
+            showToast(`恭喜通关所有关卡！最终净值 $${newEquity.toFixed(2)}`, 'success');
+          }
+        }
         return;
       }
       
+      // 没有持仓，直接进入下一关
       const nextLevel = currentLevel + 1;
       const nextCfg = getLevelConfig(nextLevel);
       
-      // 如果有下一关
       if (nextCfg) {
-        // 重置余额为下一关初始净值
         setBalance(nextCfg.initialBalance);
-        // 清空历史记录
         setEquityHistory([]);
-        // 进入下一关
         setCurrentLevel(nextLevel);
         showToast(`恭喜通关第${currentLevel}关！自动进入第${nextLevel}关，初始净值 $${nextCfg.initialBalance}`, 'success');
-        // 保存状态
         localStorage.setItem(STORAGE_KEY, JSON.stringify({
           balance: nextCfg.initialBalance,
           positions: [],
@@ -493,12 +531,20 @@ function ChallengeContent() {
         showToast(`恭喜通关所有关卡！最终净值 $${currentEquity.toFixed(2)}`, 'success');
       }
     }
-  }, [hasRegistered, currentEquity, currentLevel, getLevelConfig, showToast]);
+  }, [hasRegistered, currentEquity, balance, getLevelConfig, showToast, calculatePositionProfit]);
 
+  // 触发通关检查（定时 + 持仓变化时）
   useEffect(() => {
     const timer = setTimeout(checkAndLevelUp, 1000);
     return () => clearTimeout(timer);
   }, [checkAndLevelUp]);
+
+  // 持仓变化时也触发通关检查
+  useEffect(() => {
+    if (positions.length > 0 && hasRegistered) {
+      checkAndLevelUp();
+    }
+  }, [positions.length, hasRegistered, checkAndLevelUp]);
 
   // 开多单（买入，用卖价）
   const handleLong = async () => {
