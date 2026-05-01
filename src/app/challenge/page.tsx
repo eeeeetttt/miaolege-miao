@@ -330,10 +330,11 @@ function ChallengeContent() {
   // 获取北京时间日期字符串
   const getBeijingDateString = useCallback(() => {
     const now = new Date();
-    // 北京时间 = UTC + 8
-    const beijingOffset = 8 * 60 * 60 * 1000;
-    const beijingTime = new Date(now.getTime() + (now.getTimezoneOffset() * 60 * 1000) + beijingOffset);
-    return beijingTime.toDateString();
+    // UTC时间 + 8小时 = 北京时间
+    const beijingTime = new Date(now.getTime() + 8 * 60 * 60 * 1000);
+    const dateStr = beijingTime.toDateString();
+    console.log('北京时间日期:', dateStr, 'UTC时间:', now.toISOString());
+    return dateStr;
   }, []);
 
   // 检查今天是否已挑战过（北京时间）
@@ -342,6 +343,7 @@ function ChallengeContent() {
     
     const lastChallenge = localStorage.getItem('challenge_last_date');
     const today = getBeijingDateString();
+    console.log('日期检查: lastChallenge=', lastChallenge, 'today=', today, 'canChallenge=', lastChallenge !== today);
     
     if (lastChallenge === today) {
       return { canChallenge: false, lastDate: today };
@@ -926,15 +928,20 @@ function ChallengeContent() {
               <>
                 <h3><DollarSign className={styles.cardIcon} />K线征途</h3>
                 <div className={styles.registerArea}>
+                  {!canChallenge && registrationMode === 'free' && (
+                    <div className={styles.dailyLimitNotice}>
+                      今日免费挑战已用完（北京时间24:00刷新）
+                    </div>
+                  )}
                   <p className={styles.registerTitle}>选择参赛模式</p>
                   <div className={styles.modeButtons}>
                     <button 
-                      className={`${styles.modeBtn} ${registrationMode === 'free' ? styles.modeActive : ''}`}
+                      className={`${styles.modeBtn} ${registrationMode === 'free' ? styles.modeActive : ''} ${!canChallenge ? styles.modeDisabled : ''}`}
                       onClick={() => setRegistrationMode('free')}
                     >
                       <Zap className={styles.modeIcon} />
                       <span>免费模式</span>
-                      <small>0星球币</small>
+                      <small>{canChallenge ? '0星球币' : '今日已用完'}</small>
                     </button>
                     <button 
                       className={`${styles.modeBtn} ${registrationMode === 'paid' ? styles.modeActive : ''}`}

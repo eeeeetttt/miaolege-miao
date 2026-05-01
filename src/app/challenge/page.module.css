@@ -684,6 +684,16 @@
   color: #6b7280;
 }
 
+.modeBtn.modeDisabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  border-color: rgba(255, 255, 255, 0.05);
+}
+
+.modeBtn.modeDisabled:hover {
+  background: rgba(255, 255, 255, 0.03);
+}
+
 .modeBtn.modeActive small {
   color: #D4AF37;
 }
