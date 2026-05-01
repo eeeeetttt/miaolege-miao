@@ -123,7 +123,7 @@ function ChallengeContent() {
     return Math.floor(balance / marginPerLot * 100) / 100; // 保留2位小数
   }, [goldAsk, balance]);
 
-  // 从localStorage加载状态（但不恢复报名状态，每次都需要重新报名）
+  // 从localStorage加载状态
   const loadState = useCallback(() => {
     if (typeof window === 'undefined') return;
     
@@ -131,19 +131,12 @@ function ChallengeContent() {
     if (saved) {
       try {
         const state = JSON.parse(saved);
-        // 只恢复余额和持仓，不恢复报名状态
-        // 用户必须点击报名按钮才能开始挑战
-        if (state.balance !== undefined) {
+        if (state.hasRegistered && state.balance !== undefined) {
           setBalance(state.balance);
-        }
-        if (state.positions !== undefined) {
           setPositions(state.positions || []);
-          positionsRef.current = state.positions || []; // 同步更新 ref
+          setCurrentLevel(state.currentLevel || 1);
+          setHasRegistered(state.hasRegistered);
         }
-        if (state.currentLevel !== undefined) {
-          setCurrentLevel(state.currentLevel);
-        }
-        // 注意：hasRegistered 不再从 localStorage 恢复，每次都需要重新报名
       } catch (e) {
         console.error('加载状态失败:', e);
       }
