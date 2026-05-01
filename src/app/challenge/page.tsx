@@ -421,6 +421,7 @@ function ChallengeContent() {
       
       // 重置所有状态
       setPositions([]);
+      positionsRef.current = []; // 同步清空 ref
       setCurrentLevel(1);
       const firstLevelConfig = getLevelConfig(1);
       setBalance(firstLevelConfig.initialBalance);
@@ -446,81 +447,79 @@ function ChallengeContent() {
     // 净值未达标，直接返回
     if (currentEquity < cfg.targetBalance) return;
     
-    // 净值达标！
-    const positions = positionsRef.current; // 使用 ref 获取最新持仓
+    // 净值达标！获取当前持仓（使用ref避免闭包问题）
+    const currentPositions = positionsRef.current;
+    const currentBalance = balance;
+    const currentLev = currentLevel;
     
-    if (positions.length > 0) {
-      // 有持仓，需要先平仓
+    console.log('通关检查：净值=', currentEquity, '目标=', cfg.targetBalance, '持仓数=', currentPositions.length);
+    
+    // 如果有持仓，先全部平仓
+    if (currentPositions.length > 0) {
       const closePrice = goldPrice || priceRef.current;
-      let totalProfit = 0;
       
       // 计算所有持仓的平仓盈亏
-      positions.forEach(p => {
+      let totalProfit = 0;
+      currentPositions.forEach(p => {
         const { profit } = calculatePositionProfit(p, closePrice);
         totalProfit += profit;
+        console.log('平仓单子：', p.type, '开仓价', p.openPrice, '平仓价', closePrice, '盈亏', profit);
       });
       
-      const newBalance = balance + totalProfit;
+      const newBalance = currentBalance + totalProfit;
       
-      console.log('通关检查：有持仓，平仓盈亏=', totalProfit, '新余额=', newBalance, '目标=', cfg.targetBalance);
+      console.log('平仓完成：总盈亏=', totalProfit, '新余额=', newBalance);
       
-      // 平仓：清空持仓
+      // 清空所有状态
       setPositions([]);
       positionsRef.current = [];
-      
-      // 更新余额
       setBalance(newBalance);
+      setEquityHistory([]);
       
       showToast(`净值达标！自动平仓所有单子，平仓盈亏 $${totalProfit.toFixed(2)}`, 'success');
       
-      // 500ms 后检查是否仍达标，然后进入下一关
+      // 延迟1秒后进入下一关
       setTimeout(() => {
-        // 重新获取当前状态
-        const finalBalance = newBalance;
-        const finalCfg = getLevelConfig(currentLevel);
+        const nextLevel = currentLev + 1;
+        const nextCfg = getLevelConfig(nextLevel);
         
-        // 平仓后净值 = 新余额（无持仓）
-        if (finalBalance >= finalCfg.targetBalance) {
-          const nextLevel = currentLevel + 1;
-          const nextCfg = getLevelConfig(nextLevel);
-          
-          if (nextCfg) {
-            setBalance(nextCfg.initialBalance);
-            setEquityHistory([]);
-            setCurrentLevel(nextLevel);
-            showToast(`恭喜通关第${currentLevel}关！自动进入第${nextLevel}关，初始净值 $${nextCfg.initialBalance}`, 'success');
-            localStorage.setItem(STORAGE_KEY, JSON.stringify({
-              balance: nextCfg.initialBalance,
-              positions: [],
-              currentLevel: nextLevel,
-              hasRegistered: true
-            }));
-            localStorage.setItem(EQUITY_HISTORY_KEY, JSON.stringify([]));
-          } else {
-            showToast(`恭喜通关所有关卡！最终净值 $${finalBalance.toFixed(2)}`, 'success');
-          }
+        if (nextCfg) {
+          setBalance(nextCfg.initialBalance);
+          setEquityHistory([]);
+          setCurrentLevel(nextLevel);
+          showToast(`恭喜通关第${currentLev}关！自动进入第${nextLevel}关，初始净值 $${nextCfg.initialBalance}`, 'success');
+          localStorage.setItem(STORAGE_KEY, JSON.stringify({
+            balance: nextCfg.initialBalance,
+            positions: [],
+            currentLevel: nextLevel,
+            hasRegistered: true
+          }));
+          localStorage.setItem(EQUITY_HISTORY_KEY, JSON.stringify([]));
+        } else {
+          showToast(`恭喜通关所有关卡！最终净值 $${newBalance.toFixed(2)}`, 'success');
         }
-      }, 500);
+      }, 1000);
+      return;
+    }
+    
+    // 没有持仓，直接进入下一关
+    const nextLevel = currentLev + 1;
+    const nextCfg = getLevelConfig(nextLevel);
+    
+    if (nextCfg) {
+      setBalance(nextCfg.initialBalance);
+      setEquityHistory([]);
+      setCurrentLevel(nextLevel);
+      showToast(`恭喜通关第${currentLev}关！自动进入第${nextLevel}关，初始净值 $${nextCfg.initialBalance}`, 'success');
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({
+        balance: nextCfg.initialBalance,
+        positions: [],
+        currentLevel: nextLevel,
+        hasRegistered: true
+      }));
+      localStorage.setItem(EQUITY_HISTORY_KEY, JSON.stringify([]));
     } else {
-      // 没有持仓，直接进入下一关
-      const nextLevel = currentLevel + 1;
-      const nextCfg = getLevelConfig(nextLevel);
-      
-      if (nextCfg) {
-        setBalance(nextCfg.initialBalance);
-        setEquityHistory([]);
-        setCurrentLevel(nextLevel);
-        showToast(`恭喜通关第${currentLevel}关！自动进入第${nextLevel}关，初始净值 $${nextCfg.initialBalance}`, 'success');
-        localStorage.setItem(STORAGE_KEY, JSON.stringify({
-          balance: nextCfg.initialBalance,
-          positions: [],
-          currentLevel: nextLevel,
-          hasRegistered: true
-        }));
-        localStorage.setItem(EQUITY_HISTORY_KEY, JSON.stringify([]));
-      } else {
-        showToast(`恭喜通关所有关卡！最终净值 $${currentEquity.toFixed(2)}`, 'success');
-      }
+      showToast(`恭喜通关所有关卡！最终净值 $${currentEquity.toFixed(2)}`, 'success');
     }
   }, [hasRegistered, currentEquity, balance, currentLevel, getLevelConfig, showToast, calculatePositionProfit]);
 
@@ -582,7 +581,11 @@ function ChallengeContent() {
       profit: 0
     };
 
-    setPositions(prev => [...prev, newPosition]);
+    setPositions(prev => {
+      const updated = [...prev, newPosition];
+      positionsRef.current = updated; // 同步更新 ref
+      return updated;
+    });
     showToast(`做多成功，开仓价: $${openPrice.toFixed(2)} (卖价)`, 'success');
     saveState();
   };
@@ -632,7 +635,11 @@ function ChallengeContent() {
       profit: 0
     };
 
-    setPositions(prev => [...prev, newPosition]);
+    setPositions(prev => {
+      const updated = [...prev, newPosition];
+      positionsRef.current = updated; // 同步更新 ref
+      return updated;
+    });
     showToast(`做空成功，开仓价: $${openPrice.toFixed(2)} (买价)`, 'success');
     saveState();
   };
@@ -647,8 +654,12 @@ function ChallengeContent() {
     // 更新余额
     setBalance(prev => prev + profit);
 
-    // 从列表中移除
-    setPositions(prev => prev.filter(p => p.id !== posId));
+    // 从列表中移除，并同步更新 ref
+    setPositions(prev => {
+      const updated = prev.filter(p => p.id !== posId);
+      positionsRef.current = updated; // 同步更新 ref
+      return updated;
+    });
     setSelectedPositions(prev => {
       const newSet = new Set(prev);
       newSet.delete(posId);
@@ -713,8 +724,12 @@ function ChallengeContent() {
     // 更新余额
     setBalance(prev => prev + totalClosedProfit);
 
-    // 移除已平仓的订单
-    setPositions(prev => prev.filter(p => !selectedPositions.has(p.id)));
+    // 移除已平仓的订单，并同步更新 ref
+    setPositions(prev => {
+      const updated = prev.filter(p => !selectedPositions.has(p.id));
+      positionsRef.current = updated; // 同步更新 ref
+      return updated;
+    });
     setSelectedPositions(new Set());
 
     showToast(
