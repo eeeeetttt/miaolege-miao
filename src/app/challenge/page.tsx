@@ -154,7 +154,37 @@ function ChallengeContent() {
     }
   }, []);
 
-  // 保存状态到localStorage
+  // 从数据库加载状态
+  const loadStateFromDb = useCallback(async () => {
+    if (typeof window === 'undefined') return;
+    if (!session?.user?.id) return;
+    
+    try {
+      const res = await fetch('/api/challenge/equity');
+      const data = await res.json();
+      
+      if (data.equity !== null && data.level) {
+        // 从数据库恢复状态
+        setBalance(data.equity);
+        setPositions(data.positions || []);
+        setCurrentLevel(data.level);
+        setHasRegistered(true);
+        
+        // 同步到localStorage
+        const state = {
+          balance: data.equity,
+          positions: data.positions || [],
+          currentLevel: data.level,
+          hasRegistered: true
+        };
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+      }
+    } catch (e) {
+      console.error('从数据库加载状态失败:', e);
+    }
+  }, [session?.user?.id]);
+
+  // 保存状态到localStorage和数据库
   const saveState = useCallback(() => {
     if (typeof window === 'undefined') return;
     if (!hasRegistered) return;
@@ -166,6 +196,17 @@ function ChallengeContent() {
       hasRegistered
     };
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    
+    // 同步到数据库
+    fetch('/api/challenge/equity', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        equity: balance,
+        positions: positions,
+        level: currentLevel
+      })
+    }).catch(err => console.error('同步净值到数据库失败:', err));
   }, [balance, positions, currentLevel, hasRegistered]);
 
   // 使用 ref 来跟踪 equityHistory，避免无限循环
@@ -312,12 +353,14 @@ function ChallengeContent() {
       if (status === 'authenticated') {
         await fetchLevelConfigs();
         await fetchUserStatus();
+        // 登录后从数据库加载状态（覆盖本地数据）
+        await loadStateFromDb();
       }
       setLoading(false);
     };
     
     init();
-  }, [status, loadState, fetchLevelConfigs, fetchUserStatus, checkDailyLimit]);
+  }, [status, loadState, loadStateFromDb, fetchLevelConfigs, fetchUserStatus, checkDailyLimit]);
 
   // 实时价格更新
   useEffect(() => {

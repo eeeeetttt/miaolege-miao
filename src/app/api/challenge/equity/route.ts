@@ -5,8 +5,8 @@ import { createClient } from '@supabase/supabase-js';
 
 // 初始化Supabase客户端
 function getSupabase() {
-  const supabaseUrl = process.env.COZE_SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || '';
-  const supabaseKey = process.env.COZE_SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY || '';
+  const supabaseUrl = process.env.COZE_SPACE_SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+  const supabaseKey = process.env.COZE_SPACE_SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY || '';
   return createClient(supabaseUrl, supabaseKey);
 }
 
@@ -84,7 +84,7 @@ export async function POST(request: NextRequest) {
 
     const supabase = getSupabase();
     
-    // 尝试更新或插入
+    // 尝试更新或插入（使用 upsert 根据 user_id 和 level）
     const { data, error } = await supabase
       .from('challenge_user_states')
       .upsert({
@@ -93,6 +93,8 @@ export async function POST(request: NextRequest) {
         equity: equity,
         positions: positions || [],
         updated_at: new Date().toISOString()
+      }, {
+        onConflict: 'user_id,level'
       })
       .select()
       .single();
