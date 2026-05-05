@@ -97,7 +97,6 @@ export default function AdminDashboardPage() {
   const [adminPassword, setAdminPassword] = useState('');
   
   const [stats, setStats] = useState<Stats | null>(null);
-  const statsFetched = useRef(false); // 防止重复获取
   const [config, setConfig] = useState<SystemConfig>({
     planet_price_7days: 0,
     planet_price_1year: 1999,
@@ -174,75 +173,49 @@ export default function AdminDashboardPage() {
     nav_show_download: true,
   });
 
-  // fetchStats 需要在 useEffect 之前定义
+  // fetchStats
   const fetchStats = async () => {
-    // 防止重复获取
-    if (stats !== null) return;
-    
     try {
-      console.log('[Admin] Fetching stats...');
-      setLoading(true);
-      const res = await fetch('/api/admin/stats', { 
-        signal: AbortSignal.timeout(10000)
-      });
-      console.log('[Admin] Stats response status:', res.status);
+      const res = await fetch('/api/admin/stats');
       const data = await res.json();
-      console.log('[Admin] Stats data:', JSON.stringify(data).substring(0, 500));
       
-      if (res.ok) {
-        console.log('[Admin] Setting stats:', data.stats);
+      if (res.ok && data.stats) {
         setStats(data.stats);
         if (data.config) {
           setConfig(data.config);
         }
-        setLoading(false);
-        console.log('[Admin] Loading set to false');
       } else {
-        console.error('[Admin] Stats fetch failed:', data);
         setError(data.error || '获取数据失败');
-        setLoading(false);
       }
-    } catch (err: any) {
-      console.error('[Admin] Fetch stats error:', err);
-      if (err.name === 'TimeoutError') {
-        setError('请求超时，请刷新重试');
-      }
+    } catch (err) {
+      console.error('Fetch stats error:', err);
+      setError('请求失败');
+    } finally {
       setLoading(false);
     }
   };
 
   // 初始化 effect - 只在组件挂载时执行一次
   useEffect(() => {
-    console.log('[Admin] Session status:', status, 'role:', session?.user?.role, 'email:', session?.user?.email);
-    
     if (status === 'loading') return;
     
     if (status === 'authenticated') {
       const userRole = session?.user?.role;
       const userEmail = session?.user?.email;
       
-      console.log('[Admin] Authenticated, checking role:', userRole, userEmail);
-      
       if (userRole === 'admin' || userEmail === '497209390@qq.com') {
-        console.log('[Admin] Admin access granted');
         setIsAdmin(true);
         setCheckingAdmin(false);
         setShowInitForm(false);
-        // 使用 ref 防止重复获取
-        if (stats === null && !statsFetched.current) {
-          statsFetched.current = true;
-          fetchStats();
-        }
+        // 调用 fetchStats
+        fetchStats();
       } else {
-        console.log('[Admin] Not admin, showing init form');
         setShowInitForm(true);
         setCheckingAdmin(false);
         setLoading(false);
       }
     } else if (status === 'unauthenticated') {
-      console.log('[Admin] Unauthenticated, redirecting to login');
       router.push('/login');
-      setLoading(false);
     }
   }, [status]);
 
