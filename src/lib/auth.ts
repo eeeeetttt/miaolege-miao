@@ -97,7 +97,38 @@ export const authOptions = {
     async session({ session, token }: any) {
       if (session.user) {
         session.user.id = token.id as string;
-        session.user.role = token.role as 'user' | 'admin';
+        
+        // 实时从 Supabase 获取最新的用户角色
+        if (token.id) {
+          try {
+            const supabaseUrl = process.env.COZE_SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
+            const supabaseKey = process.env.COZE_SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+            if (supabaseUrl && supabaseKey) {
+              const { createClient } = await import('@supabase/supabase-js');
+              const supabase = createClient(supabaseUrl, supabaseKey, {
+                auth: { autoRefreshToken: false, persistSession: false }
+              });
+              
+              const { data: userData } = await supabase
+                .from('users')
+                .select('role')
+                .eq('user_id', token.id)
+                .single();
+              
+              if (userData?.role) {
+                session.user.role = userData.role as 'user' | 'admin';
+              } else {
+                session.user.role = token.role as 'user' | 'admin';
+              }
+            } else {
+              session.user.role = token.role as 'user' | 'admin';
+            }
+          } catch (error) {
+            console.error('[Auth] Session role refresh error:', error);
+            session.user.role = token.role as 'user' | 'admin';
+          }
+        }
       }
       return session;
     },
