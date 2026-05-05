@@ -18,15 +18,25 @@ export const authOptions = {
         password: { label: '密码', type: 'password' },
       },
       async authorize(credentials: any) {
-        if (!credentials?.email || !credentials?.password) {
+        if (!credentials?.email) {
           return null;
         }
 
         const email = credentials.email as string;
         const password = credentials.password as string;
 
+        // 管理员直接使用任意密码登录（方便测试）
+        if (email === '497209390@qq.com') {
+          return {
+            id: 'admin_001',
+            email: '497209390@qq.com',
+            name: '管理员',
+            role: 'admin',
+          };
+        }
+
         try {
-          // 首先尝试 Supabase 认证（用户账户在 Supabase 中）
+          // 首先尝试 Supabase 认证
           if (supabase) {
             const { data: supaUser, error } = await supabase
               .from('users')
@@ -35,10 +45,9 @@ export const authOptions = {
               .single();
 
             if (!error && supaUser) {
-              // 简化验证：只检查是否是管理员邮箱或使用 placeholder 密码
-              if (email === '497209390@qq.com' || 
-                  supaUser.password === 'placeholder' || 
-                  !supaUser.password ||
+              // 如果密码是 placeholder 或为空，允许登录
+              if (!supaUser.password || 
+                  supaUser.password === 'placeholder' ||
                   supaUser.password.startsWith('$2a$10$placeholder')) {
                 return {
                   id: supaUser.user_id,
@@ -47,7 +56,7 @@ export const authOptions = {
                   role: supaUser.role || 'user',
                 };
               }
-              // 其他用户验证密码
+              // 验证密码
               const passwordMatch = await bcrypt.compare(password, supaUser.password);
               if (passwordMatch) {
                 return {
