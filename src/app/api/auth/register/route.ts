@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import bcrypt from 'bcryptjs';
-import { getSupabaseClient } from '@/storage/database/supabase-client';
+import { db } from '@/lib/db';
+import { users } from '@/lib/schema';
+import { eq } from 'drizzle-orm';
 
 export async function POST(request: NextRequest) {
   try {
@@ -21,19 +23,14 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: '密码长度至少6位' }, { status: 400 });
     }
 
-    const supabase = getSupabaseClient();
-    if (!supabase) {
-      return NextResponse.json({ error: '数据库连接失败' }, { status: 500 });
-    }
-
     // 检查邮箱是否已注册
-    const { data: existingUser } = await supabase
-      .from('users')
-      .select('user_id')
-      .eq('email', email)
+    const existingUser = await db
+      .select({ userId: users.userId })
+      .from(users)
+      .where(eq(users.email, email))
       .limit(1);
 
-    if (existingUser && existingUser.length > 0) {
+    if (existingUser.length > 0) {
       return NextResponse.json({ error: '该邮箱已被注册' }, { status: 400 });
     }
 
@@ -44,21 +41,14 @@ export async function POST(request: NextRequest) {
     const userId = `user_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
 
     // 创建用户
-    const { error: insertError } = await supabase
-      .from('users')
-      .insert({
-        user_id: userId,
-        email: email,
-        password: hashedPassword,
-        name: name || email.split('@')[0],
-        role: 'user',
-        coin_balance: 100, // 新用户赠送100星球币
-      });
-
-    if (insertError) {
-      console.error('注册失败:', insertError);
-      return NextResponse.json({ error: '注册失败' }, { status: 500 });
-    }
+    await db.insert(users).values({
+      userId: userId,
+      email: email,
+      password: hashedPassword,
+      name: name || email.split('@')[0],
+      role: 'user',
+      coinBalance: 100, // 新用户赠送100星球币
+    });
 
     return NextResponse.json({ 
       success: true, 
