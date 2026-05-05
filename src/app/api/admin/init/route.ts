@@ -1,9 +1,24 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
-import { db } from '@/lib/db';
-import { users } from '@/lib/schema';
-import { eq } from 'drizzle-orm';
+import { createClient } from '@supabase/supabase-js';
+
+// 获取 Supabase 客户端
+const getSupabase = () => {
+  const supabaseUrl = process.env.COZE_SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabaseKey = process.env.COZE_SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY;
+  
+  if (!supabaseUrl || !supabaseKey) {
+    throw new Error('Supabase configuration missing');
+  }
+  
+  return createClient(supabaseUrl, supabaseKey, {
+    auth: {
+      autoRefreshToken: false,
+      persistSession: false
+    }
+  });
+};
 
 /**
  * 初始化管理员
@@ -27,11 +42,17 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: '管理员密码错误' }, { status: 403 });
     }
 
-    // 将当前用户设置为管理员
-    await db
-      .update(users)
-      .set({ role: 'admin' })
-      .where(eq(users.userId, session.user.id));
+    // 使用 Supabase 更新用户角色
+    const supabase = getSupabase();
+    const { error } = await supabase
+      .from('users')
+      .update({ role: 'admin' })
+      .eq('user_id', session.user.id);
+
+    if (error) {
+      console.error('Supabase update error:', error);
+      return NextResponse.json({ error: '更新失败' }, { status: 500 });
+    }
 
     return NextResponse.json({ 
       success: true, 
@@ -54,13 +75,15 @@ export async function GET() {
       return NextResponse.json({ isAdmin: false });
     }
 
-    const [userData] = await db
-      .select({ role: users.role })
-      .from(users)
-      .where(eq(users.userId, session.user.id))
-      .limit(1);
+    // 使用 Supabase 查询用户角色
+    const supabase = getSupabase();
+    const { data: userData, error } = await supabase
+      .from('users')
+      .select('role')
+      .eq('user_id', session.user.id)
+      .single();
 
-    if (!userData) {
+    if (error || !userData) {
       return NextResponse.json({ isAdmin: false });
     }
 

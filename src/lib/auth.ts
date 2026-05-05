@@ -1,9 +1,7 @@
 import NextAuth from 'next-auth';
 import CredentialsProvider from 'next-auth/providers/credentials';
 import bcrypt from 'bcryptjs';
-import { db } from '@/lib/db';
-import { users } from '@/lib/schema';
-import { eq } from 'drizzle-orm';
+import { createClient } from '@supabase/supabase-js';
 
 // NextAuth v4 配置
 export const authOptions = {
@@ -23,34 +21,43 @@ export const authOptions = {
         const password = credentials.password as string;
 
         try {
-          const userData = await db
-            .select({ 
-              userId: users.userId, 
-              email: users.email, 
-              password: users.password, 
-              name: users.name,
-              role: users.role,
-            })
-            .from(users)
-            .where(eq(users.email, email))
-            .limit(1);
+          // 使用 Supabase 查询用户
+          const supabaseUrl = process.env.COZE_SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
+          const supabaseKey = process.env.COZE_SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY;
+          
+          if (!supabaseUrl || !supabaseKey) {
+            console.error('Supabase configuration missing');
+            return null;
+          }
+          
+          const supabase = createClient(supabaseUrl, supabaseKey, {
+            auth: {
+              autoRefreshToken: false,
+              persistSession: false
+            }
+          });
 
-          if (userData.length === 0) {
+          const { data: userData, error } = await supabase
+            .from('users')
+            .select('user_id, email, password, name, role')
+            .eq('email', email)
+            .single();
+
+          if (error || !userData) {
             return null;
           }
 
-          const user = userData[0];
-          const passwordMatch = await bcrypt.compare(password, user.password || '');
+          const passwordMatch = await bcrypt.compare(password, userData.password || '');
 
           if (!passwordMatch) {
             return null;
           }
 
           return {
-            id: user.userId,
-            email: user.email,
-            name: user.name,
-            role: user.role || 'user',
+            id: userData.user_id,
+            email: userData.email,
+            name: userData.name,
+            role: userData.role || 'user',
           };
         } catch (error) {
           console.error('Auth error:', error);
