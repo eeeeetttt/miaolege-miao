@@ -187,13 +187,16 @@ export default function AdminDashboardPage() {
       });
       console.log('[Admin] Stats response status:', res.status);
       const data = await res.json();
+      console.log('[Admin] Stats data:', JSON.stringify(data).substring(0, 500));
       
       if (res.ok) {
+        console.log('[Admin] Setting stats:', data.stats);
         setStats(data.stats);
         if (data.config) {
           setConfig(data.config);
         }
         setLoading(false);
+        console.log('[Admin] Loading set to false');
       } else {
         console.error('[Admin] Stats fetch failed:', data);
         setError(data.error || '获取数据失败');
@@ -210,13 +213,18 @@ export default function AdminDashboardPage() {
 
   // 初始化 effect - 只在组件挂载时执行一次
   useEffect(() => {
+    console.log('[Admin] Session status:', status, 'role:', session?.user?.role, 'email:', session?.user?.email);
+    
     if (status === 'loading') return;
     
     if (status === 'authenticated') {
       const userRole = session?.user?.role;
       const userEmail = session?.user?.email;
       
+      console.log('[Admin] Authenticated, checking role:', userRole, userEmail);
+      
       if (userRole === 'admin' || userEmail === '497209390@qq.com') {
+        console.log('[Admin] Admin access granted');
         setIsAdmin(true);
         setCheckingAdmin(false);
         setShowInitForm(false);
@@ -226,11 +234,13 @@ export default function AdminDashboardPage() {
           fetchStats();
         }
       } else {
+        console.log('[Admin] Not admin, showing init form');
         setShowInitForm(true);
         setCheckingAdmin(false);
         setLoading(false);
       }
     } else if (status === 'unauthenticated') {
+      console.log('[Admin] Unauthenticated, redirecting to login');
       router.push('/login');
       setLoading(false);
     }
