@@ -53,6 +53,8 @@ export const authOptions = {
             return null;
           }
 
+          console.log('[Auth] authorize - userData:', userData);
+
           return {
             id: userData.user_id,
             email: userData.email,
@@ -93,9 +95,38 @@ export const authOptions = {
       return token;
     },
     async session({ session, token }: any) {
+      // 每次请求时从 Supabase 获取最新的用户信息（包括角色）
+      if (token.id) {
+        try {
+          const supabaseUrl = process.env.COZE_SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
+          const supabaseKey = process.env.COZE_SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY;
+          
+          if (supabaseUrl && supabaseKey) {
+            const supabase = createClient(supabaseUrl, supabaseKey, {
+              auth: { autoRefreshToken: false, persistSession: false }
+            });
+            
+            const { data: userData } = await supabase
+              .from('users')
+              .select('user_id, role')
+              .eq('user_id', token.id)
+              .single();
+            
+            if (userData) {
+              session.user.role = userData.role || 'user';
+            }
+          }
+        } catch (error) {
+          console.error('[Auth] Session refresh error:', error);
+        }
+      }
+      
       if (session.user) {
         session.user.id = token.id as string;
-        session.user.role = token.role as 'user' | 'admin';
+        // 如果 Supabase 查询失败，使用 token 中的角色
+        if (!session.user.role) {
+          session.user.role = token.role as 'user' | 'admin';
+        }
       }
       return session;
     },
