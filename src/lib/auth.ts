@@ -25,16 +25,17 @@ export const authOptions = {
         // 管理员直接使用任意密码登录
         if (email === '497209390@qq.com') {
           return {
-            id: 'admin_001',
+            id: 'admin_497209390',
             email: '497209390@qq.com',
             name: '管理员',
+            role: 'admin',
           };
         }
 
         try {
           // 使用 MySQL 查询用户
-          const result = await db.query.users.findFirst({
-            where: eq(users.email, email)
+          const result = await db.query.userAccounts.findFirst({
+            where: eq(userAccounts.email, email)
           });
 
           if (result) {
@@ -45,7 +46,8 @@ export const authOptions = {
               return {
                 id: result.userId,
                 email: result.email,
-                name: result.name,
+                name: result.name || '用户',
+                role: result.role,
               };
             }
             // 验证密码
@@ -54,7 +56,8 @@ export const authOptions = {
               return {
                 id: result.userId,
                 email: result.email,
-                name: result.name,
+                name: result.name || '用户',
+                role: result.role,
               };
             }
           }
