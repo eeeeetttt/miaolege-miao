@@ -32,7 +32,7 @@ interface NavConfig {
 export function Header() {
   const pathname = usePathname();
   const router = useRouter();
-  const { data: session } = useSession();
+  const { data: session, update: updateSession } = useSession();
   const [navConfig, setNavConfig] = useState<NavConfig>({
     nav_show_challenge_hall: true,
     nav_show_kline_challenge: true,
@@ -45,6 +45,14 @@ export function Header() {
   });
   const [configLoading, setConfigLoading] = useState(true);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  // 强制刷新session以获取最新角色
+  useEffect(() => {
+    if (session?.user?.id) {
+      // 强制更新session以触发服务器端回调重新获取角色
+      updateSession({});
+    }
+  }, [session?.user?.id, updateSession]);
 
   // 导航处理函数
   const navigate = useCallback((href: string) => {
