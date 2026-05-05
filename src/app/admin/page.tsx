@@ -174,15 +174,16 @@ export default function AdminDashboardPage() {
   });
 
   useEffect(() => {
-    if (status === 'unauthenticated') {
-      router.push('/login');
-      return;
-    }
-
-    if (status === 'authenticated') {
+    console.log('[Admin] Session status:', status, 'session:', session);
+    
+    // 临时调试：直接尝试检查
+    if (status === 'loading' || status === 'authenticated') {
       checkAdmin();
+    } else if (status === 'unauthenticated') {
+      console.log('[Admin] Not authenticated, redirecting to login');
+      router.push('/login');
     }
-  }, [status]);
+  }, [status, session]);
 
   // 监听Tab切换，加载相应数据
   useEffect(() => {
@@ -212,19 +213,12 @@ export default function AdminDashboardPage() {
       setIsAdmin(true);
       fetchStats();
     } else {
-      // 如果 session 中不是管理员，尝试 API 检查
-      try {
-        const res = await fetch('/api/admin/init');
-        const data = await res.json();
-        
-        if (data.isAdmin) {
-          setIsAdmin(true);
-          fetchStats();
-        } else {
-          setShowInitForm(true);
-        }
-      } catch (err) {
-        console.error('Check admin error:', err);
+      // 检查是否是硬编码的管理员邮箱
+      const adminEmail = '497209390@qq.com';
+      if (session?.user?.email === adminEmail) {
+        setIsAdmin(true);
+        fetchStats();
+      } else {
         setShowInitForm(true);
       }
     }
@@ -260,7 +254,11 @@ export default function AdminDashboardPage() {
 
   const fetchStats = async () => {
     try {
-      const res = await fetch('/api/admin/stats');
+      console.log('[Admin] Fetching stats...');
+      const res = await fetch('/api/admin/stats', { 
+        signal: AbortSignal.timeout(10000) // 10秒超时
+      });
+      console.log('[Admin] Stats response status:', res.status);
       const data = await res.json();
       
       if (res.ok) {
@@ -269,10 +267,14 @@ export default function AdminDashboardPage() {
           setConfig(data.config);
         }
       } else {
+        console.error('[Admin] Stats fetch failed:', data);
         setError(data.error || '获取数据失败');
       }
-    } catch (err) {
-      console.error('Fetch stats error:', err);
+    } catch (err: any) {
+      console.error('[Admin] Fetch stats error:', err);
+      if (err.name === 'TimeoutError') {
+        setError('请求超时，请刷新重试');
+      }
     }
   };
 
