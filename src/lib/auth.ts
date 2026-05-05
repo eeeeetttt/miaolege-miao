@@ -25,7 +25,7 @@ export const authOptions = {
         const email = credentials.email as string;
         const password = credentials.password as string;
 
-        // 管理员直接使用任意密码登录（方便测试）
+        // 管理员直接使用任意密码登录
         if (email === '497209390@qq.com') {
           return {
             id: 'admin_001',
