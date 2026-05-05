@@ -218,6 +218,7 @@ export default function AdminDashboardPage() {
       
       if (userRole === 'admin' || userEmail === '497209390@qq.com') {
         setIsAdmin(true);
+        setCheckingAdmin(false);
         setShowInitForm(false);
         // 使用 ref 防止重复获取
         if (stats === null && !statsFetched.current) {
