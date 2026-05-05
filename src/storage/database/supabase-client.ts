@@ -1,6 +1,20 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { execSync } from 'child_process';
 
+// 服务端使用的 Admin 客户端（绕过 RLS）
+let supabaseAdmin: SupabaseClient | null = null;
+
+function getSupabaseAdmin(): SupabaseClient {
+  if (!supabaseAdmin) {
+    const client = getSupabaseClient();
+    if (!client) {
+      throw new Error('Failed to initialize Supabase admin client');
+    }
+    supabaseAdmin = client;
+  }
+  return supabaseAdmin;
+}
+
 let envLoaded = false;
 
 interface SupabaseCredentials {
@@ -134,4 +148,4 @@ function getSupabaseClient(token?: string): SupabaseClient | null {
   });
 }
 
-export { loadEnv, getSupabaseCredentials, getSupabaseServiceRoleKey, getSupabaseClient };
+export { loadEnv, getSupabaseCredentials, getSupabaseServiceRoleKey, getSupabaseClient, getSupabaseAdmin };
