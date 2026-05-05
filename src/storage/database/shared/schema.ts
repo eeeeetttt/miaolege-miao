@@ -1,7 +1,25 @@
 import { pgTable, serial, timestamp, index, varchar, numeric, pgPolicy, integer, jsonb, unique } from "drizzle-orm/pg-core"
 import { sql } from "drizzle-orm"
 
-
+// Users Table (Supabase/PostgreSQL)
+export const supabaseUsers = pgTable("users", {
+  userId: varchar("user_id", { length: 255 }).primaryKey(),
+  email: varchar("email", { length: 255 }).unique(),
+  password: varchar("password", { length: 255 }),
+  name: varchar("name", { length: 255 }),
+  avatar: varchar("avatar", { length: 500 }),
+  coinBalance: integer("coin_balance").default(0),
+  role: varchar("role", { length: 20 }).default('user'),
+  nameUpdatedAt: timestamp("name_updated_at", { mode: 'string' }),
+  createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true, mode: 'string' }),
+}, (table) => [
+  index("idx_users_email").using("btree", table.email.asc()),
+  index("idx_users_name").using("btree", table.name.asc()),
+  pgPolicy("users_允许公开读取", { as: "permissive", for: "select", to: ["public"] }),
+  pgPolicy("users_允许公开插入", { as: "permissive", for: "insert", to: ["public"] }),
+  pgPolicy("users_允许公开更新", { as: "permissive", for: "update", to: ["public"] }),
+]);
 
 export const healthCheck = pgTable("health_check", {
 	id: serial().notNull(),
