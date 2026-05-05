@@ -1,8 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import bcrypt from 'bcryptjs';
-import { db } from '@/lib/db';
-import { users } from '@/lib/schema';
-import { eq } from 'drizzle-orm';
+import { getSupabaseClient } from '@/storage/database/supabase-client';
 
 export async function POST(request: NextRequest) {
   try {
@@ -23,14 +21,19 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: '密码长度至少6位' }, { status: 400 });
     }
 
+    const supabase = getSupabaseClient();
+    if (!supabase) {
+      return NextResponse.json({ error: '数据库连接不可用' }, { status: 500 });
+    }
+
     // 检查邮箱是否已注册
-    const existingUser = await db
-      .select({ userId: users.userId })
-      .from(users)
-      .where(eq(users.email, email))
+    const { data: existingUsers } = await supabase
+      .from('users')
+      .select('user_id')
+      .eq('email', email)
       .limit(1);
 
-    if (existingUser.length > 0) {
+    if (existingUsers && existingUsers.length > 0) {
       return NextResponse.json({ error: '该邮箱已被注册' }, { status: 400 });
     }
 
@@ -39,24 +42,33 @@ export async function POST(request: NextRequest) {
 
     // 生成用户ID
     const userId = `user_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+    const userName = name || email.split('@')[0];
 
     // 创建用户
-    await db.insert(users).values({
-      userId: userId,
-      email: email,
-      password: hashedPassword,
-      name: name || email.split('@')[0],
-      role: 'user',
-      coinBalance: 100, // 新用户赠送100星球币
-    });
+    const { error } = await supabase
+      .from('users')
+      .insert({
+        user_id: userId,
+        email: email,
+        password: hashedPassword,
+        name: userName,
+        role: 'user',
+        coin_balance: 100,
+      });
+
+    if (error) {
+      console.error('Supabase 注册错误:', error);
+      return NextResponse.json({ error: '注册失败', details: error.message }, { status: 500 });
+    }
 
     return NextResponse.json({ 
       success: true, 
       message: '注册成功',
       userId: userId,
     });
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('注册错误:', error);
-    return NextResponse.json({ error: '注册失败' }, { status: 500 });
+    const message = error instanceof Error ? error.message : '注册失败';
+    return NextResponse.json({ error: '注册失败', details: message }, { status: 500 });
   }
 }
