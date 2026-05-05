@@ -206,6 +206,11 @@ export function Header() {
                       </DropdownMenuItem>
                     </>
                   )}
+                  {/* Debug: 显示角色 */}
+                  <DropdownMenuSeparator />
+                  <DropdownMenuLabel className="text-xs text-muted-foreground">
+                    角色: {session.user?.role || '无'}
+                  </DropdownMenuLabel>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem 
                     className="cursor-pointer text-red-600 focus:text-red-600"
