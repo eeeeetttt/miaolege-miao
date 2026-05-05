@@ -175,8 +175,12 @@ export default function AdminDashboardPage() {
 
   // fetchStats 需要在 useEffect 之前定义
   const fetchStats = async () => {
+    // 防止重复获取
+    if (stats !== null) return;
+    
     try {
       console.log('[Admin] Fetching stats...');
+      setLoading(true);
       const res = await fetch('/api/admin/stats', { 
         signal: AbortSignal.timeout(10000)
       });
@@ -188,9 +192,11 @@ export default function AdminDashboardPage() {
         if (data.config) {
           setConfig(data.config);
         }
+        setLoading(false);
       } else {
         console.error('[Admin] Stats fetch failed:', data);
         setError(data.error || '获取数据失败');
+        setLoading(false);
       }
     } catch (err: any) {
       console.error('[Admin] Fetch stats error:', err);
@@ -201,7 +207,7 @@ export default function AdminDashboardPage() {
     }
   };
 
-  // 加载状态和Tab切换的 effect
+  // 初始化 effect - 只在组件挂载时执行一次
   useEffect(() => {
     if (status === 'loading') return;
     
@@ -212,16 +218,20 @@ export default function AdminDashboardPage() {
       if (userRole === 'admin' || userEmail === '497209390@qq.com') {
         setIsAdmin(true);
         setShowInitForm(false);
-        fetchStats();
+        // 只获取一次 stats
+        if (stats === null) {
+          fetchStats();
+        }
       } else {
         setShowInitForm(true);
+        setCheckingAdmin(false);
+        setLoading(false);
       }
-      setCheckingAdmin(false);
-      setLoading(false);
     } else if (status === 'unauthenticated') {
       router.push('/login');
+      setLoading(false);
     }
-  }, [status, session?.user]);
+  }, [status]); // 只依赖 status，不依赖 session
 
   // 监听Tab切换，加载相应数据
   useEffect(() => {
