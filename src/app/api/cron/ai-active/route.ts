@@ -126,7 +126,7 @@ async function triggerAIActiveReply(supabase: any, role: any, apiKey: string) {
       .insert({
         user_id: `ai_${role.id}`,
         user_name: role.name,
-        user_avatar: role.avatar_url || null,
+        user_avatar: role.avatarUrl || null,
         content: content,
         is_system: 0,
         is_premium: 1,

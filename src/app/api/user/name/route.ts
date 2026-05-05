@@ -36,12 +36,12 @@ export async function POST(request: NextRequest) {
     }
 
     // 检查是否一年内修改过
-    if (user.nameUpdatedAt) {
+    if (user.updatedAt) {
       const oneYearAgo = new Date();
       oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
       
-      if (new Date(user.nameUpdatedAt) > oneYearAgo) {
-        const nextUpdateDate = new Date(user.nameUpdatedAt);
+      if (new Date(user.updatedAt) > oneYearAgo) {
+        const nextUpdateDate = new Date(user.updatedAt);
         nextUpdateDate.setFullYear(nextUpdateDate.getFullYear() + 1);
         return NextResponse.json({ 
           error: `一年只能修改一次昵称，下次可修改时间：${nextUpdateDate.toLocaleDateString()}` 
@@ -54,8 +54,7 @@ export async function POST(request: NextRequest) {
       .update(users)
       .set({ 
         name: name.trim(), 
-        nameUpdatedAt: new Date(),
-        updatedAt: new Date() 
+        updatedAt: new Date()
       })
       .where(eq(users.userId, session.user.id));
 

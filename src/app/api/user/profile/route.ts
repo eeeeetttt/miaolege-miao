@@ -90,7 +90,7 @@ export async function GET(request: NextRequest) {
         userId: user.userId,
         name: user.name,
         email: user.email,
-        avatar: user.avatar,
+        avatar: user.avatarUrl,
         coinBalance,
         createdAt: user.createdAt,
         medals,

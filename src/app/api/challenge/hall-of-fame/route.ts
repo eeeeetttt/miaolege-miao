@@ -40,7 +40,7 @@ export async function GET(request: NextRequest) {
         id: record.id,
         userId: record.userId,
         displayName: record.isAnonymous ? '匿名用户' : (record.displayName || user?.name || '匿名用户'),
-        avatar: record.isAnonymous ? null : (user?.avatar || null),
+        avatar: record.isAnonymous ? null : (user?.avatarUrl || null),
         completedAt: record.completedAt,
         totalDuration: record.totalDuration,
         formattedDuration: formatDuration(record.totalDuration || 0),

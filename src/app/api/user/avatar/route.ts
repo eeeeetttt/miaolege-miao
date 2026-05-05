@@ -37,7 +37,7 @@ export async function POST(request: NextRequest) {
     await db
       .update(users)
       .set({ 
-        avatar: avatar, 
+        avatarUrl: avatar, 
         updatedAt: new Date() 
       })
       .where(eq(users.userId, session.user.id));

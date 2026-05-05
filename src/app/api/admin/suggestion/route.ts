@@ -58,7 +58,7 @@ export async function GET(request: NextRequest) {
     if (userIds.length > 0) {
       for (const uid of userIds) {
         const [user] = await db
-          .select({ userId: users.userId, name: users.name, email: users.email, avatar: users.avatar })
+          .select({ userId: users.userId, name: users.name, email: users.email, avatar: users.avatarUrl })
           .from(users)
           .where(eq(users.userId, uid));
         if (user) {

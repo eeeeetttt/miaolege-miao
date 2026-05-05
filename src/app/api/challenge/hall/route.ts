@@ -67,7 +67,7 @@ export async function GET() {
           .select({ 
             userId: users.userId, 
             name: users.name,
-            avatar: users.avatar 
+            avatar: users.avatarUrl 
           })
           .from(users)
           .where(inArray(users.userId, userIds));
@@ -214,7 +214,7 @@ export async function GET() {
           .select({
             userId: users.userId,
             name: users.name,
-            avatar: users.avatar,
+            avatar: users.avatarUrl,
           })
           .from(users)
           .where(inArray(users.userId, completedUserIds));

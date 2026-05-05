@@ -71,7 +71,7 @@ export async function GET(request: NextRequest) {
       // 从MySQL获取用户信息（包含coinBalance）
       for (const uid of userIds) {
         const [user] = await db
-          .select({ name: users.name, avatar: users.avatar, coinBalance: users.coinBalance })
+          .select({ name: users.name, avatar: users.avatarUrl, coinBalance: users.coinBalance })
           .from(users)
           .where(eq(users.userId, uid))
           .limit(1);
@@ -80,7 +80,7 @@ export async function GET(request: NextRequest) {
           userInfoMap.set(uid, {
             name: user.name || '未知用户',
             avatar: user.avatar || null,
-            coinBalance: user.coinBalance || 0,
+            coinBalance: Number(user.coinBalance) || 0,
           });
         }
       }

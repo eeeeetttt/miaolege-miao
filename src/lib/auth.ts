@@ -1,4 +1,4 @@
-import NextAuth from 'next-auth';
+import NextAuth, { User } from 'next-auth';
 import CredentialsProvider from 'next-auth/providers/credentials';
 import bcrypt from 'bcryptjs';
 import { db } from '@/lib/db';
@@ -14,7 +14,7 @@ export const authOptions = {
         email: { label: '邮箱', type: 'email' },
         password: { label: '密码', type: 'password' },
       },
-      async authorize(credentials: any) {
+      async authorize(credentials: any): Promise<Omit<User, 'id'> & { id: string; role?: string } | null> {
         if (!credentials?.email) {
           return null;
         }
@@ -28,7 +28,6 @@ export const authOptions = {
             id: 'admin_001',
             email: '497209390@qq.com',
             name: '管理员',
-            role: 'admin',
           };
         }
 
@@ -40,24 +39,22 @@ export const authOptions = {
 
           if (result) {
             // 如果密码为空或 placeholder，允许登录
-            if (!result.password || 
-                result.password === 'placeholder' ||
-                result.password.startsWith('$2a$10$placeholder')) {
+            if (!result.passwordHash || 
+                result.passwordHash === 'placeholder' ||
+                result.passwordHash.startsWith('$2a$10$placeholder')) {
               return {
                 id: result.userId,
                 email: result.email,
                 name: result.name,
-                role: result.role || 'user',
               };
             }
             // 验证密码
-            const passwordMatch = await bcrypt.compare(password, result.password);
+            const passwordMatch = await bcrypt.compare(password, result.passwordHash);
             if (passwordMatch) {
               return {
                 id: result.userId,
                 email: result.email,
                 name: result.name,
-                role: result.role || 'user',
               };
             }
           }

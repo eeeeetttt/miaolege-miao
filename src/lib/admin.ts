@@ -1,5 +1,8 @@
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
+import { db } from '@/lib/db';
+import { users } from '@/lib/schema';
+import { eq } from 'drizzle-orm';
 
 /**
  * 检查当前用户是否为管理员
@@ -16,24 +19,17 @@ export async function isAdmin(): Promise<{ isAdmin: boolean; userId?: string }> 
     return { isAdmin: true, userId: session.user.id };
   }
 
-  // 从 Supabase 查询用户角色
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.COZE_SUPABASE_URL;
-  const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.COZE_SUPABASE_SERVICE_ROLE_KEY;
-
-  if (supabaseUrl && supabaseKey) {
-    try {
-      const { createClient } = await import('@supabase/supabase-js');
-      const supabase = createClient(supabaseUrl, supabaseKey);
-      const { data } = await supabase
-        .from('users')
-        .select('role')
-        .eq('email', session.user.email)
-        .single();
-      
-      return { isAdmin: data?.role === 'admin', userId: session.user.id };
-    } catch (e) {
-      console.error('Check admin from Supabase error:', e);
+  // 从 MySQL 查询用户角色
+  try {
+    const result = await db.query.users.findFirst({
+      where: eq(users.email, session.user.email || '')
+    });
+    
+    if (result && result.role === 'admin') {
+      return { isAdmin: true, userId: result.userId };
     }
+  } catch (e) {
+    console.error('Check admin from MySQL error:', e);
   }
 
   return { isAdmin: false, userId: session.user.id };
@@ -43,24 +39,29 @@ export async function isAdmin(): Promise<{ isAdmin: boolean; userId?: string }> 
  * 设置用户为管理员
  */
 export async function setAdminRole(targetUserId: string): Promise<boolean> {
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.COZE_SUPABASE_URL;
-  const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.COZE_SUPABASE_SERVICE_ROLE_KEY;
-
-  if (!supabaseUrl || !supabaseKey) {
-    return false;
-  }
-
   try {
-    const { createClient } = await import('@supabase/supabase-js');
-    const supabase = createClient(supabaseUrl, supabaseKey);
-    const { error } = await supabase
-      .from('users')
-      .update({ role: 'admin' })
-      .eq('user_id', targetUserId);
-    
-    return !error;
+    await db.update(users)
+      .set({ role: 'admin' })
+      .where(eq(users.userId, targetUserId));
+    return true;
   } catch (e) {
     console.error('Set admin role error:', e);
     return false;
   }
+}
+
+/**
+ * 获取当前用户ID
+ */
+export async function getCurrentUserId(): Promise<string | null> {
+  const session = await getServerSession(authOptions);
+  return session?.user?.id || null;
+}
+
+/**
+ * 获取当前用户邮箱
+ */
+export async function getCurrentUserEmail(): Promise<string | null> {
+  const session = await getServerSession(authOptions);
+  return session?.user?.email || null;
 }

@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
+import { db } from '@/lib/db';
+import { users } from '@/lib/schema';
+import { eq, like, or, desc, sql } from 'drizzle-orm';
 
 /**
  * 获取用户列表
@@ -24,52 +27,45 @@ export async function GET(request: NextRequest) {
 
     const offset = (page - 1) * limit;
 
-    // 从 Supabase 获取用户
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.COZE_SUPABASE_URL;
-    const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.COZE_SUPABASE_SERVICE_ROLE_KEY;
-
-    if (!supabaseUrl || !supabaseKey) {
-      return NextResponse.json({ error: 'Supabase配置缺失' }, { status: 500 });
-    }
-
-    const { createClient } = await import('@supabase/supabase-js');
-    const supabase = createClient(supabaseUrl, supabaseKey);
-
     // 构建查询
-    let query = supabase.from('users').select('user_id, email, name, role, created_at', { count: 'exact' });
-    
+    let conditions = [];
     if (search) {
-      query = query.or(`name.ilike.%${search}%,email.ilike.%${search}%`);
+      conditions.push(or(
+        like(users.name, `%${search}%`),
+        like(users.email, `%${search}%`)
+      ));
     }
     if (role) {
-      query = query.eq('role', role);
+      conditions.push(eq(users.role, role as 'admin' | 'user' | 'vip'));
     }
 
-    const { data: users, error, count } = await query
-      .order('created_at', { ascending: false })
-      .range(offset, offset + limit - 1);
+    // 获取总数
+    const countResult = await db.select({ count: sql<number>`count(*)` })
+      .from(users)
+      .where(conditions.length > 0 ? conditions[0] : undefined);
+    const total = Number(countResult[0]?.count) || 0;
 
-    if (error) {
-      console.error('Get users error:', error);
-      return NextResponse.json({ error: '获取用户列表失败' }, { status: 500 });
-    }
+    // 获取用户列表
+    const userList = await db.query.users.findMany({
+      where: conditions.length > 0 ? conditions[0] : undefined,
+      orderBy: [desc(users.createdAt)],
+      limit,
+      offset,
+    });
 
     return NextResponse.json({
-      users: users?.map(u => ({
-        userId: u.user_id,
+      users: userList.map(u => ({
+        userId: u.userId,
         email: u.email,
         name: u.name,
-        avatar: null,
-        coinBalance: 0,
+        avatar: u.avatarUrl,
+        coinBalance: u.coinBalance,
         role: u.role,
-        createdAt: u.created_at,
-        mtAccount: null,
-        activeFollows: 0,
-        createdPlanets: 0,
+        createdAt: u.createdAt,
       })) || [],
-      total: count || 0,
+      total,
       page,
-      totalPages: Math.ceil((count || 0) / limit),
+      totalPages: Math.ceil(total / limit),
     });
   } catch (error) {
     console.error('Get users error:', error);

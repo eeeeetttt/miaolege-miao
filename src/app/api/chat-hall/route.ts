@@ -687,7 +687,7 @@ async function sendAIReply(
       .insert({
         user_id: `ai_${role.id}`,
         user_name: role.name,
-        user_avatar: role.avatar_url || null,
+        user_avatar: role.avatarUrl || null,
         content: cleanReply,
         is_system: 0,
         is_premium: 1,

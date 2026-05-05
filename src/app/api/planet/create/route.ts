@@ -77,7 +77,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: '用户不存在' }, { status: 404 });
     }
 
-    if ((user.coinBalance ?? 0) < price) {
+    if ((Number(user.coinBalance) || 0) < Number(price)) {
       return NextResponse.json({ 
         error: `U 不足，需要 ${price} U，当前余额 ${user.coinBalance} U` 
       }, { status: 400 });

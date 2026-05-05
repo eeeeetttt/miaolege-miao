@@ -57,8 +57,8 @@ export async function POST(request: NextRequest) {
         .where(eq(users.userId, session.user.id))
         .limit(1);
 
-      const userBalance = user?.coinBalance ?? 0;
-      const ticketPrice = planet.ticketPrice ?? 0;
+      const userBalance = Number(user?.coinBalance ?? 0);
+      const ticketPrice = Number(planet.ticketPrice ?? 0);
 
       if (!user || userBalance < ticketPrice) {
         return NextResponse.json({ error: 'U 余额不足' }, { status: 400 });
@@ -67,7 +67,7 @@ export async function POST(request: NextRequest) {
       // Deduct balance
       await db
         .update(users)
-        .set({ coinBalance: userBalance - ticketPrice })
+        .set({ coinBalance: String(userBalance - ticketPrice) })
         .where(eq(users.userId, session.user.id));
 
       // Add to planet earnings
@@ -88,7 +88,7 @@ export async function POST(request: NextRequest) {
       userId: session.user.id,
       role: 'follower',
       joinMethod: method,
-      ticketPaid: method === 'purchase' ? (planet.ticketPrice ?? 0) : 0,
+      ticketPaid: method === 'purchase' ? (Number(planet.ticketPrice ?? 0)) : 0,
       expiryDate,
     });
 

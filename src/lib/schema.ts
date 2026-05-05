@@ -12,19 +12,21 @@ import {
   boolean,
 } from 'drizzle-orm/mysql-core';
 
-// Users Table
-export const users = mysqlTable('users', {
-  userId: varchar('user_id', { length: 255 }).primaryKey(),
-  email: varchar('email', { length: 255 }).unique(),
-  password: varchar('password', { length: 255 }),
-  name: varchar('name', { length: 255 }),
-  avatar: varchar('avatar', { length: 500 }),
-  coinBalance: int('coin_balance').default(0),
-  role: mysqlEnum('role', ['user', 'admin']).default('user'), // 用户角色
-  nameUpdatedAt: timestamp('name_updated_at'),
+// User Accounts Table (用户账户表 - 使用 user_accounts 表)
+export const users = mysqlTable('user_accounts', {
+  userId: varchar('user_id', { length: 36 }).notNull().unique(),
+  email: varchar('email', { length: 255 }).notNull().unique(),
+  passwordHash: varchar('password_hash', { length: 255 }).notNull(),
+  name: varchar('name', { length: 100 }).default('用户'),
+  role: mysqlEnum('role', ['admin', 'user', 'vip']).default('user'),
+  coinBalance: decimal('coin_balance', { precision: 15, scale: 2 }).default('10000.00'),
+  avatarUrl: varchar('avatar_url', { length: 500 }),
   createdAt: timestamp('created_at').defaultNow(),
   updatedAt: timestamp('updated_at').defaultNow().onUpdateNow(),
 });
+
+// Alias for user accounts
+export const userAccounts = users;
 
 // Planets Table
 export const planets = mysqlTable('planets', {

@@ -65,7 +65,7 @@ export async function GET(request: Request) {
     
     try {
       const usersData = await db
-        .select({ name: users.name, avatar: users.avatar })
+        .select({ name: users.name, avatar: users.avatarUrl })
         .from(users)
         .where(eq(users.userId, userId))
         .limit(1);

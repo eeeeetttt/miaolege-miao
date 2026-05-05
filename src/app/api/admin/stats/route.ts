@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
+import { db } from '@/lib/db';
+import { users } from '@/lib/schema';
+import { sql } from 'drizzle-orm';
 
 /**
  * 获取系统统计信息
@@ -16,33 +19,16 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: '无权访问' }, { status: 403 });
     }
 
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.COZE_SUPABASE_URL;
-    const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.COZE_SUPABASE_SERVICE_ROLE_KEY;
+    // 从 MySQL 获取用户统计
+    const userStats = await db.select({
+      totalUsers: sql<number>`count(*)`,
+      totalCoins: sql<number>`COALESCE(SUM(coin_balance), 0)`,
+    }).from(users);
+    
+    const totalUsers = Number(userStats[0]?.totalUsers) || 0;
+    const totalCoins = Number(userStats[0]?.totalCoins) || 0;
 
-    let totalUsers = 0;
-    let totalCoins = 0;
-
-    if (supabaseUrl && supabaseKey) {
-      const { createClient } = await import('@supabase/supabase-js');
-      const supabase = createClient(supabaseUrl, supabaseKey);
-
-      // 获取用户总数
-      const { count } = await supabase
-        .from('users')
-        .select('*', { count: 'exact', head: true });
-      totalUsers = count || 0;
-
-      // 获取星球币总额
-      const { data: coinData } = await supabase
-        .from('users')
-        .select('coin_balance');
-      
-      if (coinData) {
-        totalCoins = coinData.reduce((sum, u) => sum + (u.coin_balance || 0), 0);
-      }
-    }
-
-    // 从 MySQL 获取其他统计数据
+    // 获取其他统计数据
     const { pool } = await import('@/lib/db');
     
     let totalPlanets = 0;
@@ -59,26 +45,18 @@ export async function GET(request: NextRequest) {
       const [followsResult] = await pool.query<any>("SELECT COUNT(*) as count FROM follow_records WHERE status = 'active'");
       activeFollows = followsResult[0]?.count || 0;
     } catch (e) {
-      console.error('MySQL query error:', e);
+      console.error('Get stats from MySQL error:', e);
     }
 
     return NextResponse.json({
-      stats: {
-        totalUsers,
-        totalPlanets,
-        totalSignalSources,
-        activeFollows,
-        totalCoins,
-      },
-      config: {
-        planetCreationThreshold: 2000,
-        rechargeEnabled: true,
-        defaultTicketPrice: 100,
-        maxPublishers: 3,
-      },
+      totalUsers,
+      totalCoins,
+      totalPlanets,
+      totalSignalSources,
+      activeFollows,
     });
   } catch (error) {
     console.error('Get stats error:', error);
-    return NextResponse.json({ error: '获取统计数据失败' }, { status: 500 });
+    return NextResponse.json({ error: '获取统计信息失败', details: String(error) }, { status: 500 });
   }
 }

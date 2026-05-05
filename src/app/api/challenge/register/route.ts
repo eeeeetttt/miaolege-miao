@@ -305,7 +305,7 @@ export async function POST(request: Request) {
             .where(eq(users.userId, userId))
             .limit(1);
           if (mysqlUsers && mysqlUsers.length > 0) {
-            currentBalance = mysqlUsers[0].coinBalance || 0;
+            const val = mysqlUsers[0].coinBalance; currentBalance = typeof val === "number" ? val : parseFloat(String(val)) || 0;
           }
         } catch (e) {
           console.error('Failed to get balance from MySQL:', e);
@@ -341,7 +341,7 @@ export async function POST(request: Request) {
             const { eq } = await import('drizzle-orm');
             await db
               .update(users)
-              .set({ coinBalance: currentBalance - registrationFee })
+              .set({ coinBalance: String(Number(currentBalance) - Number(registrationFee)) })
               .where(eq(users.userId, userId));
             deductSuccess = true;
           } catch (e) {

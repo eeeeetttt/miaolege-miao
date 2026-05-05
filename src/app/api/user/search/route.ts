@@ -32,7 +32,7 @@ export async function GET(request: NextRequest) {
         userId: users.userId,
         name: users.name,
         email: users.email,
-        avatar: users.avatar,
+        avatar: users.avatarUrl,
       })
       .from(users)
       .where(

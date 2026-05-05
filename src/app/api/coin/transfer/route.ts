@@ -53,7 +53,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: '转账金额必须大于0' }, { status: 400 });
     }
 
-    if ((fromUser.coinBalance || 0) < transferAmount) {
+    if (Number(fromUser.coinBalance || 0) < transferAmount) {
       return NextResponse.json({ 
         error: `余额不足，当前余额: ${fromUser.coinBalance || 0} U` 
       }, { status: 400 });
@@ -89,13 +89,13 @@ export async function POST(request: NextRequest) {
     // 更新转出方余额
     await db
       .update(users)
-      .set({ coinBalance: (fromUser.coinBalance || 0) - transferAmount })
+      .set({ coinBalance: String(Number(fromUser.coinBalance || 0) - transferAmount) })
       .where(eq(users.userId, session.user.id));
 
     // 更新转入方余额
     await db
       .update(users)
-      .set({ coinBalance: (toUser.coinBalance || 0) + transferAmount })
+      .set({ coinBalance: String(Number(toUser.coinBalance || 0) + transferAmount) })
       .where(eq(users.userId, toUser.userId));
 
     return NextResponse.json({
@@ -104,7 +104,7 @@ export async function POST(request: NextRequest) {
       data: {
         transferId: transfer.id,
         amount: transferAmount,
-        fromBalance: (fromUser.coinBalance || 0) - transferAmount,
+        fromBalance: Number(fromUser.coinBalance || 0) - transferAmount,
         createdAt: transfer.created_at,
       },
     });
@@ -164,7 +164,7 @@ export async function GET(request: NextRequest) {
     const userInfoMap = new Map<string, { name: string; avatar: string | null }>();
     for (const uid of userIds) {
       const [user] = await db
-        .select({ name: users.name, avatar: users.avatar })
+        .select({ name: users.name, avatar: users.avatarUrl })
         .from(users)
         .where(eq(users.userId, uid))
         .limit(1);
