@@ -173,17 +173,55 @@ export default function AdminDashboardPage() {
     nav_show_download: true,
   });
 
+  // fetchStats 需要在 useEffect 之前定义
+  const fetchStats = async () => {
+    try {
+      console.log('[Admin] Fetching stats...');
+      const res = await fetch('/api/admin/stats', { 
+        signal: AbortSignal.timeout(10000)
+      });
+      console.log('[Admin] Stats response status:', res.status);
+      const data = await res.json();
+      
+      if (res.ok) {
+        setStats(data.stats);
+        if (data.config) {
+          setConfig(data.config);
+        }
+      } else {
+        console.error('[Admin] Stats fetch failed:', data);
+        setError(data.error || '获取数据失败');
+      }
+    } catch (err: any) {
+      console.error('[Admin] Fetch stats error:', err);
+      if (err.name === 'TimeoutError') {
+        setError('请求超时，请刷新重试');
+      }
+      setLoading(false);
+    }
+  };
+
+  // 加载状态和Tab切换的 effect
   useEffect(() => {
-    console.log('[Admin] Session status:', status, 'session:', session);
+    if (status === 'loading') return;
     
-    // 临时调试：直接尝试检查
-    if (status === 'loading' || status === 'authenticated') {
-      checkAdmin();
+    if (status === 'authenticated') {
+      const userRole = session?.user?.role;
+      const userEmail = session?.user?.email;
+      
+      if (userRole === 'admin' || userEmail === '497209390@qq.com') {
+        setIsAdmin(true);
+        setShowInitForm(false);
+        fetchStats();
+      } else {
+        setShowInitForm(true);
+      }
+      setCheckingAdmin(false);
+      setLoading(false);
     } else if (status === 'unauthenticated') {
-      console.log('[Admin] Not authenticated, redirecting to login');
       router.push('/login');
     }
-  }, [status, session]);
+  }, [status, session?.user]);
 
   // 监听Tab切换，加载相应数据
   useEffect(() => {
@@ -206,25 +244,6 @@ export default function AdminDashboardPage() {
       fetchNavConfig();
     }
   }, [activeTab, isAdmin]);
-
-  const checkAdmin = async () => {
-    // 直接从 session 中检查管理员权限
-    if (session?.user?.role === 'admin') {
-      setIsAdmin(true);
-      fetchStats();
-    } else {
-      // 检查是否是硬编码的管理员邮箱
-      const adminEmail = '497209390@qq.com';
-      if (session?.user?.email === adminEmail) {
-        setIsAdmin(true);
-        fetchStats();
-      } else {
-        setShowInitForm(true);
-      }
-    }
-    setCheckingAdmin(false);
-    setLoading(false);
-  };
 
   const handleInitAdmin = async () => {
     setError('');
@@ -249,32 +268,6 @@ export default function AdminDashboardPage() {
       }
     } catch (err) {
       setError('操作失败');
-    }
-  };
-
-  const fetchStats = async () => {
-    try {
-      console.log('[Admin] Fetching stats...');
-      const res = await fetch('/api/admin/stats', { 
-        signal: AbortSignal.timeout(10000) // 10秒超时
-      });
-      console.log('[Admin] Stats response status:', res.status);
-      const data = await res.json();
-      
-      if (res.ok) {
-        setStats(data.stats);
-        if (data.config) {
-          setConfig(data.config);
-        }
-      } else {
-        console.error('[Admin] Stats fetch failed:', data);
-        setError(data.error || '获取数据失败');
-      }
-    } catch (err: any) {
-      console.error('[Admin] Fetch stats error:', err);
-      if (err.name === 'TimeoutError') {
-        setError('请求超时，请刷新重试');
-      }
     }
   };
 
