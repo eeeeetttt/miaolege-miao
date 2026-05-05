@@ -1,79 +1,84 @@
-import { NextResponse } from 'next/server';
-import { isAdmin } from '@/lib/admin';
+import { NextRequest, NextResponse } from 'next/server';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/auth';
 
 /**
- * 获取后台统计数据
+ * 获取系统统计信息
  */
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
-    // 验证管理员权限
-    const { isAdmin: admin } = await isAdmin();
-    
-    if (!admin) {
+    // 检查管理员权限
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: '请先登录' }, { status: 401 });
+    }
+    if (session.user.email !== '497209390@qq.com') {
       return NextResponse.json({ error: '无权访问' }, { status: 403 });
     }
 
-    // 使用动态导入避免构建时问题
-    const { getSupabaseAdmin } = await import('@/storage/database/supabase-client');
-    const { db } = await import('@/lib/db');
-    const { planets, signals, followRecords } = await import('@/lib/schema');
-    const { sql } = await import('drizzle-orm');
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.COZE_SUPABASE_URL;
+    const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.COZE_SUPABASE_SERVICE_ROLE_KEY;
 
-    const supabase = getSupabaseAdmin();
-
-    // 从 Supabase 获取用户数
-    const { count: userCount, error: userError } = await supabase
-      .from('users')
-      .select('*', { count: 'exact', head: true });
-
-    if (userError) {
-      console.error('User count error:', userError);
-    }
-
-    // 从 Supabase 获取星球币余额总和
-    const { data: coinData, error: coinError } = await supabase
-      .from('users')
-      .select('coin_balance')
-      .not('coin_balance', 'is', null);
-
+    let totalUsers = 0;
     let totalCoins = 0;
-    if (!coinError && coinData) {
-      totalCoins = coinData.reduce((sum, u) => sum + (u.coin_balance || 0), 0);
+
+    if (supabaseUrl && supabaseKey) {
+      const { createClient } = await import('@supabase/supabase-js');
+      const supabase = createClient(supabaseUrl, supabaseKey);
+
+      // 获取用户总数
+      const { count } = await supabase
+        .from('users')
+        .select('*', { count: 'exact', head: true });
+      totalUsers = count || 0;
+
+      // 获取星球币总额
+      const { data: coinData } = await supabase
+        .from('users')
+        .select('coin_balance');
+      
+      if (coinData) {
+        totalCoins = coinData.reduce((sum, u) => sum + (u.coin_balance || 0), 0);
+      }
     }
 
     // 从 MySQL 获取其他统计数据
-    const [planetCount] = await db.select({ count: sql<number>`count(*)` }).from(planets);
+    const { pool } = await import('@/lib/db');
     
-    // 信号源总数
-    const [signalSourceCount] = await db
-      .select({ count: sql<number>`count(distinct sender_account)` })
-      .from(signals);
-    
-    const [followCount] = await db
-      .select({ count: sql<number>`count(*)` })
-      .from(followRecords)
-      .where(sql`status = 'active'`);
+    let totalPlanets = 0;
+    let totalSignalSources = 0;
+    let activeFollows = 0;
 
-    // 从环境变量或默认值获取配置
-    const config = {
-      planetCreationThreshold: parseInt(process.env.PLANET_CREATION_THRESHOLD || '2000'),
-      rechargeEnabled: process.env.RECHARGE_ENABLED !== 'false',
-      defaultTicketPrice: parseInt(process.env.DEFAULT_TICKET_PRICE || '100'),
-      maxPublishers: parseInt(process.env.MAX_PUBLISHERS || '3'),
-    };
+    try {
+      const [planetsResult] = await pool.query<any>('SELECT COUNT(*) as count FROM planets');
+      totalPlanets = planetsResult[0]?.count || 0;
+
+      const [signalsResult] = await pool.query<any>('SELECT COUNT(*) as count FROM signals');
+      totalSignalSources = signalsResult[0]?.count || 0;
+
+      const [followsResult] = await pool.query<any>("SELECT COUNT(*) as count FROM follow_records WHERE status = 'active'");
+      activeFollows = followsResult[0]?.count || 0;
+    } catch (e) {
+      console.error('MySQL query error:', e);
+    }
 
     return NextResponse.json({
       stats: {
-        totalUsers: userCount || 0,
-        totalPlanets: planetCount?.count || 0,
-        totalSignalSources: signalSourceCount?.count || 0,
-        activeFollows: followCount?.count || 0,
+        totalUsers,
+        totalPlanets,
+        totalSignalSources,
+        activeFollows,
         totalCoins,
       },
-      config,
+      config: {
+        planetCreationThreshold: 2000,
+        rechargeEnabled: true,
+        defaultTicketPrice: 100,
+        maxPublishers: 3,
+      },
     });
   } catch (error) {
-    console.error('Get admin stats error:', error);
-    return NextResponse.json({ error: '获取统计数据失败', details: String(error) }, { status: 500 });
+    console.error('Get stats error:', error);
+    return NextResponse.json({ error: '获取统计数据失败' }, { status: 500 });
   }
 }

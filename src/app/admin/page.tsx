@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import { Button } from '@/components/ui/button';
@@ -97,6 +97,7 @@ export default function AdminDashboardPage() {
   const [adminPassword, setAdminPassword] = useState('');
   
   const [stats, setStats] = useState<Stats | null>(null);
+  const statsFetched = useRef(false); // 防止重复获取
   const [config, setConfig] = useState<SystemConfig>({
     planet_price_7days: 0,
     planet_price_1year: 1999,
@@ -218,8 +219,9 @@ export default function AdminDashboardPage() {
       if (userRole === 'admin' || userEmail === '497209390@qq.com') {
         setIsAdmin(true);
         setShowInitForm(false);
-        // 只获取一次 stats
-        if (stats === null) {
+        // 使用 ref 防止重复获取
+        if (stats === null && !statsFetched.current) {
+          statsFetched.current = true;
           fetchStats();
         }
       } else {
@@ -231,7 +233,7 @@ export default function AdminDashboardPage() {
       router.push('/login');
       setLoading(false);
     }
-  }, [status]); // 只依赖 status，不依赖 session
+  }, [status]);
 
   // 监听Tab切换，加载相应数据
   useEffect(() => {

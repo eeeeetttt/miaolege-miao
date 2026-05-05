@@ -16,44 +16,51 @@ export async function isAdmin(): Promise<{ isAdmin: boolean; userId?: string }> 
     return { isAdmin: true, userId: session.user.id };
   }
 
-  try {
-    // 动态导入避免构建时问题
-    const { getSupabaseAdmin } = await import('@/storage/database/supabase-client');
-    const supabase = getSupabaseAdmin();
-    
-    const { data: userData, error } = await supabase
-      .from('users')
-      .select('role')
-      .eq('user_id', session.user.id)
-      .single();
+  // 从 Supabase 查询用户角色
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.COZE_SUPABASE_URL;
+  const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.COZE_SUPABASE_SERVICE_ROLE_KEY;
 
-    if (error || !userData) {
-      return { isAdmin: false, userId: session.user.id };
+  if (supabaseUrl && supabaseKey) {
+    try {
+      const { createClient } = await import('@supabase/supabase-js');
+      const supabase = createClient(supabaseUrl, supabaseKey);
+      const { data } = await supabase
+        .from('users')
+        .select('role')
+        .eq('email', session.user.email)
+        .single();
+      
+      return { isAdmin: data?.role === 'admin', userId: session.user.id };
+    } catch (e) {
+      console.error('Check admin from Supabase error:', e);
     }
-
-    return { isAdmin: userData.role === 'admin', userId: session.user.id };
-  } catch (error) {
-    console.error('Check admin error:', error);
-    return { isAdmin: false, userId: session.user.id };
   }
+
+  return { isAdmin: false, userId: session.user.id };
 }
 
 /**
  * 设置用户为管理员
  */
 export async function setAdminRole(targetUserId: string): Promise<boolean> {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.COZE_SUPABASE_URL;
+  const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.COZE_SUPABASE_SERVICE_ROLE_KEY;
+
+  if (!supabaseUrl || !supabaseKey) {
+    return false;
+  }
+
   try {
-    const { getSupabaseAdmin } = await import('@/storage/database/supabase-client');
-    const supabase = getSupabaseAdmin();
-    
+    const { createClient } = await import('@supabase/supabase-js');
+    const supabase = createClient(supabaseUrl, supabaseKey);
     const { error } = await supabase
       .from('users')
       .update({ role: 'admin' })
       .eq('user_id', targetUserId);
     
     return !error;
-  } catch (error) {
-    console.error('Set admin error:', error);
+  } catch (e) {
+    console.error('Set admin role error:', e);
     return false;
   }
 }

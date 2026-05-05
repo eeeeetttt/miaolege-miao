@@ -1,12 +1,9 @@
 import NextAuth from 'next-auth';
 import CredentialsProvider from 'next-auth/providers/credentials';
 import bcrypt from 'bcryptjs';
-import { createClient } from '@supabase/supabase-js';
-
-// Supabase 客户端
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.COZE_SUPABASE_URL || '';
-const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.COZE_SUPABASE_SERVICE_ROLE_KEY || '';
-const supabase = supabaseUrl && supabaseKey ? createClient(supabaseUrl, supabaseKey) : null;
+import { db } from '@/lib/db';
+import { users } from '@/lib/schema';
+import { eq } from 'drizzle-orm';
 
 // NextAuth v4 配置
 export const authOptions = {
@@ -36,36 +33,32 @@ export const authOptions = {
         }
 
         try {
-          // 首先尝试 Supabase 认证
-          if (supabase) {
-            const { data: supaUser, error } = await supabase
-              .from('users')
-              .select('user_id, email, name, role, password')
-              .eq('email', email)
-              .single();
+          // 使用 MySQL 查询用户
+          const result = await db.query.users.findFirst({
+            where: eq(users.email, email)
+          });
 
-            if (!error && supaUser) {
-              // 如果密码是 placeholder 或为空，允许登录
-              if (!supaUser.password || 
-                  supaUser.password === 'placeholder' ||
-                  supaUser.password.startsWith('$2a$10$placeholder')) {
-                return {
-                  id: supaUser.user_id,
-                  email: supaUser.email,
-                  name: supaUser.name,
-                  role: supaUser.role || 'user',
-                };
-              }
-              // 验证密码
-              const passwordMatch = await bcrypt.compare(password, supaUser.password);
-              if (passwordMatch) {
-                return {
-                  id: supaUser.user_id,
-                  email: supaUser.email,
-                  name: supaUser.name,
-                  role: supaUser.role || 'user',
-                };
-              }
+          if (result) {
+            // 如果密码为空或 placeholder，允许登录
+            if (!result.password || 
+                result.password === 'placeholder' ||
+                result.password.startsWith('$2a$10$placeholder')) {
+              return {
+                id: result.userId,
+                email: result.email,
+                name: result.name,
+                role: result.role || 'user',
+              };
+            }
+            // 验证密码
+            const passwordMatch = await bcrypt.compare(password, result.password);
+            if (passwordMatch) {
+              return {
+                id: result.userId,
+                email: result.email,
+                name: result.name,
+                role: result.role || 'user',
+              };
             }
           }
         } catch (error) {
@@ -100,18 +93,23 @@ export const authOptions = {
     async jwt({ token, user }: any) {
       if (user) {
         token.id = user.id;
+        token.email = user.email;
+        token.name = user.name;
         token.role = user.role;
       }
       return token;
     },
     async session({ session, token }: any) {
       if (session.user) {
-        session.user.id = token.id as string;
-        session.user.role = token.role as 'user' | 'admin';
+        session.user.id = token.id;
+        session.user.email = token.email;
+        session.user.name = token.name;
+        session.user.role = token.role;
       }
       return session;
     },
   },
 };
 
-export default NextAuth(authOptions);
+const handler = NextAuth(authOptions);
+export { handler as GET, handler as POST };
