@@ -1,16 +1,5 @@
-import {
-  mysqlTable,
-  varchar,
-  int,
-  text,
-  timestamp,
-  bigint,
-  decimal,
-  mysqlEnum,
-  uniqueIndex,
-  index,
-  boolean,
-} from 'drizzle-orm/mysql-core';
+import { mysqlTable, varchar, text, int, timestamp, decimal, mysqlEnum, boolean, uniqueIndex, index } from 'drizzle-orm/mysql-core';
+import { drizzle } from 'drizzle-orm/mysql2';
 
 // User Accounts Table (用户账户表 - 使用 user_accounts 表)
 export const users = mysqlTable('user_accounts', {
@@ -85,11 +74,11 @@ export const planetEarnings = mysqlTable('planet_earnings', {
 
 // Signals Table
 export const signals = mysqlTable('signals', {
-  id: bigint('id', { mode: 'number' }).autoincrement().primaryKey(),
+  id: int('id').autoincrement().primaryKey(),
   createdAt: timestamp('created_at').defaultNow(),
   senderAccount: varchar('sender_account', { length: 255 }).notNull(),
   signalType: varchar('signal_type', { length: 50 }).notNull(),
-  ticket: bigint('ticket', { mode: 'number' }),
+  ticket: int('ticket'),
   symbol: varchar('symbol', { length: 50 }),
   orderType: varchar('order_type', { length: 10 }),
   volume: decimal('volume', { precision: 10, scale: 2 }),
@@ -116,7 +105,7 @@ export const accounts = mysqlTable('accounts', {
   providerAccountId: varchar('providerAccountId', { length: 255 }).notNull(),
   refreshToken: text('refresh_token'),
   accessToken: text('access_token'),
-  expiresAt: bigint('expires_at', { mode: 'number' }),
+  expiresAt: int('expires_at'),
   tokenType: varchar('token_type', { length: 255 }),
   scope: varchar('scope', { length: 255 }),
   idToken: text('id_token'),
@@ -159,7 +148,7 @@ export const followRecords = mysqlTable('follow_records', {
   id: int('id').autoincrement().primaryKey(),
   planetId: int('planet_id').notNull().references(() => planets.id, { onDelete: 'cascade' }),
   userId: varchar('user_id', { length: 255 }).notNull().references(() => users.userId, { onDelete: 'cascade' }),
-  signalId: bigint('signal_id', { mode: 'number' }).notNull().references(() => signals.id, { onDelete: 'cascade' }),
+  signalId: int('signal_id').notNull().references(() => signals.id, { onDelete: 'cascade' }),
   status: mysqlEnum('status', ['active', 'paused', 'closed']).default('active'),
   copyVolume: decimal('copy_volume', { precision: 10, scale: 2 }),
   copyRatio: decimal('copy_ratio', { precision: 5, scale: 2 }).default('1.00'),

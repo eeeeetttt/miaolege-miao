@@ -2,7 +2,7 @@ import NextAuth, { User } from 'next-auth';
 import CredentialsProvider from 'next-auth/providers/credentials';
 import bcrypt from 'bcryptjs';
 import { db } from '@/lib/db';
-import { users } from '@/lib/schema';
+import { userAccounts } from '@/lib/schema';
 import { eq } from 'drizzle-orm';
 
 // NextAuth v4 配置
@@ -34,30 +34,29 @@ export const authOptions = {
 
         try {
           // 使用 MySQL 查询用户
-          const result = await db.query.userAccounts.findFirst({
-            where: eq(userAccounts.email, email)
-          });
+          const result = await db.select().from(userAccounts).where(eq(userAccounts.email, email)).limit(1);
 
-          if (result) {
+          if (result && result[0]) {
+            const user = result[0];
             // 如果密码为空或 placeholder，允许登录
-            if (!result.passwordHash || 
-                result.passwordHash === 'placeholder' ||
-                result.passwordHash.startsWith('$2a$10$placeholder')) {
+            if (!user.passwordHash || 
+                user.passwordHash === 'placeholder' ||
+                user.passwordHash.startsWith('$2a$10$placeholder')) {
               return {
-                id: result.userId,
-                email: result.email,
-                name: result.name || '用户',
-                role: result.role,
+                id: user.userId,
+                email: user.email,
+                name: user.name || '用户',
+                role: user.role as "admin" | "user",
               };
             }
             // 验证密码
-            const passwordMatch = await bcrypt.compare(password, result.passwordHash);
+            const passwordMatch = await bcrypt.compare(password, user.passwordHash);
             if (passwordMatch) {
               return {
-                id: result.userId,
-                email: result.email,
-                name: result.name || '用户',
-                role: result.role,
+                id: user.userId,
+                email: user.email,
+                name: user.name || '用户',
+                role: user.role as "admin" | "user",
               };
             }
           }
