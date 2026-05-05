@@ -85,6 +85,17 @@ export const authOptions = {
   },
   secret: process.env.NEXTAUTH_SECRET || 'fallback-secret-for-dev',
   trustHost: true,
+  cookies: {
+    sessionToken: {
+      name: `next-auth.session-token`,
+      options: {
+        httpOnly: true,
+        sameSite: 'lax',
+        path: '/',
+        secure: false, // 允许 HTTP cookie
+      },
+    },
+  },
   callbacks: {
     async jwt({ token, user }: any) {
       if (user) {
