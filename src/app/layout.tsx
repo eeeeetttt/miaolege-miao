@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from 'next';
 import { Inspector } from 'react-dev-inspector';
 import SessionProvider from '@/components/providers/session-provider';
 import { Header } from '@/components/header';
+import { BottomNav } from '@/components/bottom-nav';
 import CustomerService from '@/components/customer-service';
 import { ServiceWorkerRegistration } from '@/components/pwa-registration';
 import './globals.css';
@@ -80,10 +81,11 @@ export default function RootLayout({
         <SessionProvider>
           <div className="min-h-screen flex flex-col">
             <Header />
-            <main className="flex-1">
+            <main className="flex-1 pb-20 lg:pb-8">
               {children}
             </main>
-            <footer className="border-t bg-white/80 dark:bg-gray-900/80 backdrop-blur-sm py-8">
+            <BottomNav />
+            <footer className="border-t bg-white/80 dark:bg-gray-900/80 backdrop-blur-sm py-8 hidden lg:block">
               <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center text-gray-600 dark:text-gray-400">
                 <p className="mb-2">
                   © {new Date().getFullYear()} 金火火智能交易平台. All rights reserved.
