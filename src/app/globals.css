@@ -3,13 +3,6 @@
 
 @custom-variant dark (&:is(.dark *));
 
-/* 移动端底部导航安全区域 */
-@supports (padding-bottom: env(safe-area-inset-bottom)) {
-  .safe-area-bottom {
-    padding-bottom: env(safe-area-inset-bottom);
-  }
-}
-
 /* 全局界面大小调整 - 使界面更紧凑 */
 :root {
   --scale-factor: 0.9;
