@@ -12,10 +12,12 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Spinner } from '@/components/ui/spinner';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import AIConfigPanel from '@/components/ai-config-admin';
 import { 
   Shield, Users, Globe, TrendingUp, BarChart3, Coins, 
   Settings, FileText, CreditCard, MessageSquare, Lightbulb,
-  Search, Edit, Save, Trash2, Check, X, Plus, AlertCircle, CheckCircle2
+  Search, Edit, Save, Trash2, Check, X, Plus, AlertCircle, CheckCircle2,
+  Bot, ScrollText, Navigation, UserCog
 } from 'lucide-react';
 
 // 类型定义
@@ -502,6 +504,7 @@ export default function AdminDashboardPage() {
             <TabsTrigger value="suggestions">建议管理</TabsTrigger>
             <TabsTrigger value="docs">文档管理</TabsTrigger>
             <TabsTrigger value="news">新闻管理</TabsTrigger>
+            <TabsTrigger value="ai">店小二配置</TabsTrigger>
             <TabsTrigger value="ea">EA管理</TabsTrigger>
             <TabsTrigger value="config">系统配置</TabsTrigger>
             <TabsTrigger value="nav">导航配置</TabsTrigger>
@@ -1116,6 +1119,22 @@ export default function AdminDashboardPage() {
                     <FileText className="w-4 h-4 mr-1" /> 打开新闻管理页面
                   </Button>
                 </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* 店小二配置 */}
+          <TabsContent value="ai">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Bot className="w-5 h-5" />
+                  店小二配置
+                </CardTitle>
+                <CardDescription>管理茶馆聊天室的AI角色（店小二），当前连接DeepSeek</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <AIConfigPanel />
               </CardContent>
             </Card>
           </TabsContent>
