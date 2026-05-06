@@ -85,6 +85,10 @@ interface SystemConfig {
   rechargeEnabled: boolean;
   defaultTicketPrice: number;
   maxPublishers: number;
+  customer_service_qq?: string;
+  customer_service_wechat?: string;
+  wechat_exchange_rate: number;
+  wechat_enabled: boolean;
 }
 
 export default function AdminDashboardPage() {
@@ -109,6 +113,10 @@ export default function AdminDashboardPage() {
     rechargeEnabled: true,
     defaultTicketPrice: 100,
     maxPublishers: 3,
+    customer_service_qq: '',
+    customer_service_wechat: '',
+    wechat_exchange_rate: 7,
+    wechat_enabled: true,
   });
   
   // 用户管理
@@ -485,15 +493,26 @@ export default function AdminDashboardPage() {
         )}
 
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="mb-6">
+          <TabsList className="mb-6 flex flex-wrap gap-2">
             <TabsTrigger value="overview">概览</TabsTrigger>
             <TabsTrigger value="users">用户管理</TabsTrigger>
+            <TabsTrigger value="challenge">K线挑战</TabsTrigger>
             <TabsTrigger value="recharge">充值审核</TabsTrigger>
             <TabsTrigger value="complaints">投诉管理</TabsTrigger>
             <TabsTrigger value="suggestions">建议管理</TabsTrigger>
             <TabsTrigger value="docs">文档管理</TabsTrigger>
+            <TabsTrigger value="news">新闻管理</TabsTrigger>
+            <TabsTrigger value="ea">EA管理</TabsTrigger>
             <TabsTrigger value="config">系统配置</TabsTrigger>
             <TabsTrigger value="nav">导航配置</TabsTrigger>
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={() => window.location.href = '/admin/wechat-recharge'}
+              className="ml-2"
+            >
+              微信充值
+            </Button>
           </TabsList>
 
           {/* 概览 */}
@@ -893,6 +912,54 @@ export default function AdminDashboardPage() {
                     />
                   </div>
                 </div>
+
+                {/* 客服配置 */}
+                <div className="border-t pt-4 mt-4">
+                  <h3 className="text-lg font-medium mb-4">客服配置</h3>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label>客服QQ号码</Label>
+                      <Input 
+                        value={config.customer_service_qq || ''}
+                        onChange={(e) => setConfig({...config, customer_service_qq: e.target.value})}
+                        placeholder="请输入客服QQ号码"
+                      />
+                    </div>
+                    <div>
+                      <Label>客服微信</Label>
+                      <Input 
+                        value={config.customer_service_wechat || ''}
+                        onChange={(e) => setConfig({...config, customer_service_wechat: e.target.value})}
+                        placeholder="请输入客服微信号"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* 充值配置 */}
+                <div className="border-t pt-4 mt-4">
+                  <h3 className="text-lg font-medium mb-4">充值配置</h3>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label>充值比例 (1元=N星球币)</Label>
+                      <Input 
+                        type="number"
+                        value={config.wechat_exchange_rate}
+                        onChange={(e) => setConfig({...config, wechat_exchange_rate: Number(e.target.value)})}
+                      />
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Label>启用充值功能</Label>
+                      <input 
+                        type="checkbox"
+                        checked={config.wechat_enabled}
+                        onChange={(e) => setConfig({...config, wechat_enabled: e.target.checked})}
+                        className="w-5 h-5"
+                      />
+                    </div>
+                  </div>
+                </div>
+
                 <Button onClick={handleSaveConfig}>
                   <Save className="w-4 h-4 mr-1" /> 保存配置
                 </Button>
@@ -974,6 +1041,98 @@ export default function AdminDashboardPage() {
                 <Button onClick={handleSaveNavConfig}>
                   <Save className="w-4 h-4 mr-1" /> 保存配置
                 </Button>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* K线挑战管理 */}
+          <TabsContent value="challenge">
+            <Card>
+              <CardHeader>
+                <CardTitle>K线征途挑战管理</CardTitle>
+                <CardDescription>管理挑战赛申请、关卡配置和奖励设置</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-6">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <Button 
+                      variant="outline" 
+                      className="h-20 flex flex-col gap-2"
+                      onClick={() => window.location.href = '/admin/challenge'}
+                    >
+                      <Settings className="w-6 h-6" />
+                      <span>挑战申请管理</span>
+                    </Button>
+                    <Button 
+                      variant="outline" 
+                      className="h-20 flex flex-col gap-2"
+                      onClick={() => window.location.href = '/admin/challenge?tab=levels'}
+                    >
+                      <TrendingUp className="w-6 h-6" />
+                      <span>关卡配置</span>
+                    </Button>
+                    <Button 
+                      variant="outline" 
+                      className="h-20 flex flex-col gap-2"
+                      onClick={() => window.location.href = '/admin/challenge?tab=hall'}
+                    >
+                      <Shield className="w-6 h-6" />
+                      <span>名人堂管理</span>
+                    </Button>
+                  </div>
+                  
+                  <div className="border-t pt-6">
+                    <h3 className="text-lg font-medium mb-4">快速跳转</h3>
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                      <a href="/challenge" target="_blank" className="text-purple-600 hover:underline">
+                        挑战赛主页 →
+                      </a>
+                      <a href="/challenge/hall" target="_blank" className="text-purple-600 hover:underline">
+                        挑战赛大厅 →
+                      </a>
+                      <a href="/challenge/hall-of-fame" target="_blank" className="text-purple-600 hover:underline">
+                        名人堂 →
+                      </a>
+                      <a href="/challenge/play" target="_blank" className="text-purple-600 hover:underline">
+                        我的挑战 →
+                      </a>
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* 新闻管理 */}
+          <TabsContent value="news">
+            <Card>
+              <CardHeader>
+                <CardTitle>新闻管理</CardTitle>
+                <CardDescription>管理平台新闻和公告</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="flex justify-center py-8">
+                  <Button onClick={() => window.location.href = '/admin/news'}>
+                    <FileText className="w-4 h-4 mr-1" /> 打开新闻管理页面
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* EA管理 */}
+          <TabsContent value="ea">
+            <Card>
+              <CardHeader>
+                <CardTitle>EA产品管理</CardTitle>
+                <CardDescription>管理EA智能交易产品</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="flex justify-center py-8">
+                  <Button onClick={() => window.location.href = '/admin/ea'}>
+                    <TrendingUp className="w-4 h-4 mr-1" /> 打开EA管理页面
+                  </Button>
+                </div>
               </CardContent>
             </Card>
           </TabsContent>
