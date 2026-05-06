@@ -82,9 +82,9 @@ export const authOptions = {
       name: `next-auth.session-token`,
       options: {
         httpOnly: true,
-        sameSite: 'lax',
+        sameSite: 'none',
         path: '/',
-        secure: false, // 允许 HTTP cookie
+        secure: true,
       },
     },
   },
