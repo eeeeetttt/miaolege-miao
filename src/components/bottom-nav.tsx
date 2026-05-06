@@ -15,7 +15,7 @@ interface NavConfig {
 
 const navItems = [
   { href: '/', icon: Home, label: '首页' },
-  { href: '/challenge', icon: Trophy, label: '挑战' },
+  { href: '/challenge-hall', icon: Trophy, label: '挑战大厅' },
   { href: '/social', icon: MessageCircle, label: '社交' },
   { href: '/user', icon: User, label: '我的' },
 ];
@@ -66,7 +66,7 @@ export function BottomNav() {
 
   // 根据导航配置过滤项目
   const filteredItems = navItems.filter(item => {
-    if (item.href === '/challenge') return navConfig.nav_show_kline_challenge;
+    if (item.href === '/challenge-hall') return navConfig.nav_show_challenge_hall;
     if (item.href === '/social') return navConfig.nav_show_social;
     return true;
   });

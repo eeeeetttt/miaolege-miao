@@ -202,16 +202,16 @@ export default function HomePage() {
           </p>
           {session ? (
             <div className="flex flex-col sm:flex-row justify-center gap-4">
-              <Link href="/challenge">
+              <Link href="/challenge-hall">
                 <Button size="lg" className="bg-white text-amber-600 hover:bg-amber-50 text-lg px-8 py-6">
                   <Trophy className="mr-2 w-5 h-5" />
-                  立即报名
+                  进入挑战大厅
                 </Button>
               </Link>
-              <Link href="/challenge/hall">
+              <Link href="/challenge">
                 <Button size="lg" variant="outline" className="border-2 border-white text-white hover:bg-white/20 text-lg px-8 py-6">
-                  <Users className="mr-2 w-5 h-5" />
-                  查看大厅
+                  <Zap className="mr-2 w-5 h-5" />
+                  K线征途
                 </Button>
               </Link>
             </div>
