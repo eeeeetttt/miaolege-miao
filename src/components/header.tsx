@@ -111,9 +111,9 @@ export function Header() {
               {session && (
                 <>
                   {navConfig.nav_show_challenge_hall && (
-                    <button onClick={() => navigate('/challenge-hall')} className="text-gray-600 hover:text-purple-600 dark:text-gray-300 dark:hover:text-purple-400 transition-colors flex items-center gap-1">
+                    <button onClick={() => navigate('/challenge/hall')} className="text-gray-600 hover:text-purple-600 dark:text-gray-300 dark:hover:text-purple-400 transition-colors flex items-center gap-1">
                       <Globe className="w-4 h-4" />
-                      挑战大厅
+                      挑战赛大厅
                     </button>
                   )}
                   {navConfig.nav_show_kline_challenge && (

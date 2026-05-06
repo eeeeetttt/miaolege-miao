@@ -1,78 +1,455 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useSession } from 'next-auth/react';
+import { useRouter } from 'next/navigation';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Spinner } from '@/components/ui/spinner';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { 
+  Smartphone, 
+  Bot,
+  Zap,
+  Shield,
+  Cpu,
+  CheckCircle2,
+  ArrowRight,
+  ShoppingCart,
+  Download,
+  BarChart3,
+  FileCode,
+  Package,
+  Eye,
+  Plus,
+} from 'lucide-react';
 
-export default function DownloadPage() {
-  const [downloading, setDownloading] = useState(false);
+interface Product {
+  id: number;
+  name: string;
+  description: string | null;
+  price: number;
+  version: string | null;
+  platform: string | null;
+  category: string | null;
+  productType: string;
+  features: string | null;
+  downloadUrl: string | null;
+  fileName: string | null;
+  fileSize: number | null;
+  status: string | null;
+  salesCount: number | null;
+}
+
+// 产品类型配置
+const PRODUCT_TYPE_CONFIG = {
+  ea: { label: 'EA智能交易', icon: Bot, color: 'from-purple-500 to-blue-500', bgColor: 'to-purple-50 dark:to-purple-900/20', borderColor: 'border-purple-100 dark:border-purple-800/30' },
+  indicator: { label: '技术指标', icon: BarChart3, color: 'from-blue-500 to-cyan-500', bgColor: 'to-blue-50 dark:to-blue-900/20', borderColor: 'border-blue-100 dark:border-blue-800/30' },
+  script: { label: '脚本工具', icon: FileCode, color: 'from-amber-500 to-orange-500', bgColor: 'to-amber-50 dark:to-amber-900/20', borderColor: 'border-amber-100 dark:border-amber-800/30' },
+  tool: { label: '交易工具', icon: Package, color: 'from-green-500 to-emerald-500', bgColor: 'to-green-50 dark:to-green-900/20', borderColor: 'border-green-100 dark:border-green-800/30' },
+};
+
+// 获取图标组件
+function getProductIcon(productType: string) {
+  const config = PRODUCT_TYPE_CONFIG[productType as keyof typeof PRODUCT_TYPE_CONFIG] || PRODUCT_TYPE_CONFIG.ea;
+  return config.icon;
+}
+
+function getProductStyle(productType: string) {
+  const config = PRODUCT_TYPE_CONFIG[productType as keyof typeof PRODUCT_TYPE_CONFIG] || PRODUCT_TYPE_CONFIG.ea;
+  return config;
+}
+
+// 产品卡片组件
+function ProductCard({ 
+  product, 
+  purchased, 
+  purchasing, 
+  onPurchase,
+  onDownload,
+  onViewDetail,
+}: { 
+  product: Product; 
+  purchased: boolean; 
+  purchasing: boolean;
+  onPurchase: () => void;
+  onDownload?: () => void;
+  onViewDetail: () => void;
+}) {
+  const style = getProductStyle(product.productType);
+  const IconComponent = getProductIcon(product.productType);
   
-  const handleDownload = () => {
-    setDownloading(true);
-    window.location.href = '/android-app.tar.gz';
-    setTimeout(() => setDownloading(false), 3000);
+  return (
+    <Card 
+      className={`hover:shadow-xl transition-all duration-300 bg-gradient-to-br from-white ${style.bgColor} dark:from-gray-800 border ${style.borderColor} group`}
+    >
+      <CardHeader className="pb-4">
+        <div className="flex items-start justify-between">
+          <div className="flex items-center gap-3">
+            <div className={`w-14 h-14 bg-gradient-to-br ${style.color} rounded-xl flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform`}>
+              <IconComponent className="w-7 h-7 text-white" />
+            </div>
+            <div>
+              <CardTitle className="text-lg cursor-pointer hover:text-purple-600 transition-colors" onClick={onViewDetail}>
+                {product.name}
+              </CardTitle>
+              <div className="flex items-center gap-2 mt-1">
+                <Badge variant="outline" className="text-xs bg-purple-50 dark:bg-purple-900/30">
+                  {product.version || 'v1.0'}
+                </Badge>
+                <Badge variant="secondary" className="text-xs">
+                  {product.platform || 'MT4/MT5'}
+                </Badge>
+                {product.category && (
+                  <Badge variant="secondary" className="text-xs bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400">
+                    {product.category}
+                  </Badge>
+                )}
+              </div>
+            </div>
+          </div>
+          <Button 
+            variant="ghost" 
+            size="sm"
+            onClick={(e) => { e.stopPropagation(); onViewDetail(); }}
+            className="opacity-0 group-hover:opacity-100 transition-opacity"
+          >
+            <Eye className="w-4 h-4" />
+          </Button>
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <CardDescription className="text-sm line-clamp-3 min-h-[60px]">
+          {product.description || '暂无描述'}
+        </CardDescription>
+
+        {product.features && (
+          <div className="flex flex-wrap gap-2">
+            {(typeof product.features === 'string' 
+              ? JSON.parse(product.features) 
+              : product.features)?.map((feature: string, idx: number) => (
+              <span 
+                key={idx} 
+                className="inline-flex items-center gap-1 px-2 py-1 bg-white dark:bg-gray-700 rounded-md text-xs text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-600"
+              >
+                <CheckCircle2 className="w-3 h-3 text-green-500" />
+                {feature}
+              </span>
+            ))}
+          </div>
+        )}
+
+        <div className="pt-4 border-t flex items-center justify-between">
+          <div className="text-right">
+            <p className="text-2xl font-bold text-purple-600 dark:text-purple-400">
+              {product.price === 0 ? '免费' : `${product.price} 星球币`}
+            </p>
+            <p className="text-xs text-gray-500">
+              {product.price === 0 ? '' : '星球币/永久授权'}
+            </p>
+          </div>
+          {purchased ? (
+            <div className="flex gap-2">
+              <Badge className="bg-green-500 text-white px-4 py-2">
+                已购买
+              </Badge>
+              {onDownload && (
+                <Button 
+                  className="bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 gap-2"
+                  onClick={onDownload}
+                >
+                  <Download className="w-4 h-4" />
+                  下载
+                </Button>
+              )}
+            </div>
+          ) : (
+            <Button 
+              className={`bg-gradient-to-r ${style.color} hover:opacity-90 gap-2`}
+              onClick={onPurchase}
+              disabled={purchasing}
+            >
+              {purchasing ? (
+                <>
+                  <Spinner className="w-4 h-4" />
+                  处理中...
+                </>
+              ) : (
+                <>
+                  {product.price === 0 ? (
+                    <>
+                      <Download className="w-4 h-4" />
+                      免费下载
+                    </>
+                  ) : (
+                    <>
+                      <ShoppingCart className="w-4 h-4" />
+                      购买
+                    </>
+                  )}
+                </>
+              )}
+            </Button>
+          )}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+export default function AppDownloadPage() {
+  const { data: session } = useSession();
+  const router = useRouter();
+  const [products, setProducts] = useState<Product[]>([]);
+  const [loadingProducts, setLoadingProducts] = useState(true);
+  const [purchasingId, setPurchasingId] = useState<number | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [purchasedIds, setPurchasedIds] = useState<Set<number>>(new Set());
+  const [activeTab, setActiveTab] = useState('all');
+
+  // 获取产品列表
+  useEffect(() => {
+    const fetchProducts = async () => {
+      try {
+        const res = await fetch('/api/ea/products');
+        const data = await res.json();
+        if (data.products) {
+          setProducts(data.products);
+        }
+      } catch (error) {
+        console.error('获取产品失败:', error);
+      } finally {
+        setLoadingProducts(false);
+      }
+    };
+    fetchProducts();
+  }, []);
+
+  // 下载产品
+  const handleDownload = async (productId: number) => {
+    try {
+      const res = await fetch(`/api/ea/download?productId=${productId}`);
+      const data = await res.json();
+      
+      if (data.downloadUrl) {
+        if (data.direct) {
+          // 直接下载模式：通过专门的下载API生成签名URL并下载
+          const fileName = data.fileName || 'download';
+          const downloadLink = `/api/ea/file-download?key=${encodeURIComponent(data.downloadUrl)}&fileName=${encodeURIComponent(fileName)}`;
+          window.open(downloadLink, '_blank');
+        } else {
+          // 创建下载链接
+          const link = document.createElement('a');
+          link.href = data.downloadUrl;
+          link.download = data.fileName || 'download';
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+        }
+      } else {
+        alert(data.error || '下载失败');
+      }
+    } catch (err) {
+      console.error('下载失败:', err);
+      alert('下载失败，请稍后重试');
+    }
   };
 
-  const isMobile = typeof window !== 'undefined' && /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+  // 购买产品
+  const handlePurchase = async (productId: number, price: number) => {
+    if (!session) {
+      router.push('/login');
+      return;
+    }
+
+    // 免费产品直接下载
+    if (price === 0) {
+      handleDownload(productId);
+      setPurchasedIds(prev => new Set([...prev, productId]));
+      return;
+    }
+
+    setError(null);
+    setPurchasingId(productId);
+
+    try {
+      const res = await fetch('/api/ea/purchase', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ productId }),
+      });
+      
+      const data = await res.json();
+      
+      if (res.ok && data.success) {
+        setPurchasedIds(prev => new Set([...prev, productId]));
+        alert(`购买成功！已消耗 ${data.price} 星球币，剩余 ${data.remainingBalance} 星球币`);
+        // 购买成功后自动下载
+        handleDownload(productId);
+      } else {
+        setError(data.error || '购买失败');
+      }
+    } catch (err) {
+      setError('网络错误，请稍后重试');
+    } finally {
+      setPurchasingId(null);
+    }
+  };
+
+  // 分类过滤
+  const filteredProducts = activeTab === 'all' 
+    ? products 
+    : products.filter(p => p.productType === activeTab);
+
+  // 查看详情
+  const handleViewDetail = (productId: number) => {
+    router.push(`/download/${productId}`);
+  };
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl shadow-xl p-8 max-w-md w-full text-center">
-        <div className="w-24 h-24 mx-auto mb-6 bg-blue-100 rounded-2xl flex items-center justify-center">
-          <svg className="w-14 h-14 text-blue-600" fill="currentColor" viewBox="0 0 24 24">
-            <path d="M17 1.01L7 1c-1.1 0-2 .9-2 2v18c0 1.1.9 2 2 2h10c1.1 0 2-.9 2-2V3c0-1.1-.9-1.99-2-1.99zM17 19H7V5h10v14z"/>
-            <path d="M12 12c-1.65 0-3 1.35-3 3s1.35 3 3 3 3-1.35 3-3-1.35-3-3-3z"/>
-          </svg>
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-purple-50 dark:from-gray-900 dark:to-slate-900 py-8 px-4">
+      <div className="max-w-7xl mx-auto">
+        {/* Header */}
+        <div className="text-center mb-8">
+          <div className="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-br from-purple-500 to-blue-500 rounded-2xl mb-6">
+            <Bot className="w-10 h-10 text-white" />
+          </div>
+          <h1 className="text-4xl font-bold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent mb-4">
+            软件下载中心
+          </h1>
+          <p className="text-gray-600 dark:text-gray-400 text-lg max-w-2xl mx-auto">
+            专业开发的MT4/MT5交易工具，助力您的外汇交易
+          </p>
         </div>
 
-        <h1 className="text-2xl font-bold text-gray-800 mb-2">金火伙 APP</h1>
-        <p className="text-gray-500 mb-6">版本 1.0.0 | 大小 2.4 MB</p>
+        {/* Tab 导航 */}
+        <div className="flex justify-center mb-8">
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full max-w-2xl">
+            <TabsList className="grid w-full grid-cols-5">
+              <TabsTrigger value="all">全部</TabsTrigger>
+              <TabsTrigger value="ea">EA</TabsTrigger>
+              <TabsTrigger value="indicator">指标</TabsTrigger>
+              <TabsTrigger value="script">脚本</TabsTrigger>
+              <TabsTrigger value="tool">工具</TabsTrigger>
+            </TabsList>
+          </Tabs>
+        </div>
 
-        <button
-          onClick={handleDownload}
-          disabled={downloading}
-          className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-4 px-6 rounded-xl mb-6 transition-all disabled:opacity-50"
-        >
-          {downloading ? (
-            <span className="flex items-center justify-center gap-2">
-              <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none"/>
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
-              </svg>
-              正在下载...
-            </span>
-          ) : (
-            <span className="flex items-center justify-center gap-2">
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-              </svg>
-              下载 Android 项目包
-            </span>
+        {/* 加载状态 */}
+        {loadingProducts ? (
+          <div className="flex items-center justify-center py-20">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-500"></div>
+          </div>
+        ) : filteredProducts.length === 0 ? (
+          <Card className="max-w-2xl mx-auto">
+            <CardContent className="text-center py-20">
+              <Bot className="w-16 h-16 mx-auto mb-4 text-gray-400" />
+              <p className="text-xl text-gray-500">暂无软件产品</p>
+              <p className="text-sm text-gray-400 mt-2">敬请期待更多优质交易工具</p>
+            </CardContent>
+          </Card>
+        ) : (
+          /* 统一网格布局 */
+          <div className="mb-8">
+            {filteredProducts.length === 0 ? (
+              <Card>
+                <CardContent className="text-center py-12">
+                  <p className="text-gray-500">暂无相关产品</p>
+                </CardContent>
+              </Card>
+            ) : (
+              <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {filteredProducts.map((product) => (
+                  <ProductCard
+                    key={product.id}
+                    product={product}
+                    purchased={purchasedIds.has(product.id)}
+                    purchasing={purchasingId === product.id}
+                    onPurchase={() => handlePurchase(product.id, product.price)}
+                    onDownload={purchasedIds.has(product.id) ? () => handleDownload(product.id) : undefined}
+                    onViewDetail={() => handleViewDetail(product.id)}
+                  />
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Features */}
+        <div className="mt-16 pt-12 border-t border-purple-100 dark:border-purple-800/30">
+          {/* 上架自己的产品入口 */}
+          {session && (
+            <div className="mb-8 p-6 bg-gradient-to-r from-purple-100 to-blue-100 dark:from-purple-900/30 dark:to-blue-900/30 rounded-2xl border border-purple-200 dark:border-purple-800/50">
+              <div className="flex flex-col md:flex-row items-center justify-between gap-4">
+                <div className="flex items-center gap-4">
+                  <div className="w-14 h-14 bg-gradient-to-br from-purple-500 to-blue-500 rounded-xl flex items-center justify-center shadow-lg">
+                    <Bot className="w-7 h-7 text-white" />
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-lg">拥有自己的EA产品？</h3>
+                    <p className="text-sm text-gray-600 dark:text-gray-400">上传您的EA到平台，开始销售赚取收益</p>
+                  </div>
+                </div>
+                <Button 
+                  className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700"
+                  onClick={() => router.push('/user/ea')}
+                >
+                  <Plus className="w-4 h-4 mr-2" />
+                  上架我的EA
+                </Button>
+              </div>
+            </div>
           )}
-        </button>
 
-        <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4 text-left">
-          <h3 className="font-semibold text-yellow-800 mb-2 flex items-center gap-2">
-            <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-              <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-            </svg>
-            构建说明
-          </h3>
-          <ol className="text-sm text-yellow-700 space-y-1 list-decimal list-inside">
-            <li>下载项目包并解压</li>
-            <li>确保电脑已安装 Android Studio</li>
-            <li>在 Android Studio 中打开解压的 <code className="bg-yellow-100 px-1 rounded">android</code> 文件夹</li>
-            <li>等待 Gradle 同步完成</li>
-            <li>点击 Build → Build Bundle(s) / APK(s) → Build APK(s)</li>
-            <li>APK 生成在 <code className="bg-yellow-100 px-1 rounded">android/app/build/outputs/apk/debug/</code></li>
-          </ol>
+          <h2 className="text-2xl font-bold text-center mb-8 bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">
+            为什么选择我们的产品？
+          </h2>
+          <div className="grid md:grid-cols-4 gap-6">
+            {[
+              { icon: Cpu, title: '智能算法', desc: '基于多年交易经验开发的量化策略', color: 'from-purple-500 to-purple-600' },
+              { icon: Shield, title: '风险控制', desc: '多重止损保护机制，降低最大回撤', color: 'from-blue-500 to-blue-600' },
+              { icon: Zap, title: '快速执行', desc: '毫秒级订单响应，抓住每个机会', color: 'from-amber-500 to-amber-600' },
+              { icon: Bot, title: '24/7运行', desc: '全天候自动交易，无需人工盯盘', color: 'from-green-500 to-green-600' },
+            ].map((item, i) => (
+              <div key={i} className="text-center p-6 bg-white dark:bg-gray-800 rounded-xl shadow-sm hover:shadow-lg transition-shadow border border-purple-100 dark:border-purple-800/30">
+                <div className={`w-14 h-14 mx-auto mb-4 bg-gradient-to-br ${item.color} rounded-xl flex items-center justify-center shadow-lg`}>
+                  <item.icon className="w-7 h-7 text-white" />
+                </div>
+                <p className="font-semibold text-lg mb-1">{item.title}</p>
+                <p className="text-sm text-gray-500 dark:text-gray-400">{item.desc}</p>
+              </div>
+            ))}
+          </div>
         </div>
 
-        <div className="mt-6 text-xs text-gray-400">
-          <p>构建前请确保：</p>
-          <ul className="mt-2 space-y-1">
-            <li>• Android SDK 已正确配置</li>
-            <li>• JAVA_HOME 环境变量已设置</li>
-            <li>• Gradle 版本兼容</li>
-          </ul>
+        {/* Service Guarantee */}
+        <div className="mt-12 p-6 bg-gradient-to-r from-purple-50 to-blue-50 dark:from-purple-900/20 dark:to-blue-900/20 rounded-2xl border border-purple-100 dark:border-purple-800/30">
+          <div className="grid md:grid-cols-3 gap-6 text-center">
+            <div className="flex flex-col items-center gap-2">
+              <Shield className="w-8 h-8 text-purple-500" />
+              <p className="font-medium">正版授权</p>
+              <p className="text-sm text-gray-500">永久授权，无限使用</p>
+            </div>
+            <div className="flex flex-col items-center gap-2">
+              <CheckCircle2 className="w-8 h-8 text-green-500" />
+              <p className="font-medium">免费更新</p>
+              <p className="text-sm text-gray-500">持续优化，功能升级</p>
+            </div>
+            <div className="flex flex-col items-center gap-2">
+              <Bot className="w-8 h-8 text-blue-500" />
+              <p className="font-medium">技术支持</p>
+              <p className="text-sm text-gray-500">专业指导，在线答疑</p>
+            </div>
+          </div>
+        </div>
+
+        {/* Back link */}
+        <div className="text-center mt-12">
+          <a href="/" className="inline-flex items-center gap-2 text-purple-600 hover:text-purple-700 dark:text-purple-400 transition-colors">
+            <ArrowRight className="w-4 h-4 rotate-180" />
+            返回首页
+          </a>
         </div>
       </div>
     </div>

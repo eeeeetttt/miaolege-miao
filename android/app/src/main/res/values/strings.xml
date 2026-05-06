@@ -1,7 +1,0 @@
-<?xml version='1.0' encoding='utf-8'?>
-<resources>
-    <string name="app_name">金火伙</string>
-    <string name="title_activity_main">金火伙</string>
-    <string name="package_name">com.jinhuohuo.app</string>
-    <string name="custom_url_scheme">com.jinhuohuo.app</string>
-</resources>
