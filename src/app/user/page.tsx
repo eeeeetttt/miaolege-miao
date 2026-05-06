@@ -371,6 +371,22 @@ export default function UserCenterPage() {
               <span className="text-xs text-gray-500">下载EA和工具</span>
             </CardContent>
           </Card>
+          <Card 
+            className="cursor-pointer hover:shadow-lg transition-all hover:border-green-400"
+            onClick={() => router.push('/download')}
+          >
+            <CardContent className="p-4 flex flex-col items-center justify-center text-center gap-2">
+              <div className="w-12 h-12 bg-gradient-to-br from-green-500 to-emerald-500 rounded-xl flex items-center justify-center">
+                <svg className="w-6 h-6 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                  <polyline points="7 10 12 15 17 10"/>
+                  <line x1="12" y1="15" x2="12" y2="3"/>
+                </svg>
+              </div>
+              <span className="font-medium text-green-700 dark:text-green-400">下载APP</span>
+              <span className="text-xs text-gray-500">安装到手机</span>
+            </CardContent>
+          </Card>
         </div>
 
         {/* Tabs */}
