@@ -74,14 +74,10 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const isDev = process.env.NODE_ENV === 'development';
-
   return (
     <html lang="zh-CN" suppressHydrationWarning>
       <body className={`antialiased bg-gray-50 dark:bg-gray-900`}>
-        <ServiceWorkerRegistration />
         <SessionProvider>
-          {isDev && <Inspector />}
           <div className="min-h-screen flex flex-col">
             <Header />
             <main className="flex-1">
