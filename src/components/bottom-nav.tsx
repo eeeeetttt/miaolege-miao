@@ -2,7 +2,7 @@
 
 import { usePathname, useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
-import { Home, Users, Trophy, MessageCircle, User, Space } from 'lucide-react';
+import { Home, Users, Trophy, MessageCircle, User, Space, Medal } from 'lucide-react';
 import Link from 'next/link';
 import { UserCircle } from 'lucide-react';
 import { useEffect, useState } from 'react';
@@ -17,6 +17,7 @@ interface NavConfig {
 
 const navItems = [
   { href: '/', icon: Home, label: '首页' },
+  { href: '/lobby', icon: Medal, label: '大赛' },
   { href: '/challenge', icon: Trophy, label: '挑战' },
   { href: '/social', icon: MessageCircle, label: '社交' },
   { href: '/user/space', icon: Space, label: '空间' },
@@ -69,6 +70,7 @@ export function BottomNav() {
 
   // 根据导航配置过滤项目
   const filteredItems = navItems.filter(item => {
+    if (item.href === '/lobby') return navConfig.nav_show_challenge_hall;
     if (item.href === '/challenge') return navConfig.nav_show_kline_challenge;
     if (item.href === '/social') return navConfig.nav_show_social;
     return true;

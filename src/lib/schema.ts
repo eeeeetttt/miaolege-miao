@@ -408,3 +408,25 @@ export type ForumLike = typeof forumLikes.$inferSelect;
 export type NewForumLike = typeof forumLikes.$inferInsert;
 export type ForumBan = typeof forumBans.$inferSelect;
 export type NewForumBan = typeof forumBans.$inferInsert;
+
+// 赛事配置表
+export const tournamentConfig = mysqlTable('tournament_config', {
+  id: int('id').autoincrement().primaryKey(),
+  tournamentId: varchar('tournament_id', { length: 50 }).notNull().unique(), // 赛事ID，如 'ladder', 'master'
+  name: varchar('name', { length: 100 }).notNull(), // 赛事名称
+  icon: varchar('icon', { length: 50 }).default('fa-trophy'), // FontAwesome图标
+  description: text('description'), // 赛事描述
+  details: text('details'), // JSON格式的详情 { label, value }
+  reward: varchar('reward', { length: 255 }), // 奖励描述
+  badges: text('badges'), // JSON格式的徽章列表
+  enabled: boolean('enabled').default(true), // 是否启用
+  sortOrder: int('sort_order').default(0), // 排序
+  buttonText: varchar('button_text', { length: 50 }).default('立即报名'), // 按钮文字
+  createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow().onUpdateNow(),
+}, (table) => ({
+  idUnique: uniqueIndex('uk_tournament_id').on(table.tournamentId),
+}));
+
+export type TournamentConfig = typeof tournamentConfig.$inferSelect;
+export type NewTournamentConfig = typeof tournamentConfig.$inferInsert;
