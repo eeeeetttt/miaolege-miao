@@ -2,9 +2,7 @@
 
 import { usePathname, useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
-import { Home, Users, Trophy, MessageCircle, User, Space } from 'lucide-react';
-import Link from 'next/link';
-import { UserCircle } from 'lucide-react';
+import { Home, Users, Trophy, MessageCircle, User, Space, Crown } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
 interface NavConfig {
@@ -17,8 +15,8 @@ interface NavConfig {
 
 const navItems = [
   { href: '/', icon: Home, label: '首页' },
+  { href: '/challenge/hall', icon: Crown, label: '挑战者' },
   { href: '/challenge', icon: Trophy, label: '挑战' },
-  { href: '/social', icon: MessageCircle, label: '社交' },
   { href: '/user/space', icon: Space, label: '空间' },
   { href: '/user', icon: User, label: '我的' },
 ];

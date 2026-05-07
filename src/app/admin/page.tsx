@@ -104,6 +104,21 @@ export default function AdminDashboardPage() {
   const [success, setSuccess] = useState('');
   const [activeTab, setActiveTab] = useState('overview');
   
+  // 挑战赛配置
+  const [challenges, setChallenges] = useState<any[]>([]);
+  const [challengeForm, setChallengeForm] = useState({
+    id: null as number | null,
+    level: 1,
+    name: '',
+    description: '',
+    target_balance: 2000,
+    initial_balance: 1000,
+    fail_balance: 100,
+    reward: '',
+    is_active: true,
+  });
+  const [showChallengeModal, setShowChallengeModal] = useState(false);
+  
   // 数据状态
   const [stats, setStats] = useState<Stats | null>(null);
   const [config, setConfig] = useState<SystemConfig>({
@@ -264,6 +279,68 @@ export default function AdminDashboardPage() {
     }
   }, []);
 
+  // 获取挑战赛列表
+  const fetchChallenges = useCallback(async () => {
+    try {
+      const res = await fetch('/api/admin/challenges');
+      const data = await res.json();
+      if (data.challenges) {
+        setChallenges(data.challenges);
+      }
+    } catch (err) {
+      console.error('Challenges fetch error:', err);
+    }
+  }, []);
+
+  // 保存挑战赛
+  const saveChallenge = async () => {
+    try {
+      const res = await fetch('/api/admin/challenges', {
+        method: challengeForm.id ? 'POST' : 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(challengeForm),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setSuccess(challengeForm.id ? '更新成功' : '创建成功');
+        setShowChallengeModal(false);
+        setChallengeForm({
+          id: null,
+          level: 1,
+          name: '',
+          description: '',
+          target_balance: 2000,
+          initial_balance: 1000,
+          fail_balance: 100,
+          reward: '',
+          is_active: true,
+        });
+        fetchChallenges();
+      } else {
+        setError(data.error || '保存失败');
+      }
+    } catch (err) {
+      setError('保存失败');
+    }
+  };
+
+  // 删除挑战赛
+  const deleteChallenge = async (id: number) => {
+    if (!confirm('确定要删除这个挑战赛吗？')) return;
+    try {
+      const res = await fetch(`/api/admin/challenges?id=${id}`, { method: 'DELETE' });
+      const data = await res.json();
+      if (data.success) {
+        setSuccess('删除成功');
+        fetchChallenges();
+      } else {
+        setError(data.error || '删除失败');
+      }
+    } catch (err) {
+      setError('删除失败');
+    }
+  };
+
   // 获取文档列表
   const fetchDocs = useCallback(async () => {
     setDocsLoading(true);
@@ -289,7 +366,8 @@ export default function AdminDashboardPage() {
     if (activeTab === 'complaints') fetchComplaints();
     if (activeTab === 'suggestions') fetchSuggestions();
     if (activeTab === 'docs') fetchDocs();
-  }, [activeTab, hasAccess, fetchUsers, fetchRechargeApps, fetchComplaints, fetchSuggestions, fetchDocs]);
+    if (activeTab === 'challenges') fetchChallenges();
+  }, [activeTab, hasAccess, fetchUsers, fetchRechargeApps, fetchComplaints, fetchSuggestions, fetchDocs, fetchChallenges]);
 
   // 保存用户编辑
   const handleSaveUser = async () => {
@@ -504,6 +582,7 @@ export default function AdminDashboardPage() {
             <TabsTrigger value="suggestions">建议管理</TabsTrigger>
             <TabsTrigger value="docs">文档管理</TabsTrigger>
             <TabsTrigger value="news">新闻管理</TabsTrigger>
+            <TabsTrigger value="challenges">挑战赛配置</TabsTrigger>
             <TabsTrigger value="ai">店小二配置</TabsTrigger>
             <TabsTrigger value="ea">EA管理</TabsTrigger>
             <TabsTrigger value="config">系统配置</TabsTrigger>
@@ -1123,6 +1202,97 @@ export default function AdminDashboardPage() {
             </Card>
           </TabsContent>
 
+          {/* 挑战赛配置 */}
+          <TabsContent value="challenges">
+            <Card>
+              <CardHeader>
+                <div className="flex justify-between items-center">
+                  <div>
+                    <CardTitle>K线征途关卡配置</CardTitle>
+                    <CardDescription>管理K线征途挑战赛的各个关卡参数设置</CardDescription>
+                  </div>
+                  <Button onClick={() => {
+                    setChallengeForm({
+                      id: null,
+                      level: 1,
+                      name: '',
+                      description: '',
+                      target_balance: 2000,
+                      initial_balance: 1000,
+                      fail_balance: 100,
+                      reward: '',
+                      is_active: true,
+                    });
+                    setShowChallengeModal(true);
+                  }}>
+                    <Plus className="w-4 h-4 mr-1" /> 添加关卡
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b">
+                        <th className="text-left py-2 px-2">关卡</th>
+                        <th className="text-left py-2 px-2">名称</th>
+                        <th className="text-left py-2 px-2">初始净值</th>
+                        <th className="text-left py-2 px-2">目标净值</th>
+                        <th className="text-left py-2 px-2">失败底线</th>
+                        <th className="text-left py-2 px-2">奖励</th>
+                        <th className="text-left py-2 px-2">状态</th>
+                        <th className="text-left py-2 px-2">操作</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {challenges.map((c) => (
+                        <tr key={c.id} className="border-b hover:bg-gray-50 dark:hover:bg-gray-800">
+                          <td className="py-2 px-2">{c.level}</td>
+                          <td className="py-2 px-2 font-medium">{c.name}</td>
+                          <td className="py-2 px-2">{c.initialBalance || 0}</td>
+                          <td className="py-2 px-2">{c.targetBalance || 0}</td>
+                          <td className="py-2 px-2">{c.failBalance || 0}</td>
+                          <td className="py-2 px-2">{c.reward || '-'}</td>
+                          <td className="py-2 px-2">
+                            <span className={`px-2 py-1 rounded text-xs ${c.isActive ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
+                              {c.isActive ? '启用' : '禁用'}
+                            </span>
+                          </td>
+                          <td className="py-2 px-2">
+                            <Button variant="ghost" size="sm" onClick={() => {
+                              setChallengeForm({
+                                id: c.id,
+                                level: c.level || 1,
+                                name: c.name || '',
+                                description: c.description || '',
+                                target_balance: c.targetBalance || 2000,
+                                initial_balance: c.initialBalance || 1000,
+                                fail_balance: c.failBalance || 100,
+                                reward: c.reward || '',
+                                is_active: c.isActive !== false,
+                              });
+                              setShowChallengeModal(true);
+                            }}>
+                              <Edit className="w-4 h-4" />
+                            </Button>
+                            <Button variant="ghost" size="sm" onClick={() => deleteChallenge(c.id)} className="text-red-500">
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                          </td>
+                        </tr>
+                      ))}
+                      {challenges.length === 0 && (
+                        <tr>
+                          <td colSpan={9} className="text-center py-8 text-gray-500">暂无挑战赛配置，点击上方按钮添加</td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
           {/* 店小二配置 */}
           <TabsContent value="ai">
             <Card>
@@ -1259,6 +1429,93 @@ export default function AdminDashboardPage() {
           <DialogFooter>
             <Button variant="outline" onClick={() => setDocDialog(false)}>取消</Button>
             <Button onClick={handleSaveDoc}>保存</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* 挑战赛配置对话框 */}
+      <Dialog open={showChallengeModal} onOpenChange={() => setShowChallengeModal(false)}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>{challengeForm.id ? '编辑关卡' : '添加关卡'}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4 max-h-[60vh] overflow-y-auto">
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label>关卡号 *</Label>
+                <Input
+                  type="number"
+                  value={challengeForm.level}
+                  onChange={(e) => setChallengeForm({ ...challengeForm, level: Number(e.target.value) })}
+                  placeholder="1-10"
+                />
+              </div>
+              <div>
+                <Label>关卡名称 *</Label>
+                <Input
+                  value={challengeForm.name}
+                  onChange={(e) => setChallengeForm({ ...challengeForm, name: e.target.value })}
+                  placeholder="例如：初出茅庐"
+                />
+              </div>
+            </div>
+            <div>
+              <Label>关卡描述</Label>
+              <textarea
+                className="w-full p-2 border rounded min-h-[80px]"
+                value={challengeForm.description}
+                onChange={(e) => setChallengeForm({ ...challengeForm, description: e.target.value })}
+                placeholder="关卡描述..."
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label>初始净值</Label>
+                <Input
+                  type="number"
+                  value={challengeForm.initial_balance}
+                  onChange={(e) => setChallengeForm({ ...challengeForm, initial_balance: Number(e.target.value) })}
+                />
+              </div>
+              <div>
+                <Label>目标净值</Label>
+                <Input
+                  type="number"
+                  value={challengeForm.target_balance}
+                  onChange={(e) => setChallengeForm({ ...challengeForm, target_balance: Number(e.target.value) })}
+                />
+              </div>
+              <div>
+                <Label>失败底线净值</Label>
+                <Input
+                  type="number"
+                  value={challengeForm.fail_balance}
+                  onChange={(e) => setChallengeForm({ ...challengeForm, fail_balance: Number(e.target.value) })}
+                />
+              </div>
+              <div>
+                <Label>奖励描述</Label>
+                <Input
+                  value={challengeForm.reward}
+                  onChange={(e) => setChallengeForm({ ...challengeForm, reward: e.target.value })}
+                  placeholder="例如：星球币x100"
+                />
+              </div>
+            </div>
+            <div className="flex items-center">
+              <input
+                type="checkbox"
+                id="is_active"
+                checked={challengeForm.is_active}
+                onChange={(e) => setChallengeForm({ ...challengeForm, is_active: e.target.checked })}
+                className="mr-2"
+              />
+              <Label htmlFor="is_active">启用此关卡</Label>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowChallengeModal(false)}>取消</Button>
+            <Button onClick={saveChallenge}>保存</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
