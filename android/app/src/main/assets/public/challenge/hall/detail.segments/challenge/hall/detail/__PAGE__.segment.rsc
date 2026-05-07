@@ -1,0 +1,9 @@
+1:"$Sreact.fragment"
+2:I[62665,[],"ClientPageRoot"]
+3:I[59168,["3782","static/chunks/3782-c845498415e32971.js","9234","static/chunks/9234-47515ab018571a3d.js","6189","static/chunks/6189-60728e599d6d01e2.js","5782","static/chunks/5782-33ff87388993bdea.js","4744","static/chunks/4744-e5e921da100a92ce.js","248","static/chunks/248-9aff67c935738d97.js","4850","static/chunks/4850-36becfa42a46845b.js","5923","static/chunks/5923-bc3f300d966b1bd8.js","8158","static/chunks/8158-d22b5a2d8be6a4b8.js","6746","static/chunks/app/challenge/hall/detail/page-0b8b23a64b8e32f0.js"],"default"]
+6:I[25817,[],"OutletBoundary"]
+7:"$Sreact.suspense"
+0:{"buildId":"tOzIAEyt3_yiOteKLGk3P","rsc":["$","$1","c",{"children":[["$","$L2",null,{"Component":"$3","serverProvidedParams":{"searchParams":{},"params":{},"promises":["$@4","$@5"]}}],null,["$","$L6",null,{"children":["$","$7",null,{"name":"Next.MetadataOutlet","children":"$@8"}]}]]}],"loading":null,"isPartial":false}
+4:{}
+5:{}
+8:null

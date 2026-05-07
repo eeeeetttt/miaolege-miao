@@ -1,0 +1,15 @@
+{
+  "headers": {
+    "x-nextjs-stale-time": "300",
+    "x-nextjs-prerender": "1",
+    "x-next-cache-tags": "_N_T_/layout,_N_T_/wechat-recharge/layout,_N_T_/wechat-recharge/page,_N_T_/wechat-recharge"
+  },
+  "segmentPaths": [
+    "/_tree",
+    "/_full",
+    "/wechat-recharge/__PAGE__",
+    "/wechat-recharge",
+    "/_index",
+    "/_head"
+  ]
+}

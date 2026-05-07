@@ -1,0 +1,16 @@
+{
+  "headers": {
+    "x-nextjs-stale-time": "300",
+    "x-nextjs-prerender": "1",
+    "x-next-cache-tags": "_N_T_/layout,_N_T_/download/layout,_N_T_/download/android/layout,_N_T_/download/android/page,_N_T_/download/android"
+  },
+  "segmentPaths": [
+    "/_tree",
+    "/_full",
+    "/download/android/__PAGE__",
+    "/download/android",
+    "/download",
+    "/_index",
+    "/_head"
+  ]
+}

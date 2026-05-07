@@ -1,0 +1,16 @@
+{
+  "headers": {
+    "x-nextjs-stale-time": "300",
+    "x-nextjs-prerender": "1",
+    "x-next-cache-tags": "_N_T_/layout,_N_T_/challenge/layout,_N_T_/challenge/hall-of-fame/layout,_N_T_/challenge/hall-of-fame/page,_N_T_/challenge/hall-of-fame"
+  },
+  "segmentPaths": [
+    "/_tree",
+    "/_full",
+    "/challenge/hall-of-fame/__PAGE__",
+    "/challenge/hall-of-fame",
+    "/challenge",
+    "/_index",
+    "/_head"
+  ]
+}

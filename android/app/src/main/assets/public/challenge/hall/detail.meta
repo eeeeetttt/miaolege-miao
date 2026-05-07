@@ -1,0 +1,17 @@
+{
+  "headers": {
+    "x-nextjs-stale-time": "300",
+    "x-nextjs-prerender": "1",
+    "x-next-cache-tags": "_N_T_/layout,_N_T_/challenge/layout,_N_T_/challenge/hall/layout,_N_T_/challenge/hall/detail/layout,_N_T_/challenge/hall/detail/page,_N_T_/challenge/hall/detail"
+  },
+  "segmentPaths": [
+    "/_tree",
+    "/_full",
+    "/challenge/hall/detail/__PAGE__",
+    "/challenge/hall/detail",
+    "/challenge/hall",
+    "/challenge",
+    "/_index",
+    "/_head"
+  ]
+}
