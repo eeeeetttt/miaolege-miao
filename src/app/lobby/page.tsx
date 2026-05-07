@@ -2,8 +2,8 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { useSession } from 'next-auth/react';
-import { Crown, Calendar, Gift, Users, Trophy, Flame, Mountain, Sun, CalendarDays, GraduationCap, Loader2 } from 'lucide-react';
+import { useSession, signIn } from 'next-auth/react';
+import { Crown, Calendar, Gift, Users, Trophy, Flame, Mountain, Sun, CalendarDays, GraduationCap, Loader2, Zap } from 'lucide-react';
 
 interface Tournament {
   id: string;
@@ -15,210 +15,9 @@ interface Tournament {
   reward: string;
   status: string;
   buttonText: string;
+  route?: string;
 }
 
-export default function LobbyPage() {
-  const { data: session } = useSession();
-  const [tournaments, setTournaments] = useState<Tournament[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [registering, setRegistering] = useState<string | null>(null);
-
-  useEffect(() => {
-    const fetchTournaments = async () => {
-      try {
-        const res = await fetch('/api/admin/tournaments');
-        const data = await res.json();
-        if (data.tournaments && data.tournaments.length > 0) {
-          setTournaments(data.tournaments);
-        } else {
-          // 默认赛事
-          setTournaments(defaultTournaments);
-        }
-      } catch {
-        setTournaments(defaultTournaments);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchTournaments();
-  }, []);
-
-  const handleRegister = async (tournament: Tournament) => {
-    if (!session) {
-      alert('请先登录后再报名');
-      return;
-    }
-    setRegistering(tournament.id);
-
-    try {
-      const res = await fetch('/api/tournament/register', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ tournamentId: tournament.id }),
-      });
-      const data = await res.json();
-      if (data.success) {
-        alert(`恭喜！您已成功报名【${tournament.name}】！`);
-      } else {
-        alert(data.message || '报名失败，请稍后重试');
-      }
-    } catch {
-      alert('网络错误，请稍后重试');
-    } finally {
-      setRegistering(null);
-    }
-  };
-
-  const getIcon = (iconName: string) => {
-    switch (iconName) {
-      case 'fas fa-chart-simple': return <Trophy className="w-8 h-8" />;
-      case 'fas fa-user-graduate': return <GraduationCap className="w-8 h-8" />;
-      case 'fas fa-sun': return <Sun className="w-8 h-8" />;
-      case 'fas fa-calendar-alt': return <CalendarDays className="w-8 h-8" />;
-      case 'fas fa-mountain': return <Mountain className="w-8 h-8" />;
-      default: return <Trophy className="w-8 h-8" />;
-    }
-  };
-
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-gradient-to-b from-gray-950 to-gray-900 flex items-center justify-center">
-        <div className="text-center">
-          <Loader2 className="w-12 h-12 animate-spin text-amber-500 mx-auto mb-4" />
-          <p className="text-gray-400">加载赛事中...</p>
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="min-h-screen bg-gradient-to-b from-gray-950 via-gray-900 to-gray-950">
-      {/* 顶部导航 */}
-      <div className="max-w-6xl mx-auto px-4 pt-6 pb-4">
-        <div className="flex items-center justify-between mb-6 pb-4 border-b border-amber-500/30">
-          <div className="flex items-center gap-3">
-            <Crown className="w-8 h-8 text-amber-500" />
-            <span className="text-2xl font-bold bg-gradient-to-r from-amber-300 to-amber-500 bg-clip-text text-transparent">
-              LONDON GOLD
-            </span>
-            <span className="text-xs bg-amber-500/20 text-amber-400 px-2 py-1 rounded-full">
-              挑战赛·大厅
-            </span>
-          </div>
-        </div>
-
-        {/* Banner */}
-        <div className="relative bg-gradient-to-r from-black/60 to-amber-950/60 rounded-3xl p-6 mb-8 border border-amber-500/50 overflow-hidden">
-          <div className="absolute inset-0 bg-gradient-to-r from-amber-500/5 to-transparent" />
-          <div className="relative">
-            <h2 className="text-2xl font-bold text-white flex items-center gap-2">
-              <Flame className="w-7 h-7 text-amber-500" />
-              黄金竞技场 · 勇者集结
-            </h2>
-            <p className="text-gray-300 mt-2 max-w-xl">
-              立即报名，参与殿堂级伦敦金模拟赛事，与顶级交易员同台竞逐，赢取荣耀与实物豪礼。
-            </p>
-            <div className="inline-flex items-center gap-2 bg-amber-500/20 border border-amber-500/60 text-amber-400 px-4 py-2 rounded-full mt-4 text-sm">
-              <Calendar className="w-4 h-4" />
-              2026 S2赛季 · 热力开启
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* 赛事网格 */}
-      <div className="max-w-6xl mx-auto px-4 pb-24">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {tournaments.map((tournament) => (
-            <div
-              key={tournament.id}
-              className="relative bg-gray-900/80 backdrop-blur-xl rounded-3xl border border-amber-500/30 overflow-hidden hover:border-amber-500/70 hover:shadow-2xl hover:shadow-amber-500/10 transition-all duration-300 hover:-translate-y-2 group"
-            >
-              {/* 顶部金色装饰线 */}
-              <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-amber-500 via-amber-300 to-amber-500" />
-
-              <div className="p-6">
-                {/* 标题区 */}
-                <div className="flex items-start justify-between mb-4">
-                  <h3 className="text-2xl font-bold bg-gradient-to-r from-amber-200 to-amber-500 bg-clip-text text-transparent">
-                    {tournament.name}
-                  </h3>
-                  <div className="text-amber-500 group-hover:scale-110 transition-transform">
-                    {getIcon(tournament.icon)}
-                  </div>
-                </div>
-
-                {/* 徽章 */}
-                <div className="flex flex-wrap gap-2 mb-4">
-                  {tournament.badges.map((badge, i) => (
-                    <span
-                      key={i}
-                      className={`text-xs px-3 py-1 rounded-full border-l-2 ${
-                        badge.includes('热门') || badge.includes('全民')
-                          ? 'bg-amber-500/20 text-amber-400 border-amber-500'
-                          : 'bg-gray-800 text-gray-300 border-gray-600'
-                      }`}
-                    >
-                      {badge}
-                    </span>
-                  ))}
-                </div>
-
-                {/* 描述 */}
-                <p className="text-gray-400 text-sm leading-relaxed mb-4">
-                  {tournament.description}
-                </p>
-
-                {/* 详情 */}
-                <div className="space-y-2 mb-4 pb-4 border-b border-dashed border-amber-500/20">
-                  {tournament.details.map((detail, i) => (
-                    <div key={i} className="flex items-center gap-2 text-sm">
-                      <div className="w-1.5 h-1.5 bg-amber-500 rounded-full" />
-                      <span className="text-gray-500">{detail.label}:</span>
-                      <span className="text-amber-300 font-semibold">{detail.value}</span>
-                    </div>
-                  ))}
-                </div>
-
-                {/* 奖励 */}
-                <div className="bg-amber-500/10 rounded-xl px-4 py-2 mb-4 inline-flex items-center gap-2 text-amber-400 text-sm">
-                  <Gift className="w-4 h-4" />
-                  {tournament.reward}
-                </div>
-
-                {/* 报名按钮 */}
-                <button
-                  onClick={() => handleRegister(tournament)}
-                  disabled={registering === tournament.id}
-                  className="w-full bg-gradient-to-r from-gray-800 to-gray-900 border border-amber-500 rounded-full py-3 font-bold text-amber-400 hover:from-amber-500 hover:to-amber-600 hover:text-gray-900 transition-all duration-300 flex items-center justify-center gap-2 disabled:opacity-50"
-                >
-                  {registering === tournament.id ? (
-                    <Loader2 className="w-5 h-5 animate-spin" />
-                  ) : (
-                    <>
-                      <span>报名参赛</span>
-                      <span className="group-hover:translate-x-1 transition-transform">→</span>
-                    </>
-                  )}
-                </button>
-              </div>
-            </div>
-          ))}
-        </div>
-
-        {/* 底部提示 */}
-        <div className="text-center mt-12 pt-6 border-t border-amber-500/20">
-          <p className="text-gray-500 text-sm flex items-center justify-center gap-2">
-            <Trophy className="w-4 h-4 text-amber-500" />
-            每个赛事均为独立挑战，报名后解锁实时排名与专属奖励池
-          </p>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// 默认赛事数据
 const defaultTournaments: Tournament[] = [
   {
     id: 'ladder',
@@ -234,6 +33,23 @@ const defaultTournaments: Tournament[] = [
     reward: '黄金段位专属勋章 + 现金奖励',
     status: 'hot',
     buttonText: '立即报名',
+    route: '/challenge/ladder',
+  },
+  {
+    id: 'kline',
+    name: 'K线征途',
+    icon: 'fas fa-chart-line',
+    badges: ['⚡ K线挑战', '💰 丰厚奖金'],
+    description: '从1000星球币起步，挑战账户净值达到2000通关。报名费1000星球币，净值跌破100则挑战失败。',
+    details: [
+      { label: '报名费', value: '1000星球币' },
+      { label: '初始净值', value: '1000' },
+      { label: '通关目标', value: '2000' },
+    ],
+    reward: '通关奖励 + 专属勋章',
+    status: 'hot',
+    buttonText: '挑战开始',
+    route: '/challenge/play',
   },
   {
     id: 'master',
@@ -296,3 +112,212 @@ const defaultTournaments: Tournament[] = [
     buttonText: '验证报名',
   },
 ];
+
+export default function LobbyPage() {
+  const { data: session, status } = useSession();
+  const [tournaments, setTournaments] = useState<Tournament[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [registering, setRegistering] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchTournaments = async () => {
+      try {
+        const res = await fetch('/api/admin/tournaments');
+        const data = await res.json();
+        if (data.tournaments && data.tournaments.length > 0) {
+          setTournaments(data.tournaments);
+        } else {
+          setTournaments(defaultTournaments);
+        }
+      } catch {
+        setTournaments(defaultTournaments);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchTournaments();
+  }, []);
+
+  const handleRegister = async (tournament: Tournament) => {
+    // 更准确的登录检测
+    if (status === 'loading') {
+      alert('正在检查登录状态，请稍候...');
+      return;
+    }
+    
+    if (status === 'unauthenticated' || !session?.user) {
+      // 如果未登录，尝试跳转登录页
+      const confirmLogin = window.confirm('请先登录后再报名，是否前往登录？');
+      if (confirmLogin) {
+        window.location.href = '/login?redirect=/lobby';
+      }
+      return;
+    }
+
+    // 如果有专属路由，直接跳转
+    if (tournament.route) {
+      window.location.href = tournament.route;
+      return;
+    }
+
+    setRegistering(tournament.id);
+
+    try {
+      const res = await fetch('/api/tournament/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tournamentId: tournament.id }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        alert(`恭喜！您已成功报名【${tournament.name}】！`);
+      } else {
+        alert(data.message || '报名失败，请稍后重试');
+      }
+    } catch {
+      alert('网络错误，请稍后重试');
+    } finally {
+      setRegistering(null);
+    }
+  };
+
+  const getIcon = (iconName: string) => {
+    switch (iconName) {
+      case 'fas fa-chart-simple': return <Trophy className="w-8 h-8" />;
+      case 'fas fa-chart-line': return <Zap className="w-8 h-8" />;
+      case 'fas fa-user-graduate': return <GraduationCap className="w-8 h-8" />;
+      case 'fas fa-sun': return <Sun className="w-8 h-8" />;
+      case 'fas fa-calendar-alt': return <CalendarDays className="w-8 h-8" />;
+      case 'fas fa-mountain': return <Mountain className="w-8 h-8" />;
+      default: return <Trophy className="w-8 h-8" />;
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-gradient-to-b from-gray-900 via-gray-950 to-black text-white">
+      {/* 导航栏 */}
+      <div className="sticky top-0 z-50 bg-gray-900/95 backdrop-blur-sm border-b border-yellow-600/30">
+        <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <Crown className="w-7 h-7 text-yellow-500" />
+            <span className="font-bold text-lg bg-gradient-to-r from-yellow-300 to-yellow-500 bg-clip-text text-transparent">
+              LONDON GOLD
+            </span>
+            <span className="text-xs bg-yellow-500/20 text-yellow-400 px-2 py-0.5 rounded-full">挑战赛</span>
+          </div>
+          <div className="flex gap-4 text-sm">
+            <span className="text-yellow-400 border-b-2 border-yellow-400 pb-1">赛事报名</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Banner */}
+      <div className="bg-gradient-to-r from-yellow-900/30 via-yellow-800/20 to-transparent border-b border-yellow-600/20">
+        <div className="max-w-6xl mx-auto px-4 py-6">
+          <h1 className="text-2xl font-bold flex items-center gap-2">
+            <Flame className="w-7 h-7 text-yellow-500" />
+            黄金竞技场 · 勇者集结
+          </h1>
+          <p className="text-gray-400 mt-2">参与殿堂级伦敦金模拟赛事，与顶级交易员同台竞逐</p>
+          <span className="inline-block mt-3 text-xs bg-yellow-500/20 border border-yellow-500/40 text-yellow-400 px-3 py-1 rounded-full">
+            2026 S2赛季 · 热力开启
+          </span>
+        </div>
+      </div>
+
+      {/* 赛事列表 */}
+      <div className="max-w-6xl mx-auto px-4 py-6">
+        {loading ? (
+          <div className="flex items-center justify-center py-20">
+            <Loader2 className="w-8 h-8 animate-spin text-yellow-500" />
+            <span className="ml-3 text-gray-400">加载赛事中...</span>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+            {tournaments.map((tournament) => (
+              <div
+                key={tournament.id}
+                className="bg-gray-900/80 border border-yellow-600/30 rounded-2xl overflow-hidden hover:border-yellow-500/60 hover:-translate-y-1 transition-all duration-300"
+              >
+                {/* 顶部装饰线 */}
+                <div className="h-1 bg-gradient-to-r from-yellow-400 via-yellow-300 to-yellow-600" />
+                
+                <div className="p-5">
+                  <div className="flex items-start justify-between mb-3">
+                    <h3 className="text-xl font-bold bg-gradient-to-r from-yellow-200 to-yellow-400 bg-clip-text text-transparent">
+                      {tournament.name}
+                    </h3>
+                    <div className="text-yellow-500">
+                      {getIcon(tournament.icon)}
+                    </div>
+                  </div>
+
+                  {/* 徽章 */}
+                  <div className="flex flex-wrap gap-2 mb-3">
+                    {tournament.badges.map((badge, index) => (
+                      <span
+                        key={index}
+                        className={`text-xs px-2 py-1 rounded-full ${
+                          badge.includes('🔥') || badge.includes('🏆') || badge.includes('⚡')
+                            ? 'bg-yellow-500/20 text-yellow-400'
+                            : 'bg-gray-800 text-gray-400'
+                        }`}
+                      >
+                        {badge}
+                      </span>
+                    ))}
+                  </div>
+
+                  {/* 描述 */}
+                  <p className="text-sm text-gray-400 mb-4 line-clamp-2">
+                    {tournament.description}
+                  </p>
+
+                  {/* 详情 */}
+                  <div className="space-y-1 mb-4 text-sm">
+                    {tournament.details.map((detail, index) => (
+                      <div key={index} className="flex justify-between text-gray-400">
+                        <span>{detail.label}:</span>
+                        <span className="text-yellow-300">{detail.value}</span>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* 奖励提示 */}
+                  <div className="bg-yellow-500/10 text-yellow-400 text-xs px-3 py-1.5 rounded-full inline-flex items-center gap-1 mb-4">
+                    <Gift className="w-3 h-3" />
+                    {tournament.reward}
+                  </div>
+
+                  {/* 报名按钮 */}
+                  <button
+                    onClick={() => handleRegister(tournament)}
+                    disabled={registering === tournament.id}
+                    className="w-full bg-gradient-to-r from-yellow-700/80 to-yellow-600/80 hover:from-yellow-600 hover:to-yellow-500 text-black font-bold py-3 px-4 rounded-full flex items-center justify-center gap-2 transition-all disabled:opacity-50"
+                  >
+                    {registering === tournament.id ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        处理中...
+                      </>
+                    ) : (
+                      <>
+                        {tournament.buttonText}
+                        <Crown className="w-4 h-4" />
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* 底部提示 */}
+        <div className="text-center mt-8 text-gray-500 text-sm border-t border-gray-800 pt-6">
+          <p>每个赛事均为独立挑战，报名后解锁实时排名与专属奖励池</p>
+        </div>
+      </div>
+    </div>
+  );
+}
