@@ -3,13 +3,14 @@
 import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
-import { Building2, TrendingUp, Loader2, Check, AlertCircle } from 'lucide-react';
+import { Building2, TrendingUp, Loader2, Check, AlertCircle, Database } from 'lucide-react';
 
 export default function InitFinancePage() {
   const { data: session, status } = useSession();
   const router = useRouter();
-  const [loading, setLoading] = useState(false);
-  const [result, setResult] = useState<{ success?: boolean; message?: string } | null>(null);
+  const [step, setStep] = useState<'init' | 'loading' | 'success' | 'error'>('init');
+  const [message, setMessage] = useState('');
+  const [error, setError] = useState('');
 
   useEffect(() => {
     if (status === 'unauthenticated') {
@@ -17,17 +18,27 @@ export default function InitFinancePage() {
     }
   }, [status, router]);
 
-  const handleInit = async () => {
-    setLoading(true);
-    setResult(null);
+  const handleCreateTables = async () => {
+    setStep('loading');
+    setMessage('正在创建数据库表...');
     try {
-      const res = await fetch('/api/admin/init-banks', { method: 'POST' });
+      const res = await fetch('/api/admin/create-finance-tables', { 
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password: 'admin123' })
+      });
       const data = await res.json();
-      setResult(data);
-    } catch (error) {
-      setResult({ success: false, message: '初始化失败' });
-    } finally {
-      setLoading(false);
+      
+      if (data.success) {
+        setStep('success');
+        setMessage(data.message);
+      } else {
+        setStep('error');
+        setError(data.error || data.details || '创建失败');
+      }
+    } catch (e) {
+      setStep('error');
+      setError('网络错误，请重试');
     }
   };
 
@@ -49,59 +60,92 @@ export default function InitFinancePage() {
         <div className="bg-gray-900/80 border border-gray-700/50 rounded-2xl p-6">
           <div className="flex items-center gap-3 mb-6">
             <div className="w-12 h-12 rounded-xl bg-yellow-500/20 flex items-center justify-center">
-              <Building2 className="w-6 h-6 text-yellow-500" />
+              <Database className="w-6 h-6 text-yellow-500" />
             </div>
             <div>
               <h1 className="text-xl font-bold">初始化金融系统</h1>
-              <p className="text-sm text-gray-400">钱庄和交易所</p>
+              <p className="text-sm text-gray-400">创建钱庄和交易所</p>
             </div>
           </div>
 
-          <div className="bg-gray-800/50 rounded-xl p-4 mb-6">
-            <h2 className="font-medium mb-3">将初始化以下内容：</h2>
-            <div className="space-y-2 text-sm text-gray-300">
-              <div className="flex items-center gap-2">
-                <Building2 className="w-4 h-4 text-yellow-500" />
-                <span>5 个钱庄（聚宝庄、通宝庄、万利庄、汇源庄、瑞丰庄）</span>
+          {step === 'init' && (
+            <>
+              <div className="bg-red-500/10 border border-red-500/30 rounded-xl p-4 mb-6">
+                <p className="text-red-400 text-sm">
+                  检测到数据库中缺少钱庄和交易所表，需要先创建表结构。
+                </p>
               </div>
-              <div className="flex items-center gap-2">
-                <TrendingUp className="w-4 h-4 text-blue-500" />
-                <span>3 个交易所（太白、金源、洪武）</span>
-              </div>
-            </div>
-          </div>
 
-          {result && (
-            <div className={`mb-6 p-4 rounded-xl ${result.success ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'}`}>
-              <div className="flex items-center gap-2">
-                {result.success ? <Check className="w-5 h-5" /> : <AlertCircle className="w-5 h-5" />}
-                <span>{result.message}</span>
+              <div className="bg-gray-800/50 rounded-xl p-4 mb-6">
+                <h2 className="font-medium mb-3">将创建以下内容：</h2>
+                <div className="space-y-2 text-sm text-gray-300">
+                  <div className="flex items-center gap-2">
+                    <Check className="w-4 h-4 text-green-500" />
+                    <span>4 个数据库表（banks, bank_loans, exchanges, exchange_trades）</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Check className="w-4 h-4 text-green-500" />
+                    <span>5 个钱庄（聚宝庄、通宝庄、万利庄、汇源庄、瑞丰庄）</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Check className="w-4 h-4 text-green-500" />
+                    <span>3 个交易所（太白、金源、洪武）</span>
+                  </div>
+                </div>
               </div>
+
+              <button
+                onClick={handleCreateTables}
+                className="w-full bg-yellow-500 hover:bg-yellow-400 text-black font-bold py-3 rounded-xl flex items-center justify-center gap-2 transition-colors"
+              >
+                <Database className="w-5 h-5" />
+                创建并初始化
+              </button>
+            </>
+          )}
+
+          {step === 'loading' && (
+            <div className="text-center py-8">
+              <Loader2 className="w-12 h-12 animate-spin text-yellow-500 mx-auto mb-4" />
+              <p className="text-gray-400">{message}</p>
             </div>
           )}
 
-          <button
-            onClick={handleInit}
-            disabled={loading}
-            className="w-full bg-yellow-500 hover:bg-yellow-400 disabled:bg-gray-600 text-black font-bold py-3 rounded-xl flex items-center justify-center gap-2 transition-colors"
-          >
-            {loading ? (
-              <>
-                <Loader2 className="w-5 h-5 animate-spin" />
-                初始化中...
-              </>
-            ) : (
-              '立即初始化'
-            )}
-          </button>
+          {step === 'success' && (
+            <>
+              <div className="bg-green-500/20 rounded-xl p-4 mb-6">
+                <div className="flex items-center gap-2 text-green-400">
+                  <Check className="w-5 h-5" />
+                  <span>{message}</span>
+                </div>
+              </div>
 
-          {result?.success && (
-            <button
-              onClick={() => router.push('/finance')}
-              className="w-full mt-3 bg-gray-700 hover:bg-gray-600 text-white font-medium py-3 rounded-xl transition-colors"
-            >
-              前往金融中心
-            </button>
+              <button
+                onClick={() => router.push('/finance')}
+                className="w-full bg-yellow-500 hover:bg-yellow-400 text-black font-bold py-3 rounded-xl flex items-center justify-center gap-2 transition-colors"
+              >
+                <Building2 className="w-5 h-5" />
+                前往金融中心
+              </button>
+            </>
+          )}
+
+          {step === 'error' && (
+            <>
+              <div className="bg-red-500/20 rounded-xl p-4 mb-6">
+                <div className="flex items-center gap-2 text-red-400">
+                  <AlertCircle className="w-5 h-5" />
+                  <span>{error}</span>
+                </div>
+              </div>
+
+              <button
+                onClick={handleCreateTables}
+                className="w-full bg-yellow-500 hover:bg-yellow-400 text-black font-bold py-3 rounded-xl flex items-center justify-center gap-2 transition-colors"
+              >
+                重试
+              </button>
+            </>
           )}
         </div>
       </div>

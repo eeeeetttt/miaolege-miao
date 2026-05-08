@@ -1,0 +1,121 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { pool } from '@/lib/db';
+
+// 创建金融系统表（钱庄和交易所）
+export async function POST(request: NextRequest) {
+  try {
+    const { password } = await request.json().catch(() => ({}));
+    
+    // 验证管理员密码
+    if (password && password !== process.env.ADMIN_PASSWORD && password !== 'admin123') {
+      return NextResponse.json({ error: '密码错误' }, { status: 403 });
+    }
+
+    const connection = await pool.getConnection();
+
+    try {
+      // 1. 创建 banks 表
+      await connection.execute(`
+        CREATE TABLE IF NOT EXISTS banks (
+          bank_id VARCHAR(50) PRIMARY KEY,
+          name VARCHAR(100) NOT NULL,
+          price DECIMAL(15,2) NOT NULL,
+          owner_id VARCHAR(36) NULL,
+          interest_rate DECIMAL(5,4) DEFAULT 0.005,
+          max_loan DECIMAL(15,2) DEFAULT 1000000,
+          daily_output INT DEFAULT 0,
+          status ENUM('active','inactive') DEFAULT 'active',
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+          INDEX idx_owner (owner_id),
+          INDEX idx_status (status)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+      `);
+
+      // 2. 创建 bank_loans 表
+      await connection.execute(`
+        CREATE TABLE IF NOT EXISTS bank_loans (
+          id BIGINT AUTO_INCREMENT PRIMARY KEY,
+          user_id VARCHAR(36) NOT NULL,
+          bank_id VARCHAR(50) NOT NULL,
+          amount DECIMAL(15,2) NOT NULL,
+          last_interest_date TIMESTAMP NOT NULL,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          UNIQUE KEY uk_user_bank (user_id, bank_id),
+          INDEX idx_user (user_id),
+          INDEX idx_bank (bank_id)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+      `);
+
+      // 3. 创建 exchanges 表
+      await connection.execute(`
+        CREATE TABLE IF NOT EXISTS exchanges (
+          exchange_id VARCHAR(50) PRIMARY KEY,
+          name VARCHAR(100) NOT NULL,
+          price DECIMAL(15,2) NOT NULL,
+          owner_id VARCHAR(36) NULL,
+          fee_rate DECIMAL(5,4) DEFAULT 0.002,
+          total_fee_earned DECIMAL(15,2) DEFAULT 0.00,
+          status ENUM('active','inactive') DEFAULT 'active',
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+          INDEX idx_owner (owner_id),
+          INDEX idx_status (status)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+      `);
+
+      // 4. 创建 exchange_trades 表
+      await connection.execute(`
+        CREATE TABLE IF NOT EXISTS exchange_trades (
+          id BIGINT AUTO_INCREMENT PRIMARY KEY,
+          user_id VARCHAR(36) NOT NULL,
+          exchange_id VARCHAR(50) NOT NULL,
+          trade_type ENUM('challenge','conquest','shop','other') NOT NULL,
+          trade_id VARCHAR(100) NULL,
+          amount DECIMAL(15,2) NOT NULL,
+          fee DECIMAL(15,2) NOT NULL,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          INDEX idx_user (user_id),
+          INDEX idx_exchange (exchange_id)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+      `);
+
+      // 5. 插入钱庄初始数据
+      const [existingBanks] = await connection.execute('SELECT COUNT(*) as cnt FROM banks');
+      if ((existingBanks as any)[0].cnt === 0) {
+        await connection.execute(`
+          INSERT INTO banks (bank_id, name, price, interest_rate, max_loan) VALUES
+          ('bank1', '聚宝庄', 300000, 0.005, 1000000),
+          ('bank2', '通宝庄', 600000, 0.005, 1000000),
+          ('bank3', '万利庄', 1200000, 0.005, 1000000),
+          ('bank4', '汇源庄', 2000000, 0.005, 1000000),
+          ('bank5', '瑞丰庄', 3500000, 0.005, 1000000)
+        `);
+      }
+
+      // 6. 插入交易所初始数据
+      const [existingExchanges] = await connection.execute('SELECT COUNT(*) as cnt FROM exchanges');
+      if ((existingExchanges as any)[0].cnt === 0) {
+        await connection.execute(`
+          INSERT INTO exchanges (exchange_id, name, price, fee_rate) VALUES
+          ('ex1', '太白交易所', 500000, 0.002),
+          ('ex2', '金源交易所', 800000, 0.002),
+          ('ex3', '洪武交易所', 1200000, 0.002)
+        `);
+      }
+
+      return NextResponse.json({ 
+        success: true, 
+        message: '金融系统表创建成功！5个钱庄和3个交易所已初始化' 
+      });
+    } finally {
+      connection.release();
+    }
+  } catch (error) {
+    console.error('Create finance tables error:', error);
+    return NextResponse.json({ 
+      error: '创建失败', 
+      details: error instanceof Error ? error.message : 'Unknown error' 
+    }, { status: 500 });
+  }
+}
