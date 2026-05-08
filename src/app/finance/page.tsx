@@ -138,7 +138,7 @@ export default function FinancePage() {
 
     setActionLoading('borrow');
     try {
-      const res = await fetch('/api/banks', {
+      const res = await fetch('/api/bank-loans', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -176,7 +176,7 @@ export default function FinancePage() {
 
     setActionLoading('repay');
     try {
-      const res = await fetch('/api/banks', {
+      const res = await fetch('/api/bank-loans', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
