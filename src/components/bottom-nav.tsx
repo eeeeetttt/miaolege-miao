@@ -1,11 +1,11 @@
 'use client';
 
 import { usePathname, useRouter } from 'next/navigation';
-import { Home, Users, Trophy, MessageCircle, User, Space, Medal } from 'lucide-react';
+import { Building2, Medal, MessageCircle, Space, User } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
 const navItems = [
-  { href: '/', icon: Home, label: '首页' },
+  { href: '/home', icon: Building2, label: '大业' },
   { href: '/lobby', icon: Medal, label: '大赛' },
   { href: '/social', icon: MessageCircle, label: '社交' },
   { href: '/user/space', icon: Space, label: '空间' },
@@ -27,10 +27,8 @@ export function BottomNav() {
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
-  // 不显示底部导航的页面
   const hideNavPaths = ['/admin', '/login', '/register', '/challenge/admin'];
   
-  // 非移动端或特殊页面不显示
   if (!isMobile || hideNavPaths.some(path => pathname.startsWith(path))) {
     return null;
   }
@@ -41,8 +39,6 @@ export function BottomNav() {
       style={{ 
         paddingBottom: 'env(safe-area-inset-bottom, 0px)',
         height: 'calc(64px + env(safe-area-inset-bottom, 0px))',
-        display: 'flex',
-        alignItems: 'flex-end'
       }}
     >
       <div className="flex items-center justify-around w-full h-16">
