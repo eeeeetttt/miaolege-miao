@@ -322,7 +322,13 @@ export default function FinancePage() {
         {activeTab === 'banks' ? (
           /* 钱庄列表 */
           <div className="space-y-4">
-            {banks.map((bank) => {
+            {banks.length === 0 && !loading ? (
+              <div className="text-center py-12 text-gray-400">
+                <Building2 className="w-16 h-16 mx-auto mb-4 opacity-50" />
+                <p>暂无钱庄数据</p>
+                <p className="text-sm mt-2">请联系管理员初始化数据</p>
+              </div>
+            ) : banks.map((bank) => {
               const isOwner = bank.owner_id === userId;
               const hasLoan = bank.user_loan && bank.user_loan > 0;
               
@@ -432,7 +438,13 @@ export default function FinancePage() {
         ) : (
           /* 交易所列表 */
           <div className="space-y-4">
-            {exchanges.map((exchange) => {
+            {exchanges.length === 0 && !loading ? (
+              <div className="text-center py-12 text-gray-400">
+                <TrendingUp className="w-16 h-16 mx-auto mb-4 opacity-50" />
+                <p>暂无交易所数据</p>
+                <p className="text-sm mt-2">请联系管理员初始化数据</p>
+              </div>
+            ) : exchanges.map((exchange) => {
               const isOwner = exchange.owner_id === userId;
               
               return (
