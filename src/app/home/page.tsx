@@ -1,264 +1,295 @@
 'use client';
 
-import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Building2, Coins, Sword, Landmark, Map, Heart, Lock, Unlock, Trophy, TrendingUp, Users, Shield } from 'lucide-react';
-import Link from 'next/link';
+import { 
+  Building2, 
+  Coins, 
+  Sword, 
+  Landmark, 
+  Map, 
+  Heart, 
+  Lock, 
+  Trophy, 
+  TrendingUp, 
+  Users, 
+  Shield,
+  Castle,
+  Warehouse
+} from 'lucide-react';
 
 interface Module {
   id: string;
   name: string;
-  icon: string;
+  icon: any;
   description: string;
-  status: 'locked' | 'unlocked';
+  status: 'locked' | 'unlocked' | 'coming';
+  route?: string;
   unlockCondition?: string;
 }
 
-const defaultModules: Module[] = [
+const modules: Module[] = [
   // 第一排
   {
     id: 'banks',
     name: '五大钱庄',
-    icon: 'Coins',
-    description: '存储资产、利息收益',
-    status: 'locked',
-    unlockCondition: '累计收益达到 10,000',
+    icon: Building2,
+    description: '借贷资金、利息结算',
+    status: 'unlocked',
+    route: '/finance',
+    unlockCondition: '已解锁',
   },
   {
     id: 'exchanges',
     name: '三大交易所',
-    icon: 'TrendingUp',
-    description: '数字货币、贵金属、外汇交易',
-    status: 'locked',
-    unlockCondition: '完成首战告捷',
+    icon: TrendingUp,
+    description: '交易抽成、手续费收入',
+    status: 'unlocked',
+    route: '/finance',
+    unlockCondition: '已解锁',
   },
   {
     id: 'armory',
     name: '武器库',
-    icon: 'Sword',
-    description: 'EA策略、交易工具',
-    status: 'locked',
-    unlockCondition: 'K线征途通关第3关',
+    icon: Sword,
+    description: '研发武器、战力加成',
+    status: 'coming',
+    unlockCondition: '即将开放',
   },
   // 第二排
   {
     id: 'trade',
     name: '贸易',
-    icon: 'Building2',
-    description: '跨服交易、物品交换',
-    status: 'locked',
-    unlockCondition: '参赛满 50 场',
+    icon: Warehouse,
+    description: '道具交易、拍卖行',
+    status: 'coming',
+    unlockCondition: '敬请期待',
   },
   {
-    id: 'tribes',
-    name: '五大部落地图',
-    icon: 'Map',
-    description: '团队竞技、领地争夺',
-    status: 'locked',
-    unlockCondition: '天梯赛达到黄金段位',
+    id: 'lands',
+    name: '五大部落',
+    icon: Map,
+    description: '领土征服、势力扩张',
+    status: 'unlocked',
+    route: '/conquest',
+    unlockCondition: '已解锁',
+  },
+  {
+    id: 'bank_central',
+    name: '中央银行',
+    icon: Landmark,
+    description: '金币充值、货币兑换',
+    status: 'coming',
+    unlockCondition: '敬请期待',
   },
   // 第三排
   {
-    id: 'centralbank',
-    name: '中央银行',
-    icon: 'Landmark',
-    description: '政策发布、宏观调控',
-    status: 'locked',
-    unlockCondition: '总收益达到 100,000',
-  },
-  // 第四排
-  {
-    id: 'manor',
+    id: 'village',
     name: '庄园',
-    icon: 'Heart',
-    description: '养宠、种植、装修',
-    status: 'locked',
-    unlockCondition: 'K线征途全通关',
+    icon: Castle,
+    description: '养成系统、资源产出',
+    status: 'coming',
+    unlockCondition: '敬请期待',
   },
 ];
 
-const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
-  Coins,
-  TrendingUp,
-  Sword,
-  Building2,
-  Map,
-  Landmark,
-  Heart,
-  Trophy,
-  Users,
-  Shield,
-};
-
 export default function HomePage() {
   const router = useRouter();
-  const [modules, setModules] = useState<Module[]>(defaultModules);
 
-  useEffect(() => {
-    // 后期可从API获取用户解锁状态
-  }, []);
-
-  const handleModuleClick = (module: Module) => {
-    if (module.status === 'unlocked') {
-      router.push(`/home/${module.id}`);
-    } else {
-      alert(`🔒 解锁条件：${module.unlockCondition}`);
+  const getStatusStyle = (status: string) => {
+    switch (status) {
+      case 'unlocked':
+        return 'from-yellow-600/20 to-yellow-800/10 border-yellow-500/50 hover:border-yellow-400';
+      case 'coming':
+        return 'from-gray-800/50 to-gray-900/30 border-gray-700/30';
+      default:
+        return 'from-gray-800/50 to-gray-900/30 border-gray-700/30';
     }
   };
 
-  const getIcon = (iconName: string) => {
-    const Icon = iconMap[iconName] || Trophy;
-    return <Icon className="w-8 h-8" />;
+  const getIconStyle = (status: string) => {
+    switch (status) {
+      case 'unlocked':
+        return 'text-yellow-500';
+      case 'coming':
+        return 'text-gray-600';
+      default:
+        return 'text-gray-600';
+    }
   };
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-gray-900 via-gray-950 to-black text-white pb-20">
-      {/* 顶部标题 */}
-      <div className="bg-gradient-to-r from-yellow-900/40 via-yellow-800/30 to-yellow-900/40 border-b border-yellow-600/30">
-        <div className="max-w-4xl mx-auto px-4 py-6">
-          <div className="flex items-center justify-center gap-3 mb-2">
-            <Building2 className="w-8 h-8 text-yellow-500" />
-            <h1 className="text-2xl font-bold bg-gradient-to-r from-yellow-300 to-yellow-500 bg-clip-text text-transparent">
-              金 融 大 业
-            </h1>
-            <Building2 className="w-8 h-8 text-yellow-500" />
+      {/* 顶部装饰 */}
+      <div className="relative bg-gradient-to-b from-yellow-900/30 to-transparent pt-6 pb-8">
+        <div className="absolute inset-0 overflow-hidden">
+          <div className="absolute top-0 left-1/4 w-64 h-64 bg-yellow-500/5 rounded-full blur-3xl" />
+          <div className="absolute top-20 right-1/4 w-48 h-48 bg-yellow-600/5 rounded-full blur-2xl" />
+        </div>
+        
+        <div className="relative max-w-4xl mx-auto px-4 text-center">
+          <div className="inline-flex items-center gap-2 bg-yellow-500/10 border border-yellow-500/30 rounded-full px-4 py-1 mb-4">
+            <Trophy className="w-4 h-4 text-yellow-500" />
+            <span className="text-sm text-yellow-400">金火火 · 金融征服游戏</span>
           </div>
-          <p className="text-center text-gray-400 text-sm">构建你的金融帝国</p>
+          
+          <h1 className="text-3xl font-bold mb-2">
+            <span className="bg-gradient-to-r from-yellow-200 via-yellow-400 to-yellow-600 bg-clip-text text-transparent">
+              金火火 · 金融大业
+            </span>
+          </h1>
+          <p className="text-gray-400 text-sm">征服金融世界，成为一代霸主</p>
         </div>
       </div>
 
       {/* 模块网格 */}
       <div className="max-w-4xl mx-auto px-4 py-6">
-        {/* 第一排：三大核心 */}
-        <div className="grid grid-cols-3 gap-3 mb-4">
-          {modules.slice(0, 3).map((module) => (
-            <ModuleCard
-              key={module.id}
-              module={module}
-              onClick={() => handleModuleClick(module)}
-              getIcon={getIcon}
-              variant="tall"
-            />
-          ))}
-        </div>
-
-        {/* 第二排：两大核心 */}
-        <div className="grid grid-cols-2 gap-3 mb-4">
-          {modules.slice(3, 5).map((module) => (
-            <ModuleCard
-              key={module.id}
-              module={module}
-              onClick={() => handleModuleClick(module)}
-              getIcon={getIcon}
-              variant="wide"
-            />
-          ))}
-        </div>
-
-        {/* 第三排：中央银行 */}
-        <div className="grid grid-cols-1 gap-3 mb-4">
-          {modules.slice(5, 6).map((module) => (
-            <ModuleCard
-              key={module.id}
-              module={module}
-              onClick={() => handleModuleClick(module)}
-              getIcon={getIcon}
-              variant="full"
-            />
-          ))}
-        </div>
-
-        {/* 第四排：庄园 */}
-        <div className="grid grid-cols-1 gap-3">
-          {modules.slice(6, 7).map((module) => (
-            <ModuleCard
-              key={module.id}
-              module={module}
-              onClick={() => handleModuleClick(module)}
-              getIcon={getIcon}
-              variant="full"
-            />
-          ))}
-        </div>
-
-        {/* 底部提示 */}
-        <div className="mt-8 text-center text-gray-500 text-sm">
-          <p>更多模块持续开发中...</p>
-          <p className="mt-1 text-xs">完成挑战，解锁更多功能</p>
+        <div className="grid grid-cols-3 gap-3">
+          {modules.map((module) => {
+            const Icon = module.icon;
+            const isUnlocked = module.status === 'unlocked';
+            
+            return (
+              <button
+                key={module.id}
+                onClick={() => {
+                  if (isUnlocked && module.route) {
+                    router.push(module.route);
+                  }
+                }}
+                disabled={!isUnlocked}
+                className={`relative bg-gradient-to-br ${getStatusStyle(module.status)} border rounded-2xl p-4 text-center transition-all ${
+                  isUnlocked ? 'hover:scale-105 active:scale-95 cursor-pointer' : 'cursor-not-allowed opacity-80'
+                }`}
+              >
+                {/* 锁定图标 */}
+                {module.status !== 'unlocked' && (
+                  <div className="absolute top-2 right-2">
+                    <Lock className="w-3 h-3 text-gray-500" />
+                  </div>
+                )}
+                
+                {/* 图标 */}
+                <div className={`w-12 h-12 mx-auto mb-2 rounded-xl bg-gray-800/50 flex items-center justify-center`}>
+                  <Icon className={`w-6 h-6 ${getIconStyle(module.status)}`} />
+                </div>
+                
+                {/* 名称 */}
+                <h3 className={`text-sm font-bold mb-1 ${
+                  module.status === 'unlocked' ? 'text-white' : 'text-gray-400'
+                }`}>
+                  {module.name}
+                </h3>
+                
+                {/* 描述 */}
+                <p className="text-[10px] text-gray-500 leading-tight">
+                  {module.description}
+                </p>
+                
+                {/* 解锁条件 */}
+                {module.status === 'unlocked' ? (
+                  <div className="mt-2 text-[10px] text-yellow-500 flex items-center justify-center gap-1">
+                    <span className="w-1 h-1 bg-green-500 rounded-full" />
+                    已解锁
+                  </div>
+                ) : (
+                  <div className="mt-2 text-[10px] text-gray-500">
+                    {module.unlockCondition}
+                  </div>
+                )}
+              </button>
+            );
+          })}
         </div>
       </div>
 
-      {/* 快捷入口 */}
-      <div className="fixed bottom-20 right-4 flex flex-col gap-2 z-40">
-        <Link
-          href="/lobby"
-          className="w-12 h-12 bg-yellow-600 hover:bg-yellow-500 rounded-full flex items-center justify-center shadow-lg"
-        >
-          <Trophy className="w-6 h-6 text-white" />
-        </Link>
-        <Link
-          href="/challenge/play"
-          className="w-12 h-12 bg-blue-600 hover:bg-blue-500 rounded-full flex items-center justify-center shadow-lg"
-        >
-          <TrendingUp className="w-6 h-6 text-white" />
-        </Link>
+      {/* 赛事入口 */}
+      <div className="max-w-4xl mx-auto px-4 py-6">
+        <h2 className="text-lg font-bold mb-4 flex items-center gap-2">
+          <Trophy className="w-5 h-5 text-yellow-500" />
+          挑战赛事
+        </h2>
+        
+        <div className="grid grid-cols-2 gap-3">
+          <button
+            onClick={() => router.push('/challenge/play')}
+            className="bg-gradient-to-br from-yellow-600/20 to-yellow-800/10 border border-yellow-500/50 rounded-2xl p-4 text-left hover:scale-[1.02] active:scale-[0.98] transition-transform"
+          >
+            <div className="flex items-center gap-3 mb-2">
+              <div className="w-10 h-10 rounded-xl bg-yellow-500/20 flex items-center justify-center">
+                <Shield className="w-5 h-5 text-yellow-500" />
+              </div>
+              <div>
+                <h3 className="font-bold text-yellow-300">K线征途</h3>
+                <p className="text-xs text-gray-400">10关挑战赛</p>
+              </div>
+            </div>
+            <p className="text-xs text-gray-400">从1000到2000，证明你的交易实力</p>
+          </button>
+          
+          <button
+            onClick={() => router.push('/lobby')}
+            className="bg-gradient-to-br from-blue-600/20 to-blue-800/10 border border-blue-500/50 rounded-2xl p-4 text-left hover:scale-[1.02] active:scale-[0.98] transition-transform"
+          >
+            <div className="flex items-center gap-3 mb-2">
+              <div className="w-10 h-10 rounded-xl bg-blue-500/20 flex items-center justify-center">
+                <Trophy className="w-5 h-5 text-blue-500" />
+              </div>
+              <div>
+                <h3 className="font-bold text-blue-300">大赛汇总</h3>
+                <p className="text-xs text-gray-400">更多赛事</p>
+              </div>
+            </div>
+            <p className="text-xs text-gray-400">天梯赛、每日挑战等精彩赛事</p>
+          </button>
+        </div>
+      </div>
+
+      {/* 快捷操作 */}
+      <div className="max-w-4xl mx-auto px-4 py-6">
+        <h2 className="text-lg font-bold mb-4 flex items-center gap-2">
+          <Coins className="w-5 h-5 text-yellow-500" />
+          快捷入口
+        </h2>
+        
+        <div className="grid grid-cols-4 gap-2">
+          <button
+            onClick={() => router.push('/user/space')}
+            className="bg-gray-800/50 border border-gray-700/30 rounded-xl p-3 text-center hover:bg-gray-800 transition-colors"
+          >
+            <Users className="w-5 h-5 text-gray-400 mx-auto mb-1" />
+            <span className="text-xs text-gray-400">个人空间</span>
+          </button>
+          
+          <button
+            onClick={() => router.push('/social')}
+            className="bg-gray-800/50 border border-gray-700/30 rounded-xl p-3 text-center hover:bg-gray-800 transition-colors"
+          >
+            <Users className="w-5 h-5 text-gray-400 mx-auto mb-1" />
+            <span className="text-xs text-gray-400">聊天大厅</span>
+          </button>
+          
+          <button
+            onClick={() => router.push('/conquest')}
+            className="bg-gray-800/50 border border-gray-700/30 rounded-xl p-3 text-center hover:bg-gray-800 transition-colors"
+          >
+            <Map className="w-5 h-5 text-gray-400 mx-auto mb-1" />
+            <span className="text-xs text-gray-400">领土征服</span>
+          </button>
+          
+          <button
+            onClick={() => router.push('/shop')}
+            className="bg-gray-800/50 border border-gray-700/30 rounded-xl p-3 text-center hover:bg-gray-800 transition-colors"
+          >
+            <Coins className="w-5 h-5 text-gray-400 mx-auto mb-1" />
+            <span className="text-xs text-gray-400">道具商城</span>
+          </button>
+        </div>
+      </div>
+
+      {/* 底部 slogan */}
+      <div className="text-center py-8 text-gray-600 text-xs">
+        <p>金火火 · 让金融更有趣</p>
       </div>
     </div>
-  );
-}
-
-interface ModuleCardProps {
-  module: Module;
-  onClick: () => void;
-  getIcon: (iconName: string) => React.ReactNode;
-  variant: 'tall' | 'wide' | 'full';
-}
-
-function ModuleCard({ module, onClick, getIcon, variant }: ModuleCardProps) {
-  const isLocked = module.status === 'locked';
-  
-  const baseClasses = `
-    relative overflow-hidden rounded-2xl border transition-all duration-300
-    ${isLocked 
-      ? 'bg-gray-900/60 border-gray-700/50 hover:border-gray-600' 
-      : 'bg-gradient-to-br from-yellow-900/40 to-orange-900/40 border-yellow-600/50 hover:border-yellow-500'
-    }
-  `;
-
-  return (
-    <button onClick={onClick} className={baseClasses}>
-      {/* 顶部装饰 */}
-      <div className={`h-1 ${isLocked ? 'bg-gray-700' : 'bg-gradient-to-r from-yellow-400 via-yellow-300 to-yellow-600'}`} />
-      
-      <div className={`${variant === 'tall' ? 'p-4' : 'p-5'}`}>
-        {/* 图标 */}
-        <div className={`mb-3 ${isLocked ? 'text-gray-600' : 'text-yellow-500'}`}>
-          {getIcon(module.icon)}
-        </div>
-
-        {/* 名称 */}
-        <h3 className={`font-bold mb-1 ${isLocked ? 'text-gray-400' : 'text-yellow-200'}`}>
-          {module.name}
-        </h3>
-
-        {/* 描述 */}
-        <p className={`text-xs mb-2 ${isLocked ? 'text-gray-500' : 'text-gray-300'}`}>
-          {module.description}
-        </p>
-
-        {/* 解锁状态 */}
-        {isLocked ? (
-          <div className="flex items-center gap-1 text-gray-500 text-xs">
-            <Lock className="w-3 h-3" />
-            <span>未解锁</span>
-          </div>
-        ) : (
-          <div className="flex items-center gap-1 text-yellow-400 text-xs">
-            <Unlock className="w-3 h-3" />
-            <span>已解锁</span>
-          </div>
-        )}
-      </div>
-    </button>
   );
 }

@@ -81,7 +81,7 @@ export async function POST(request: NextRequest) {
       await tx
         .update(users)
         .set({
-          coinBalance: (user.coinBalance || 0) + amount,
+          coinBalance: String(Number(user.coinBalance || 0) + amount),
           updatedAt: new Date(),
         })
         .where(eq(users.userId, session.user.id));

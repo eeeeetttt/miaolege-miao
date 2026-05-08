@@ -1,18 +1,24 @@
 import { mysqlTable, varchar, text, int, timestamp, decimal, mysqlEnum, boolean, uniqueIndex, index } from 'drizzle-orm/mysql-core';
 import { drizzle } from 'drizzle-orm/mysql2';
 
-// User Accounts Table (用户账户表 - 使用 user_accounts 表)
+// User Accounts Table (用户账户表)
 export const users = mysqlTable('user_accounts', {
   userId: varchar('user_id', { length: 36 }).notNull().unique(),
   email: varchar('email', { length: 255 }).notNull().unique(),
   passwordHash: varchar('password_hash', { length: 255 }).notNull(),
   name: varchar('name', { length: 100 }).default('用户'),
   role: mysqlEnum('role', ['admin', 'user', 'vip']).default('user'),
-  coinBalance: decimal('coin_balance', { precision: 15, scale: 2 }).default('10000.00'),
+  // 货币系统
+  coinBalance: decimal('coin_balance', { precision: 15, scale: 2 }).default('0.00'),      // 银两余额
+  goldBalance: int('gold_balance').default(0),                                           // 金币余额
+  totalDebt: decimal('total_debt', { precision: 15, scale: 2 }).default('0.00'),          // 总负债
   avatarUrl: varchar('avatar_url', { length: 500 }),
+  activeTitle: varchar('active_title', { length: 50 }),                                   // 当前称号
   createdAt: timestamp('created_at').defaultNow(),
   updatedAt: timestamp('updated_at').defaultNow().onUpdateNow(),
-});
+}, (table) => ({
+  emailIdx: index('idx_email').on(table.email),
+}));
 
 // Alias for user accounts
 export const userAccounts = users;
@@ -379,13 +385,6 @@ export const challengeLevelRecords = mysqlTable('challenge_level_records', {
   status: mysqlEnum('status', ['active', 'completed', 'failed']).default('active'),
 });
 
-// Type exports
-export type User = typeof users.$inferSelect;
-export type NewUser = typeof users.$inferInsert;
-export type Planet = typeof planets.$inferSelect;
-export type NewPlanet = typeof planets.$inferInsert;
-export type PlanetMember = typeof planetMembers.$inferSelect;
-export type NewPlanetMember = typeof planetMembers.$inferInsert;
 export type Signal = typeof signals.$inferSelect;
 export type NewSignal = typeof signals.$inferInsert;
 export type EaProduct = typeof eaProducts.$inferSelect;
@@ -430,3 +429,221 @@ export const tournamentConfig = mysqlTable('tournament_config', {
 
 export type TournamentConfig = typeof tournamentConfig.$inferSelect;
 export type NewTournamentConfig = typeof tournamentConfig.$inferInsert;
+
+// ============================================================================
+// 金火火 - 金融征服系统表
+// ============================================================================
+
+// 钱庄表 (5个固定席位)
+export const banks = mysqlTable('banks', {
+  bankId: varchar('bank_id', { length: 50 }).primaryKey(),
+  name: varchar('name', { length: 100 }).notNull(),
+  price: decimal('price', { precision: 15, scale: 2 }).notNull(),           // 购买价格
+  ownerId: varchar('owner_id', { length: 36 }),                             // 庄主ID
+  interestRate: decimal('interest_rate', { precision: 5, scale: 4 }).default('0.005'), // 日利率，默认0.5%
+  maxLoan: decimal('max_loan', { precision: 15, scale: 2 }).default('1000000'), // 单次借款上限
+  dailyOutput: int('daily_output').default(0),                               // 日产出
+  status: mysqlEnum('status', ['active', 'inactive']).default('active'),
+  createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow().onUpdateNow(),
+});
+
+// 借贷记录表
+export const bankLoans = mysqlTable('bank_loans', {
+  id: int('id').autoincrement().primaryKey(),
+  userId: varchar('user_id', { length: 36 }).notNull(),
+  bankId: varchar('bank_id', { length: 50 }).notNull(),
+  amount: decimal('amount', { precision: 15, scale: 2 }).notNull(),           // 当前欠款金额
+  lastInterestDate: timestamp('last_interest_date').notNull(),             // 上次计息日期
+  createdAt: timestamp('created_at').defaultNow(),
+}, (table) => ({
+  userBankIdx: uniqueIndex('uk_user_bank').on(table.userId, table.bankId),
+  userIdx: index('idx_loan_user').on(table.userId),
+  bankIdx: index('idx_loan_bank').on(table.bankId),
+}));
+
+// 交易所表 (3个固定席位)
+export const exchanges = mysqlTable('exchanges', {
+  exchangeId: varchar('exchange_id', { length: 50 }).primaryKey(),
+  name: varchar('name', { length: 100 }).notNull(),
+  price: decimal('price', { precision: 15, scale: 2 }).notNull(),           // 购买价格
+  ownerId: varchar('owner_id', { length: 36 }),                             // 席主ID
+  feeRate: decimal('fee_rate', { precision: 5, scale: 4 }).default('0.002'), // 手续费率，默认0.2%
+  status: mysqlEnum('status', ['active', 'inactive']).default('active'),
+  totalFeeEarned: decimal('total_fee_earned', { precision: 15, scale: 2 }).default('0.00'), // 累计手续费收入
+  createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow().onUpdateNow(),
+});
+
+// 交易手续费记录表
+export const exchangeTrades = mysqlTable('exchange_trades', {
+  id: int('id').autoincrement().primaryKey(),
+  userId: varchar('user_id', { length: 36 }).notNull(),
+  exchangeId: varchar('exchange_id', { length: 50 }).notNull(),
+  tradeType: mysqlEnum('trade_type', ['challenge', 'conquest', 'shop', 'other']).notNull(),
+  tradeId: varchar('trade_id', { length: 100 }),                            // 关联的交易ID
+  amount: decimal('amount', { precision: 15, scale: 2 }).notNull(),         // 交易金额
+  fee: decimal('fee', { precision: 15, scale: 2 }).notNull(),              // 手续费
+  createdAt: timestamp('created_at').defaultNow(),
+}, (table) => ({
+  userIdx: index('idx_trade_user').on(table.userId),
+  exchangeIdx: index('idx_trade_exchange').on(table.exchangeId),
+}));
+
+// 土地/部落表
+export const lands = mysqlTable('lands', {
+  landId: int('land_id').autoincrement().primaryKey(),
+  name: varchar('name', { length: 100 }).notNull(),
+  region: mysqlEnum('region', ['domestic', 'world']).default('domestic'),
+  description: text('description'),
+  requiredPower: int('required_power').notNull().default(50),              // 征服所需战力
+  defense: int('defense').notNull().default(50),                           // 防御值
+  dailyOutput: int('daily_output').notNull().default(1000),                // 日产出银两
+  upgradeCost: decimal('upgrade_cost', { precision: 15, scale: 2 }).default('50000'), // 升级费用
+  upgradeLevel: int('upgrade_level').default(1),                          // 当前等级
+  ownerUserId: varchar('owner_user_id', { length: 36 }),                   // 领主ID
+  isLocked: boolean('is_locked').default(false),                           // 是否锁定
+  conqueredAt: timestamp('conquered_at'),
+  createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow().onUpdateNow(),
+}, (table) => ({
+  ownerIdx: index('idx_land_owner').on(table.ownerUserId),
+  regionIdx: index('idx_land_region').on(table.region),
+}));
+
+// 武器表 (固定配置)
+export const weapons = mysqlTable('weapons', {
+  weaponId: varchar('weapon_id', { length: 50 }).primaryKey(),
+  name: varchar('name', { length: 100 }).notNull(),
+  era: varchar('era', { length: 50 }),                                     // 时代：冷兵器/火药/工业
+  description: text('description'),
+  cost: decimal('cost', { precision: 15, scale: 2 }).notNull(),           // 研发费用
+  powerBonus: int('power_bonus').notNull().default(10),                   // 战力加成
+  researchTime: int('research_time').default(0),                          // 研发时间(秒)，0表示即时
+  sortOrder: int('sort_order').default(0),                                 // 排序
+  createdAt: timestamp('created_at').defaultNow(),
+});
+
+// 用户武器研发状态
+export const userWeapons = mysqlTable('user_weapons', {
+  id: int('id').autoincrement().primaryKey(),
+  userId: varchar('user_id', { length: 36 }).notNull(),
+  weaponId: varchar('weapon_id', { length: 50 }).notNull(),
+  researchedAt: timestamp('researched_at').defaultNow(),
+}, (table) => ({
+  userWeaponIdx: uniqueIndex('uk_user_weapon').on(table.userId, table.weaponId),
+  userIdx: index('idx_user_weapon_user').on(table.userId),
+}));
+
+// 军队表
+export const userArmy = mysqlTable('user_army', {
+  id: int('id').autoincrement().primaryKey(),
+  userId: varchar('user_id', { length: 36 }).primaryKey().references(() => users.userId, { onDelete: 'cascade' }),
+  units: int('units').default(0),                                         // 兵团数量
+  lastMaintenanceDate: timestamp('last_maintenance_date').notNull(),      // 上次维护日期
+  totalPower: int('total_power').default(0),                              // 总战力
+  createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow().onUpdateNow(),
+});
+
+// 道具表
+export const items = mysqlTable('items', {
+  itemId: varchar('item_id', { length: 50 }).primaryKey(),
+  name: varchar('name', { length: 100 }).notNull(),
+  type: mysqlEnum('item_type', ['consumable', 'functional', 'decorative', 'collectible', 'title']).notNull(),
+  description: text('description'),
+  priceGold: int('price_gold').default(0),                                // 金币价格
+  priceSilver: decimal('price_silver', { precision: 15, scale: 2 }).default('0.00'), // 银两价格
+  effectType: varchar('effect_type', { length: 50 }),                      // 效果类型
+  effectValue: text('effect_value'),                                       // 效果值(JSON)
+  icon: varchar('icon', { length: 100 }),                                  // 图标
+  isStackable: boolean('is_stackable').default(true),                     // 是否可堆叠
+  canTrade: boolean('can_trade').default(false),                           // 是否可交易
+  stock: int('stock').default(-1),                                         // 库存，-1表示无限
+  sortOrder: int('sort_order').default(0),
+  createdAt: timestamp('created_at').defaultNow(),
+});
+
+// 用户道具背包
+export const userItems = mysqlTable('user_items', {
+  id: int('id').autoincrement().primaryKey(),
+  userId: varchar('user_id', { length: 36 }).notNull(),
+  itemId: varchar('item_id', { length: 50 }).notNull(),
+  quantity: int('quantity').default(1),
+  obtainedAt: timestamp('obtained_at').defaultNow(),
+  expiresAt: timestamp('expires_at'),
+}, (table) => ({
+  userItemIdx: uniqueIndex('uk_user_item').on(table.userId, table.itemId),
+  userIdx: index('idx_backpack_user').on(table.userId),
+}));
+
+// 称号表
+export const titles = mysqlTable('titles', {
+  titleId: varchar('title_id', { length: 50 }).primaryKey(),
+  name: varchar('name', { length: 100 }).notNull(),
+  description: text('description'),
+  icon: varchar('icon', { length: 100 }),
+  rarity: mysqlEnum('rarity', ['common', 'rare', 'epic', 'legendary']).default('common'),
+  isUnique: boolean('is_unique').default(false),                          // 是否全服唯一
+  createdAt: timestamp('created_at').defaultNow(),
+});
+
+// 用户称号
+export const userTitles = mysqlTable('user_titles', {
+  id: int('id').autoincrement().primaryKey(),
+  userId: varchar('user_id', { length: 36 }).notNull(),
+  titleId: varchar('title_id', { length: 50 }).notNull(),
+  obtainedAt: timestamp('obtained_at').defaultNow(),
+  isActive: boolean('is_active').default(false),
+}, (table) => ({
+  userTitleIdx: uniqueIndex('uk_user_title').on(table.userId, table.titleId),
+}));
+
+// 土地股份表 (允许多人持有同一地块股份)
+export const landShares = mysqlTable('land_shares', {
+  id: int('id').autoincrement().primaryKey(),
+  landId: int('land_id').notNull().references(() => lands.landId, { onDelete: 'cascade' }),
+  userId: varchar('user_id', { length: 36 }).notNull(),
+  sharePercent: int('share_percent').notNull().default(0),               // 股份百分比
+  investedAmount: decimal('invested_amount', { precision: 15, scale: 2 }).default('0.00'), // 投资金额
+  createdAt: timestamp('created_at').defaultNow(),
+}, (table) => ({
+  landUserIdx: uniqueIndex('uk_land_user_share').on(table.landId, table.userId),
+}));
+
+// ============================================================================
+// 类型导出
+// ============================================================================
+
+export type User = typeof users.$inferSelect;
+export type NewUser = typeof users.$inferInsert;
+
+export type Bank = typeof banks.$inferSelect;
+export type NewBank = typeof banks.$inferInsert;
+
+export type BankLoan = typeof bankLoans.$inferSelect;
+export type NewBankLoan = typeof bankLoans.$inferInsert;
+
+export type Exchange = typeof exchanges.$inferSelect;
+export type NewExchange = typeof exchanges.$inferInsert;
+
+export type ExchangeTrade = typeof exchangeTrades.$inferSelect;
+export type NewExchangeTrade = typeof exchangeTrades.$inferInsert;
+
+export type Land = typeof lands.$inferSelect;
+export type NewLand = typeof lands.$inferInsert;
+
+export type Weapon = typeof weapons.$inferSelect;
+export type NewWeapon = typeof weapons.$inferInsert;
+
+export type UserWeapon = typeof userWeapons.$inferSelect;
+export type UserArmy = typeof userArmy.$inferSelect;
+
+export type Item = typeof items.$inferSelect;
+export type NewItem = typeof items.$inferInsert;
+
+export type UserItem = typeof userItems.$inferSelect;
+export type NewUserItem = typeof userItems.$inferInsert;
+
+export type Title = typeof titles.$inferSelect;
+export type UserTitle = typeof userTitles.$inferSelect;

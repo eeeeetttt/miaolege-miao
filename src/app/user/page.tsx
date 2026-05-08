@@ -39,6 +39,7 @@ import {
   QrCode,
   ArrowRight,
   Bot,
+  Landmark,
 } from 'lucide-react';
 
 interface UserInfo {
@@ -348,27 +349,27 @@ export default function UserCenterPage() {
         {/* 快捷入口 */}
         <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-6">
           <Card 
-            className="cursor-pointer hover:shadow-lg transition-all hover:border-purple-400 bg-gradient-to-br from-purple-50 to-blue-50 dark:from-purple-900/20 dark:to-blue-900/20"
-            onClick={() => router.push('/user/ea')}
+            className="cursor-pointer hover:shadow-lg transition-all hover:border-yellow-400 bg-gradient-to-br from-yellow-50 to-orange-50 dark:from-yellow-900/20 dark:to-orange-900/20"
+            onClick={() => router.push('/shop')}
           >
             <CardContent className="p-4 flex flex-col items-center justify-center text-center gap-2">
-              <div className="w-12 h-12 bg-gradient-to-br from-purple-500 to-blue-500 rounded-xl flex items-center justify-center">
-                <Bot className="w-6 h-6 text-white" />
+              <div className="w-12 h-12 bg-gradient-to-br from-yellow-500 to-orange-500 rounded-xl flex items-center justify-center">
+                <Coins className="w-6 h-6 text-white" />
               </div>
-              <span className="font-medium text-purple-700 dark:text-purple-400">我的EA产品</span>
-              <span className="text-xs text-gray-500">上架销售EA工具</span>
+              <span className="font-medium text-yellow-700 dark:text-yellow-400">道具商城</span>
+              <span className="text-xs text-gray-500">购买消耗品和功能道具</span>
             </CardContent>
           </Card>
           <Card 
             className="cursor-pointer hover:shadow-lg transition-all hover:border-blue-400"
-            onClick={() => router.push('/download')}
+            onClick={() => router.push('/finance')}
           >
             <CardContent className="p-4 flex flex-col items-center justify-center text-center gap-2">
               <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-cyan-500 rounded-xl flex items-center justify-center">
-                <ArrowRight className="w-6 h-6 text-white" />
+                <Landmark className="w-6 h-6 text-white" />
               </div>
-              <span className="font-medium text-blue-700 dark:text-blue-400">软件中心</span>
-              <span className="text-xs text-gray-500">下载EA和工具</span>
+              <span className="font-medium text-blue-700 dark:text-blue-400">金融中心</span>
+              <span className="text-xs text-gray-500">钱庄借贷、交易手续费</span>
             </CardContent>
           </Card>
         </div>
