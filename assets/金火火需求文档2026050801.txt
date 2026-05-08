@@ -1,0 +1,741 @@
+# 金火火 - 金融征服游戏平台 完整需求文档
+
+> **版本**: 2.0  
+> **项目名称**: 金火火  
+> **技术栈**: Next.js 14 + TypeScript + TailwindCSS + MySQL + Drizzle ORM + NextAuth  
+
+---
+
+## 目录
+
+1. [产品概述](#1-产品概述)  
+2. [功能需求](#2-功能需求)  
+   - 2.1 用户系统  
+   - 2.2 金融中心（钱庄 & 交易所）  
+   - 2.3 挑战赛事  
+   - 2.4 征服系统（土地、军队、武器）  
+   - 2.5 道具商城  
+3. [商业模式与付费点](#3-商业模式与付费点)  
+4. [技术架构](#4-技术架构)  
+5. [数据库设计](#5-数据库设计)  
+6. [API 接口设计](#6-api-接口设计)  
+7. [前端页面及组件结构](#7-前端页面及组件结构)  
+8. [核心代码实现（关键文件）](#8-核心代码实现)  
+9. [部署与运维](#9-部署与运维)  
+10. [开发计划与团队配置建议](#10-开发计划与团队配置建议)  
+
+---
+
+## 1. 产品概述
+
+### 1.1 背景
+“金火火”是一个融合**金融模拟、策略征服、多人竞技**的网页游戏。玩家从零开始，必须向**钱庄**借贷获得初始资金，通过模拟交易（K线征途、赛事挑战）盈利，偿还债务积累财富。当资金充足时，可购买**固定数量的钱庄、交易所**席位，成为庄主/席主，自主设定利率/费率，从其他玩家的借贷和交易中抽成。后期通过研发武器、招募军队，征服国内部落乃至全球领土。最终目标是成为统一全图的金火皇帝。
+
+### 1.2 核心特色
+- **经济闭环**：借贷产生利息，交易产生手续费，两者回收资金，防止通胀。
+- **固定席位竞争**：钱庄（5席）、交易所（3席）具有稀缺性，玩家竞争购买，可自定义关键经济参数。
+- **征服系统**：军工研发、领土扩张，消耗大量资金，提供长期目标。
+- **道具系统**：多样化的付费/免费道具，增强趣味，不破坏平衡。
+- **排行榜与竞争**：负债榜、手续费收入榜、战力榜、征服进度榜。
+
+### 1.3 用户角色
+- **普通玩家**：借贷、交易、参赛、购买道具、征服土地。
+- **钱庄庄主**：拥有钱庄后修改利率/额度，赚取利息。
+- **交易所席主**：修改手续费率，赚取交易手续费。
+- **管理员**：后台管理用户、审核充值、配置参数。
+
+---
+
+## 2. 功能需求
+
+### 2.1 用户系统
+
+| ID | 功能 | 描述 |
+|----|------|------|
+| U01 | 注册 | 邮箱+密码，自动赠送初始银两（0）和新手道具包（见道具表）。 |
+| U02 | 登录 | NextAuth，session 持久化。 |
+| U03 | 个人中心 | 显示：现金、总负债、净资产、拥有的钱庄/交易所、称号、道具背包、军队信息。 |
+| U04 | 负债管理 | 列出各钱庄欠款明细，提供还款入口（可部分还款）。 |
+| U05 | 我的道具 | 背包，展示拥有的道具，使用按钮。 |
+| U06 | 称号系统 | 玩家可激活一个已获得的称号，显示在头像旁。 |
+
+### 2.2 金融中心
+
+#### 2.2.1 钱庄（5个固定席位）
+
+| ID | 功能 | 描述 |
+|----|------|------|
+| B01 | 钱庄列表 | 展示名称、购买价格、当前庄主（无庄主显示“系统”）、日利率、单次借款上限。 |
+| B02 | 购买钱庄 | 用户现金 >= 价格，立即成为庄主。如果已被购买则不能购买。 |
+| B03 | 庄主设置 | 修改日利率（0.01% ~ 10% 可配置）、单次借款上限（>=1000）。 |
+| B04 | 借款 | 用户选择钱庄，输入金额（<= 该钱庄上限）。增加用户现金，增加该钱庄欠款记录和总负债。 |
+| B05 | 还款 | 用户选择钱庄，输入金额（不超过当前现金和该钱庄欠款）。减少现金和欠款。 |
+| B06 | 利息结算 | 每日凌晨自动执行：遍历所有未清欠款，按所在钱庄利率复利，累加欠款，同步更新用户总负债。 |
+| B07 | 强制回收（后台） | 庄主连续7天未登录，系统自动回收席位，原价80%返还银两。 |
+
+#### 2.2.2 交易所（3个固定席位）
+
+| ID | 功能 | 描述 |
+|----|------|------|
+| E01 | 交易所列表 | 名称、价格、当前席主、手续费率。 |
+| E02 | 购买席位 | 同钱庄购买逻辑。 |
+| E03 | 修改费率 | 席主可设置费率（0% ~ 5%）。 |
+| E04 | 交易扣费 | 在挑战赛平仓等场景，用户发起交易时需选择交易所（界面展示最低费率推荐）。扣除 `交易金额 × 费率` 的手续费，直接加给席主的现金（实时到账）。记录交易日志。 |
+
+#### 2.2.3 借贷 & 交易统计
+
+| ID | 功能 | 描述 |
+|----|------|------|
+| F01 | 借款排行榜 | 按总负债金额排序，展示“负债王”称号。 |
+| F02 | 手续费排行榜 | 交易所席主按总手续费收入排序。 |
+| F03 | 资产负债简报 | 个人中心展示日利息支出预测、月手续费收入（如为席主）。 |
+
+### 2.3 挑战赛事
+
+所有赛事后端必须校验负债状态，**总负债 > 0 的用户报名时返回错误码**。
+
+| ID | 功能 | 描述 |
+|----|------|------|
+| C01 | K线征途 | 10关制。每关初始净值1000，目标净值2000，失败底线100。用户报名时需总负债=0且支付报名费1000银两（可配置）。通过后获得奖励银两+称号。 |
+| C02 | 天梯赛 | 每月1日重置，按收益率排名，段位青铜~王者。免费参加。 |
+| C03 | 大师邀请赛 | 负债=0且拥有指定称号（如“征服者”）可申请，管理员审核。 |
+| C04 | 月度总决赛 | 月终决赛，负债=0且天梯赛前100名自动获得资格。 |
+| C05 | 每日挑战赛 | 每日报名，初始1万银两，按当日盈利排名，前10名获奖。 |
+
+### 2.4 征服系统
+
+#### 2.4.1 土地与部落
+
+| ID | 功能 | 描述 |
+|----|------|------|
+| L01 | 地图展示 | 国内5部落 + 世界5领土（初始锁定）。每个地块显示战力需求、日产出（银两）。 |
+| L02 | 征服 | 用户发起征服时，必须总军力 >= 地块战力需求。胜利后地块归属该用户，产出归其所有（每日结算）。失败则损失一定兵力。 |
+| L03 | 土地经营 | 归属后可升级地块（提升产出），需要银两和特殊道具。 |
+| L04 | 土地股份 | 允许多个玩家共同购买同一地块的股份，按比例分红。 |
+| L05 | 世界解锁 | 当国内5部落全部被同一玩家（或联盟）征服后，世界领土解锁（可攻击）。 |
+
+#### 2.4.2 军队与武器
+
+| ID | 功能 | 描述 |
+|----|------|------|
+| M01 | 武器研发树 | 科技树共8项，每项需消耗银两和时间（现实时间，可使用加速道具）。研发后提供永久战力加成（叠加）。 |
+| M02 | 招募兵团 | 每个兵团消耗1万银两，提供基础战力10。每日每个兵团维护费500银两（自动扣除，不足则解散部分）。 |
+| M03 | 总军力计算 | 总军力 = 兵团数 × (10 + 所有已研发武器战力加成)。 |
+| M04 | 战斗损失 | 征服时，损失兵团数 = 当前兵团数 × min(0.6, 敌方防御/我方军力)。 |
+| M05 | 军队列表 | 用户可查看自己兵团总数、每日维护费、军力。 |
+
+#### 2.4.3 联盟系统（可选，MVP 可简化为单人）
+
+| ID | 功能 | 描述 |
+|----|------|------|
+| A01 | 创建联盟 | 消耗10万银两。 |
+| A02 | 联盟成员管理 | 加入/退出，设置权限。 |
+| A03 | 联盟征服 | 成员可派出部分兵团联合攻击，战后按贡献分配土地产出。 |
+
+> 为降低初期复杂度，联盟系统可作为第二期功能。
+
+### 2.5 道具商城
+
+#### 2.5.1 道具分类
+
+| 类型 | 示例 | 效果 | 获取方式 | 是否可交易 |
+|------|------|------|----------|------------|
+| 消耗品 | 研发加速卡 | 立即完成一项武器研发 | 商城购买、活动 | 否 |
+| 消耗品 | 招募令 | 免费招募5个兵团 | 宝箱开出 | 否 |
+| 消耗品 | 还款券（1000） | 直接减免1000两负债 | 商城 | 否 |
+| 功能道具 | 土地扩张令 | 立即获得一块未占领的低级土地（仅限国内） | 抽奖 | 是 |
+| 装饰 | 钱庄金匾 | 改变钱庄外观 | 商城、成就 | 是 |
+| 收藏品 | 古代银币 | 增加珍宝阁积分 | 征服奖励 | 是 |
+| 称号 | “金火皇帝” | 全服唯一称号，永久 | 统一全图 | 否 |
+
+#### 2.5.2 商城
+
+| ID | 功能 | 描述 |
+|----|------|------|
+| S01 | 道具购买 | 使用“金币”（付费货币）购买道具，直接进入背包。 |
+| S02 | 限时促销 | 后台配置折扣、倒计时。 |
+| S03 | 玩家拍卖行 | 允许交易“可交易”类道具，平台抽成10%。 |
+
+#### 2.5.3 金币充值
+
+- 充值比例：1元 = 100金币。
+- 金币可购买任何商城道具及兑换银两（1金币=100银两，但银两不能反向兑换）。
+- 首充双倍等营销功能后台配置。
+
+---
+
+## 3. 商业模式与付费点
+
+| 项目 | 说明 | 预期收入占比 |
+|------|------|-------------|
+| 充值兑换金币 | 直接购买金币，用于商城、抽奖 | 50% |
+| 订阅会员 | 月卡/季卡，提供手续费折扣、免维护费等 | 20% |
+| 抽奖/宝箱 | 随机道具，吸引冲动消费 | 15% |
+| 席位竞拍手续费 | 热门钱庄/交易所席位转让抽成 | 10% |
+| 赛事报名费 | 高端赛事报名消耗金币 | 5% |
+
+> 所有付费道具不得直接增加攻击力、胜率，保持公平竞技。
+
+---
+
+## 4. 技术架构
+
+### 4.1 总体框架
+
+```
+Next.js 14 (App Router) + React Server Components + TailwindCSS
+NextAuth (JWT) + MySQL 8.0 + Drizzle ORM
+部署：Vercel / 自托管 (Node.js)
+定时任务：Vercel Cron 或独立服务
+```
+
+### 4.2 目录结构
+
+```
+jinhuohuo/
+├── src/
+│   ├── app/
+│   │   ├── (auth)/
+│   │   │   ├── login/
+│   │   │   └── register/
+│   │   ├── (main)/
+│   │   │   ├── layout.tsx          # 主布局（Header + BottomNav）
+│   │   │   ├── home/               # 首页仪表盘
+│   │   │   ├── finance/            # 金融中心
+│   │   │   │   ├── page.tsx        # 双栏展示
+│   │   │   │   └── banks/[bankId]/ # 钱庄详情（庄主设置）
+│   │   │   ├── conquest/           # 征服地图
+│   │   │   ├── lobby/              # 赛事大厅
+│   │   │   ├── user/               # 个人中心
+│   │   │   │   ├── page.tsx        # 资产/负债/背包/机构
+│   │   │   │   ├── items/          # 我的道具
+│   │   │   │   └── debts/          # 负债明细
+│   │   │   ├── shop/               # 商城
+│   │   │   └── admin/              # 后台管理
+│   │   ├── api/                    # 所有 API 路由
+│   │   └── layout.tsx
+│   ├── components/                 # 可复用组件
+│   │   ├── ui/                     # shadcn/ui
+│   │   ├── finance/                # 钱庄卡片、借贷面板
+│   │   ├── conquest/               # 土地卡片、武器树
+│   │   └── providers/              # SessionProvider
+│   ├── lib/
+│   │   ├── auth.ts                 # NextAuth 配置
+│   │   ├── db.ts                   # Drizzle 连接
+│   │   ├── schema.ts               # 数据库表定义
+│   │   ├── utils.ts                # 利息计算等工具
+│   │   └── constants.ts            # 系统常量
+│   └── types/                      # TypeScript 类型
+├── drizzle/                        # 迁移文件
+├── public/
+├── .env.local
+├── next.config.js
+├── package.json
+└── README.md
+```
+
+---
+
+## 5. 数据库设计
+
+### 5.1 核心表结构
+
+```sql
+-- 用户表
+CREATE TABLE user_accounts (
+    user_id VARCHAR(36) PRIMARY KEY,
+    email VARCHAR(255) UNIQUE NOT NULL,
+    password_hash VARCHAR(255) NOT NULL,
+    name VARCHAR(100) DEFAULT '用户',
+    role ENUM('admin','user','vip') DEFAULT 'user',
+    coin_balance DECIMAL(15,2) DEFAULT 0,
+    total_debt DECIMAL(15,2) DEFAULT 0,
+    gold_balance INT DEFAULT 0,
+    avatar_url VARCHAR(500),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
+
+-- 钱庄表
+CREATE TABLE banks (
+    bank_id VARCHAR(50) PRIMARY KEY,
+    name VARCHAR(100) NOT NULL,
+    price DECIMAL(15,2) NOT NULL,
+    owner_id VARCHAR(36) NULL,
+    interest_rate DECIMAL(5,4) DEFAULT 0.005,
+    max_loan DECIMAL(15,2) DEFAULT 1000000,
+    status ENUM('active','inactive') DEFAULT 'active',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (owner_id) REFERENCES user_accounts(user_id) ON DELETE SET NULL
+);
+
+-- 借贷记录表
+CREATE TABLE bank_loans (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    user_id VARCHAR(36) NOT NULL,
+    bank_id VARCHAR(50) NOT NULL,
+    amount DECIMAL(15,2) NOT NULL,
+    last_interest_date DATE NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES user_accounts(user_id) ON DELETE CASCADE,
+    FOREIGN KEY (bank_id) REFERENCES banks(bank_id),
+    UNIQUE KEY uk_user_bank (user_id, bank_id)
+);
+
+-- 交易所表
+CREATE TABLE exchanges (
+    exchange_id VARCHAR(50) PRIMARY KEY,
+    name VARCHAR(100) NOT NULL,
+    price DECIMAL(15,2) NOT NULL,
+    owner_id VARCHAR(36) NULL,
+    fee_rate DECIMAL(5,4) DEFAULT 0.002,
+    status ENUM('active','inactive') DEFAULT 'active',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (owner_id) REFERENCES user_accounts(user_id) ON DELETE SET NULL
+);
+
+-- 交易手续费记录表
+CREATE TABLE exchange_trades (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    user_id VARCHAR(36) NOT NULL,
+    exchange_id VARCHAR(50) NOT NULL,
+    trade_type ENUM('challenge','conquest','shop') NOT NULL,
+    amount DECIMAL(15,2) NOT NULL,
+    fee DECIMAL(15,2) NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 土地表
+CREATE TABLE lands (
+    land_id INT AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(100) NOT NULL,
+    region ENUM('domestic','world') DEFAULT 'domestic',
+    required_power INT NOT NULL,
+    defense INT NOT NULL,
+    daily_output INT NOT NULL,
+    owner_user_id VARCHAR(36) NULL,
+    is_locked BOOLEAN DEFAULT FALSE,
+    conquered_at TIMESTAMP NULL,
+    FOREIGN KEY (owner_user_id) REFERENCES user_accounts(user_id) ON DELETE SET NULL
+);
+
+-- 武器表（固定配置）
+CREATE TABLE weapons (
+    weapon_id VARCHAR(50) PRIMARY KEY,
+    name VARCHAR(100) NOT NULL,
+    era VARCHAR(50),
+    cost DECIMAL(15,2) NOT NULL,
+    power_bonus INT NOT NULL
+);
+
+-- 用户武器研发状态
+CREATE TABLE user_weapons (
+    user_id VARCHAR(36) NOT NULL,
+    weapon_id VARCHAR(50) NOT NULL,
+    researched_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (user_id, weapon_id),
+    FOREIGN KEY (user_id) REFERENCES user_accounts(user_id) ON DELETE CASCADE,
+    FOREIGN KEY (weapon_id) REFERENCES weapons(weapon_id)
+);
+
+-- 军队表
+CREATE TABLE user_army (
+    user_id VARCHAR(36) PRIMARY KEY,
+    units INT DEFAULT 0,
+    last_maintenance_date DATE NOT NULL,
+    FOREIGN KEY (user_id) REFERENCES user_accounts(user_id) ON DELETE CASCADE
+);
+
+-- 道具表
+CREATE TABLE items (
+    item_id VARCHAR(50) PRIMARY KEY,
+    name VARCHAR(100) NOT NULL,
+    type ENUM('consumable','functional','decorative','collectible','title') NOT NULL,
+    description TEXT,
+    price_gold INT DEFAULT 0,
+    price_silver DECIMAL(15,2) DEFAULT 0,
+    effect_type VARCHAR(50),
+    effect_value JSON,
+    icon_url VARCHAR(500),
+    is_stackable BOOLEAN DEFAULT TRUE,
+    can_trade BOOLEAN DEFAULT FALSE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 用户道具背包
+CREATE TABLE user_items (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    user_id VARCHAR(36) NOT NULL,
+    item_id VARCHAR(50) NOT NULL,
+    quantity INT DEFAULT 1,
+    obtained_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    expires_at TIMESTAMP NULL,
+    FOREIGN KEY (user_id) REFERENCES user_accounts(user_id) ON DELETE CASCADE,
+    FOREIGN KEY (item_id) REFERENCES items(item_id)
+);
+
+-- 称号表
+CREATE TABLE titles (
+    title_id VARCHAR(50) PRIMARY KEY,
+    name VARCHAR(100) NOT NULL,
+    description TEXT,
+    rarity ENUM('common','rare','epic','legendary') DEFAULT 'common'
+);
+
+-- 用户获得的称号
+CREATE TABLE user_titles (
+    user_id VARCHAR(36) NOT NULL,
+    title_id VARCHAR(50) NOT NULL,
+    obtained_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    is_active BOOLEAN DEFAULT FALSE,
+    PRIMARY KEY (user_id, title_id),
+    FOREIGN KEY (user_id) REFERENCES user_accounts(user_id) ON DELETE CASCADE,
+    FOREIGN KEY (title_id) REFERENCES titles(title_id)
+);
+
+-- 挑战赛事报名记录（通用）
+CREATE TABLE challenge_registrations (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    user_id VARCHAR(36) NOT NULL,
+    tournament_id VARCHAR(50) NOT NULL, -- 'kline', 'ladder', 'master', 'monthly', 'daily'
+    status ENUM('pending','approved','active','completed','failed') DEFAULT 'pending',
+    current_level INT DEFAULT 1,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES user_accounts(user_id) ON DELETE CASCADE
+);
+
+-- 系统配置表
+CREATE TABLE system_config (
+    config_key VARCHAR(100) PRIMARY KEY,
+    config_value TEXT,
+    description VARCHAR(255)
+);
+```
+
+### 5.2 初始化数据
+
+```sql
+-- 钱庄
+INSERT INTO banks (bank_id, name, price, interest_rate, max_loan) VALUES
+('bank1','聚宝庄',300000,0.005,1000000),
+('bank2','通宝庄',600000,0.005,1000000),
+('bank3','万利庄',1200000,0.005,1000000),
+('bank4','汇源庄',2000000,0.005,1000000),
+('bank5','瑞丰庄',3500000,0.005,1000000);
+
+-- 交易所
+INSERT INTO exchanges (exchange_id, name, price, fee_rate) VALUES
+('ex1','太白交易所',500000,0.002),
+('ex2','金源交易所',800000,0.002),
+('ex3','洪武交易所',1200000,0.002);
+
+-- 武器
+INSERT INTO weapons (weapon_id, name, era, cost, power_bonus) VALUES
+('w1','青铜剑','冷兵器',50000,8),
+('w2','长弓','冷兵器',100000,15),
+('w3','铁甲骑兵','冷兵器',250000,30),
+('w4','火绳枪','火药',500000,50),
+('w5','加农炮','火药',1000000,80),
+('w6','风帆战舰','火药',1500000,120),
+('w7','后装步枪','工业',2500000,180),
+('w8','蒸汽坦克','工业',4000000,280);
+
+-- 土地
+INSERT INTO lands (name, region, required_power, defense, daily_output, is_locked) VALUES
+('东夷部落','domestic',50,50,800,0),
+('西戎部落','domestic',70,70,1000,0),
+('南蛮部落','domestic',90,90,1200,0),
+('北狄部落','domestic',120,120,1500,0),
+('中原王庭','domestic',200,200,2500,0),
+('东瀛列岛','world',350,350,4000,1),
+('南洋群岛','world',500,500,5500,1),
+('西域诸国','world',750,750,7000,1),
+('欧陆帝国','world',1100,1100,10000,1),
+('新大陆','world',1500,1500,15000,1);
+```
+
+---
+
+## 6. API 接口设计
+
+所有 API 返回 JSON，成功格式 `{ data: any }`，错误格式 `{ error: string }`。
+
+### 6.1 认证
+
+| 路径 | 方法 | 说明 | 请求体 | 响应 |
+|------|------|------|--------|------|
+| `/api/auth/register` | POST | 注册 | `{ email, password, name }` | `{ userId }` |
+| `/api/auth/login` | POST | 登录 | 由 NextAuth 处理 | - |
+
+### 6.2 用户 & 金融
+
+| 路径 | 方法 | 说明 | 权限 | 请求体 | 响应 |
+|------|------|------|------|--------|------|
+| `/api/user/profile` | GET | 获取用户信息 | 登录 | - | 用户对象 |
+| `/api/user/debts` | GET | 各钱庄欠款 | 登录 | - | `[{ bankId, amount }]` |
+| `/api/banks/list` | GET | 钱庄列表 | 公开 | - | 钱庄数组 |
+| `/api/banks/buy` | POST | 购买钱庄 | 登录 | `{ bankId }` | `{ success }` |
+| `/api/banks/settings` | PUT | 修改利率/上限 | 庄主 | `{ bankId, interestRate, maxLoan }` | `{ success }` |
+| `/api/banks/borrow` | POST | 借款 | 登录 | `{ bankId, amount }` | `{ newBalance, newDebt }` |
+| `/api/banks/repay` | POST | 还款 | 登录 | `{ bankId, amount }` | `{ newBalance, newDebt }` |
+| `/api/exchanges/list` | GET | 交易所列表 | 公开 | - | 交易所数组 |
+| `/api/exchanges/buy` | POST | 购买席位 | 登录 | `{ exchangeId }` | `{ success }` |
+| `/api/exchanges/settings` | PUT | 修改费率 | 席主 | `{ exchangeId, feeRate }` | `{ success }` |
+| `/api/exchanges/trade` | POST | 执行交易扣费 | 登录 | `{ exchangeId, amount, tradeType }` | `{ fee }` |
+
+### 6.3 挑战赛事
+
+| 路径 | 方法 | 说明 | 权限 | 请求体 | 响应 |
+|------|------|------|------|--------|------|
+| `/api/challenge/register` | POST | 报名赛事 | 登录 | `{ tournamentId }` | 校验负债和余额 |
+| `/api/challenge/update` | POST | 更新关卡（管理员/模拟） | admin | `{ userId, level, result }` | - |
+
+### 6.4 征服系统
+
+| 路径 | 方法 | 说明 | 权限 | 请求体 | 响应 |
+|------|------|------|------|--------|------|
+| `/api/lands/list` | GET | 土地列表 | 公开 | - | 土地数组 |
+| `/api/lands/conquer` | POST | 征服 | 登录 | `{ landId }` | `{ success, lossUnits }` |
+| `/api/army/info` | GET | 军队信息 | 登录 | - | `{ units, power, upkeep }` |
+| `/api/army/recruit` | POST | 招募 | 登录 | `{ count }` | `{ newUnits }` |
+| `/api/weapons/list` | GET | 武器研发状态 | 登录 | - | 武器数组（含researched） |
+| `/api/weapons/research` | POST | 研发 | 登录 | `{ weaponId, useItem? }` | `{ success }` |
+
+### 6.5 道具商城
+
+| 路径 | 方法 | 说明 | 权限 | 请求体 | 响应 |
+|------|------|------|------|--------|------|
+| `/api/shop/items` | GET | 商城道具 | 公开 | - | 道具列表 |
+| `/api/shop/buy` | POST | 金币购买 | 登录 | `{ itemId, quantity }` | `{ success }` |
+| `/api/user/items` | GET | 背包 | 登录 | - | 背包数组 |
+| `/api/user/use-item` | POST | 使用道具 | 登录 | `{ itemId, target? }` | `{ success }` |
+| `/api/recharge/order` | POST | 充值订单 | 登录 | `{ amount }` | `{ orderId, payUrl }` |
+
+### 6.6 后台管理
+
+| 路径 | 方法 | 说明 | 权限 |
+|------|------|------|------|
+| `/api/admin/stats` | GET | 统计 | admin |
+| `/api/admin/users` | GET | 用户列表 | admin |
+| `/api/admin/update-balance` | POST | 修改用户资产 | admin |
+| `/api/admin/reset-bank` | POST | 回收钱庄 | admin |
+| `/api/admin/config` | PUT | 修改系统配置 | admin |
+
+---
+
+## 7. 前端页面及组件结构
+
+### 7.1 路由列表
+
+| 路由 | 页面 | 主要功能 |
+|------|------|----------|
+| `/` | 重定向到 `/home` | - |
+| `/home` | 大业 | 仪表盘，资产概况、推荐赛事 |
+| `/finance` | 金融中心 | 钱庄+交易所双栏，借贷面板 |
+| `/conquest` | 征服地图 | 土地网格、军队信息、武器研发树 |
+| `/lobby` | 赛事大厅 | 各类赛事卡片 |
+| `/user` | 个人中心 | Tab: 资产/负债/背包/机构 |
+| `/shop` | 商城 | 道具列表、充值 |
+| `/admin` | 后台 | 管理员面板 |
+
+### 7.2 关键组件
+
+| 组件 | 路径 | 用途 |
+|------|------|------|
+| `BankCard` | `@/components/finance/BankCard` | 钱庄卡片，购买/设置/借款按钮 |
+| `ExchangeCard` | `@/components/finance/ExchangeCard` | 交易所卡片 |
+| `LoanRepayPanel` | `@/components/finance/LoanRepayPanel` | 借款/还款操作区 |
+| `LandTile` | `@/components/conquest/LandTile` | 土地格子 |
+| `WeaponTree` | `@/components/conquest/WeaponTree` | 武器研发列表 |
+| `MarketItem` | `@/components/shop/MarketItem` | 商城道具项 |
+| `DebtList` | `@/components/user/DebtList` | 用户负债明细 |
+
+---
+
+## 8. 核心代码实现（关键文件）
+
+由于篇幅，提供最关键的几个文件代码，其余可参照结构。
+
+### 8.1 Drizzle Schema 示例 (`src/lib/schema.ts` 节选)
+
+```typescript
+import { mysqlTable, varchar, decimal, int, timestamp, boolean, mysqlEnum } from 'drizzle-orm/mysql-core';
+
+export const userAccounts = mysqlTable('user_accounts', {
+  userId: varchar('user_id', { length: 36 }).primaryKey(),
+  email: varchar('email', { length: 255 }).notNull().unique(),
+  passwordHash: varchar('password_hash', { length: 255 }).notNull(),
+  name: varchar('name', { length: 100 }).default('用户'),
+  role: mysqlEnum('role', ['admin','user','vip']).default('user'),
+  coinBalance: decimal('coin_balance', { precision: 15, scale: 2 }).default('0'),
+  totalDebt: decimal('total_debt', { precision: 15, scale: 2 }).default('0'),
+  goldBalance: int('gold_balance').default(0),
+  avatarUrl: varchar('avatar_url', { length: 500 }),
+  createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow().onUpdateNow(),
+});
+
+// 其他表类似...
+```
+
+### 8.2 借款 API 完整实现 (`src/app/api/banks/borrow/route.ts`)
+
+```typescript
+import { NextRequest, NextResponse } from 'next/server';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/auth';
+import { db } from '@/lib/db';
+import { banks, bankLoans, userAccounts } from '@/lib/schema';
+import { eq, and } from 'drizzle-orm';
+
+export async function POST(req: NextRequest) {
+  const session = await getServerSession(authOptions);
+  if (!session?.user) return NextResponse.json({ error: '未登录' }, { status: 401 });
+  const userId = (session.user as any).id;
+  const { bankId, amount } = await req.json();
+
+  const bank = await db.query.banks.findFirst({ where: eq(banks.bankId, bankId) });
+  if (!bank) return NextResponse.json({ error: '钱庄不存在' }, { status: 404 });
+  if (amount > Number(bank.maxLoan)) return NextResponse.json({ error: '超过借款上限' }, { status: 400 });
+  if (amount <= 0) return NextResponse.json({ error: '金额需大于0' }, { status: 400 });
+
+  await db.transaction(async (tx) => {
+    const existing = await tx.query.bankLoans.findFirst({
+      where: and(eq(bankLoans.userId, userId), eq(bankLoans.bankId, bankId))
+    });
+    if (existing) {
+      await tx.update(bankLoans).set({
+        amount: Number(existing.amount) + amount
+      }).where(eq(bankLoans.id, existing.id));
+    } else {
+      await tx.insert(bankLoans).values({
+        userId, bankId, amount, lastInterestDate: new Date()
+      });
+    }
+    const user = await tx.query.userAccounts.findFirst({ where: eq(userAccounts.userId, userId) });
+    const newBalance = Number(user.coinBalance) + amount;
+    const newDebt = Number(user.totalDebt) + amount;
+    await tx.update(userAccounts).set({
+      coinBalance: newBalance,
+      totalDebt: newDebt
+    }).where(eq(userAccounts.userId, userId));
+  });
+
+  return NextResponse.json({ success: true });
+}
+```
+
+### 8.3 每日利息结算 (Cron API)
+
+```typescript
+// src/app/api/cron/daily-interest/route.ts
+import { NextRequest, NextResponse } from 'next/server';
+import { db } from '@/lib/db';
+import { bankLoans, banks, userAccounts } from '@/lib/schema';
+import { eq } from 'drizzle-orm';
+
+export async function GET(req: NextRequest) {
+  const auth = req.headers.get('authorization');
+  if (auth !== `Bearer ${process.env.CRON_SECRET}`) {
+    return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
+  }
+
+  const today = new Date().toISOString().slice(0,10);
+  const loans = await db.query.bankLoans.findMany();
+
+  for (const loan of loans) {
+    const bank = await db.query.banks.findFirst({ where: eq(banks.bankId, loan.bankId) });
+    if (!bank) continue;
+    if (loan.lastInterestDate === today) continue;
+
+    const lastDate = new Date(loan.lastInterestDate);
+    const diffDays = Math.floor((Date.now() - lastDate.getTime()) / (86400000));
+    if (diffDays <= 0) continue;
+
+    const rate = Number(bank.interestRate);
+    const newAmount = Number(loan.amount) * Math.pow(1 + rate, diffDays);
+    const delta = newAmount - Number(loan.amount);
+    await db.update(bankLoans).set({
+      amount: newAmount,
+      lastInterestDate: today
+    }).where(eq(bankLoans.id, loan.id));
+
+    await db.update(userAccounts).set({
+      totalDebt: Number(loan.userTotalDebt) + delta
+    }).where(eq(userAccounts.userId, loan.userId));
+  }
+  return NextResponse.json({ success: true });
+}
+```
+
+### 8.4 前端金融中心页面 (`src/app/(main)/finance/page.tsx`)
+
+```tsx
+'use client';
+import { useSession } from 'next-auth/react';
+import { BankCard } from '@/components/finance/BankCard';
+import { ExchangeCard } from '@/components/finance/ExchangeCard';
+import { LoanRepayPanel } from '@/components/finance/LoanRepayPanel';
+import { Skeleton } from '@/components/ui/skeleton';
+import { useEffect, useState } from 'react';
+
+export default function FinancePage() {
+  const { data: session } = useSession();
+  const [banks, setBanks] = useState([]);
+  const [exchanges, setExchanges] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    Promise.all([
+      fetch('/api/banks/list').then(res => res.json()),
+      fetch('/api/exchanges/list').then(res => res.json())
+    ]).then(([banksData, exchangesData]) => {
+      setBanks(banksData);
+      setExchanges(exchangesData);
+      setLoading(false);
+    });
+  }, []);
+
+  if (loading) return <div className="container py-8"><Skeleton className="h-64" /></div>;
+
+  return (
+    <div className="container py-6 space-y-8">
+      <h1 className="text-3xl font-bold">金融中心</h1>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div>
+          <h2 className="text-xl font-semibold mb-4">五大钱庄</h2>
+          {banks.map(bank => <BankCard key={bank.bankId} bank={bank} />)}
+        </div>
+        <div>
+          <h2 className="text-xl font-semibold mb-4">交易所席位</h2>
+          {exchanges.map(ex => <ExchangeCard key={ex.exchangeId} exchange={ex} />)}
+        </div>
+      </div>
+      {session && <LoanRepayPanel banks={banks} />}
+    </div>
+  );
+}
+```
+
+---
+
+## 9. 部署与运维
+
+
+### 9.2 部署命令
+
+```bash
+pnpm install
+pnpm db:generate
+pnpm db:migrate
+pnpm build
+pnpm start
+```
+
+### 9.3 定时任务
+
+设置每天凌晨 2 点调用：  
+`curl -X GET https://jinhuohuo.com/api/cron/daily-interest -H "Authorization: Bearer your-cron-secret"`
+
+---
