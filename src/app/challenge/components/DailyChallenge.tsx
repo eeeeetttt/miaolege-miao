@@ -1,7 +1,8 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { Zap, Clock, Trophy, DollarSign, TrendingUp, RefreshCw, Medal } from 'lucide-react';
+import { Zap, Clock, Trophy, TrendingUp, Medal, BarChart3 } from 'lucide-react';
+import TradingPanel from './TradingPanel';
 import styles from '../page.module.css';
 
 interface DailyChallengeProps {
@@ -19,6 +20,19 @@ interface DailyInfo {
   entryFee: number;
   startTime: string;
   endTime: string;
+}
+
+interface MatchAccount {
+  id: number;
+  initialCapital: number;
+  currentCapital: number;
+  profit: number;
+  profitRate: number;
+  position: {
+    lots: number;
+    direction: 'long' | 'short' | null;
+    entryPrice: number;
+  } | null;
 }
 
 interface RankItem {
@@ -49,6 +63,8 @@ export default function DailyChallenge({ session }: DailyChallengeProps) {
   const [toast, setToast] = useState<{ message: string; type: string } | null>(null);
   const [registering, setRegistering] = useState(false);
   const [hasJoined, setHasJoined] = useState(false);
+  const [showTrading, setShowTrading] = useState(false);
+  const [myAccount, setMyAccount] = useState<MatchAccount | null>(null);
 
   const showToast = useCallback((message: string, type: 'success' | 'warning' | 'info' = 'info') => {
     setToast({ message, type });
@@ -100,6 +116,17 @@ export default function DailyChallenge({ session }: DailyChallengeProps) {
           entryFee: data.daily.entryFee || 50
         });
         setHasJoined(data.daily.hasJoined || false);
+        
+        if (data.account) {
+          setMyAccount({
+            id: data.account.id,
+            initialCapital: data.account.initialCapital || 10000,
+            currentCapital: data.account.currentCapital || 10000,
+            profit: data.account.profit || 0,
+            profitRate: data.account.profitRate || 0,
+            position: data.account.position || null
+          });
+        }
       } else {
         setDailyInfo({
           ...statusInfo,
@@ -153,6 +180,7 @@ export default function DailyChallenge({ session }: DailyChallengeProps) {
       if (res.ok) {
         showToast('报名成功！', 'success');
         setHasJoined(true);
+        setShowTrading(true);
         fetchDailyInfo();
       } else {
         showToast(data.error || '报名失败', 'warning');
@@ -174,7 +202,6 @@ export default function DailyChallenge({ session }: DailyChallengeProps) {
 
   return (
     <div className={styles.matchContainer}>
-      {/* Toast */}
       {toast && (
         <div className={`${styles.toast} ${styles[toast.type]}`}>{toast.message}</div>
       )}
@@ -213,10 +240,26 @@ export default function DailyChallenge({ session }: DailyChallengeProps) {
         </div>
       </div>
 
-      {/* 我的账户 */}
-      <div className={styles.dailyMyAccount}>
-        {hasJoined ? (
-          <>
+      {/* 交易面板或报名入口 */}
+      {hasJoined ? (
+        <>
+          <div className={styles.tradingHeader}>
+            <BarChart3 size={18} />
+            <span>交易面板</span>
+            <button className={styles.toggleTrading} onClick={() => setShowTrading(!showTrading)}>
+              {showTrading ? '收起' : '展开'}
+            </button>
+          </div>
+          {showTrading && (
+            <TradingPanel
+              matchType="daily"
+              account={myAccount}
+              onRefresh={fetchDailyInfo}
+            />
+          )}
+          
+          {/* 我的账户概览 */}
+          <div className={styles.dailyMyAccount}>
             <h3><TrendingUp className={styles.cardIcon} />我的账户</h3>
             <div className={styles.dailyMyStats}>
               <div className={styles.dailyMyStat}>
@@ -244,26 +287,26 @@ export default function DailyChallenge({ session }: DailyChallengeProps) {
                 </span>
               </div>
             </div>
-          </>
-        ) : (
-          <>
-            <h3><Zap className={styles.cardIcon} />每日挑战</h3>
-            <p className={styles.matchDesc}>每日盈利排行，00:00-20:00可报名！</p>
-            <div className={styles.matchRules}>
-              <div className={styles.ruleItem}><span>参赛本金</span><span>10,000 银两</span></div>
-              <div className={styles.ruleItem}><span>报名费</span><span>50 金币</span></div>
-              <div className={styles.ruleItem}><span>比赛时间</span><span>当日</span></div>
-            </div>
-            <button 
-              className={styles.registerBtn} 
-              onClick={handleJoin} 
-              disabled={registering || !session || statusInfo.status !== 'registering'}
-            >
-              {!session ? '请先登录' : registering ? '报名中...' : statusInfo.status !== 'registering' ? '报名已结束' : '立即报名'}
-            </button>
-          </>
-        )}
-      </div>
+          </div>
+        </>
+      ) : (
+        <div className={styles.dailyMyAccount}>
+          <h3><Zap className={styles.cardIcon} />每日挑战</h3>
+          <p className={styles.matchDesc}>每日盈利排行，00:00-20:00可报名！</p>
+          <div className={styles.matchRules}>
+            <div className={styles.ruleItem}><span>参赛本金</span><span>10,000 银两</span></div>
+            <div className={styles.ruleItem}><span>报名费</span><span>50 金币</span></div>
+            <div className={styles.ruleItem}><span>比赛时间</span><span>当日</span></div>
+          </div>
+          <button 
+            className={styles.registerBtn} 
+            onClick={handleJoin} 
+            disabled={registering || !session || statusInfo.status !== 'registering'}
+          >
+            {!session ? '请先登录' : registering ? '报名中...' : statusInfo.status !== 'registering' ? '报名已结束' : '立即报名'}
+          </button>
+        </div>
+      )}
 
       {/* 奖励规则 */}
       <div className={styles.rewardSection}>
@@ -307,12 +350,10 @@ export default function DailyChallenge({ session }: DailyChallengeProps) {
               </div>
               <div className={styles.rankingInfo}>
                 <span className={styles.rankingName}>{item.username}</span>
-                <span className={styles.rankingBalance}>净值 ${item.balance.toLocaleString()}</span>
+                <span className={styles.rankingBalance}>盈利 {(item.profit).toLocaleString()} 银两</span>
               </div>
               <div className={styles.rankingYield}>
-                <span className={`${styles.profitValue} ${item.profit > 0 ? styles.positive : styles.negative}`}>
-                  {item.profit > 0 ? '+' : ''}{item.profit.toLocaleString()}
-                </span>
+                <span className={styles.yieldValue}>+{((item.profit / 10000) * 100).toFixed(1)}%</span>
               </div>
             </div>
           ))}

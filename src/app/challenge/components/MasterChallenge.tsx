@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import TradingPanel from './TradingPanel';
 
 interface MasterConfig {
   enabled: boolean;
@@ -252,6 +253,15 @@ export default function MasterChallenge() {
             {enrolling ? '处理中...' : '退出比赛'}
           </button>
         </div>
+      )}
+
+      {/* 交易面板 */}
+      {status === 'enrolled' && myAccount && (
+        <TradingPanel
+          matchType="master"
+          initialBalance={myAccount.currentValue}
+          matchAccountId={myAccount.accountId}
+        />
       )}
 
       {/* 报名按钮 */}

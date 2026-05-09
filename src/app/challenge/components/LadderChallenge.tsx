@@ -1,7 +1,8 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { Trophy, Medal, TrendingUp, Calendar, DollarSign, RefreshCw, Star } from 'lucide-react';
+import { Trophy, Medal, TrendingUp, Calendar, Star, BarChart3 } from 'lucide-react';
+import TradingPanel from './TradingPanel';
 import styles from '../page.module.css';
 
 interface LadderChallengeProps {
@@ -17,6 +18,19 @@ interface SeasonInfo {
   myYield: number;
   myBalance: number;
   initialCapital: number;
+}
+
+interface MatchAccount {
+  id: number;
+  initialCapital: number;
+  currentCapital: number;
+  profit: number;
+  profitRate: number;
+  position: {
+    lots: number;
+    direction: 'long' | 'short' | null;
+    entryPrice: number;
+  } | null;
 }
 
 interface RankItem {
@@ -47,6 +61,8 @@ export default function LadderChallenge({ session }: LadderChallengeProps) {
   const [toast, setToast] = useState<{ message: string; type: string } | null>(null);
   const [registering, setRegistering] = useState(false);
   const [hasJoined, setHasJoined] = useState(false);
+  const [myAccount, setMyAccount] = useState<MatchAccount | null>(null);
+  const [showTrading, setShowTrading] = useState(false);
 
   const showToast = useCallback((message: string, type: 'success' | 'warning' | 'info' = 'info') => {
     setToast({ message, type });
@@ -73,8 +89,18 @@ export default function LadderChallenge({ session }: LadderChallengeProps) {
           initialCapital: data.season.initialCapital || 10000
         });
         setHasJoined(data.season.hasJoined || false);
+        
+        if (data.account) {
+          setMyAccount({
+            id: data.account.id,
+            initialCapital: data.account.initialCapital || 10000,
+            currentCapital: data.account.currentCapital || 10000,
+            profit: data.account.profit || 0,
+            profitRate: data.account.profitRate || 0,
+            position: data.account.position || null
+          });
+        }
       } else {
-        // 默认赛季信息
         const now = new Date();
         const seasonEnd = new Date(now.getTime() + 15 * 24 * 60 * 60 * 1000);
         setSeasonInfo({
@@ -121,12 +147,7 @@ export default function LadderChallenge({ session }: LadderChallengeProps) {
       if (res.ok) {
         showToast('报名成功！', 'success');
         setHasJoined(true);
-        setSeasonInfo(prev => prev ? {
-          ...prev,
-          myBalance: prev.initialCapital,
-          myYield: 0,
-          participantCount: prev.participantCount + 1
-        } : null);
+        setShowTrading(true);
         fetchSeasonInfo();
       } else {
         showToast(data.error || '报名失败', 'warning');
@@ -144,7 +165,6 @@ export default function LadderChallenge({ session }: LadderChallengeProps) {
 
   return (
     <div className={styles.matchContainer}>
-      {/* Toast */}
       {toast && (
         <div className={`${styles.toast} ${styles[toast.type]}`}>{toast.message}</div>
       )}
@@ -183,10 +203,26 @@ export default function LadderChallenge({ session }: LadderChallengeProps) {
         </div>
       </div>
 
-      {/* 我的账户 */}
-      <div className={styles.ladderMyAccount}>
-        {hasJoined ? (
-          <>
+      {/* 交易面板或报名入口 */}
+      {hasJoined ? (
+        <>
+          <div className={styles.tradingHeader}>
+            <BarChart3 size={18} />
+            <span>交易面板</span>
+            <button className={styles.toggleTrading} onClick={() => setShowTrading(!showTrading)}>
+              {showTrading ? '收起' : '展开'}
+            </button>
+          </div>
+          {showTrading && (
+            <TradingPanel
+              matchType="ladder"
+              account={myAccount}
+              onRefresh={fetchSeasonInfo}
+            />
+          )}
+          
+          {/* 我的账户概览 */}
+          <div className={styles.ladderMyAccount}>
             <h3><TrendingUp className={styles.cardIcon} />我的账户</h3>
             <div className={styles.ladderMyStats}>
               <div className={styles.ladderMyStat}>
@@ -214,22 +250,22 @@ export default function LadderChallenge({ session }: LadderChallengeProps) {
                 </span>
               </div>
             </div>
-          </>
-        ) : (
-          <>
-            <h3><Trophy className={styles.cardIcon} />天梯赛</h3>
-            <p className={styles.matchDesc}>月度收益率排行，赢取丰厚奖励！</p>
-            <div className={styles.matchRules}>
-              <div className={styles.ruleItem}><span>参赛本金</span><span>10,000 银两</span></div>
-              <div className={styles.ruleItem}><span>报名费</span><span>免费</span></div>
-              <div className={styles.ruleItem}><span>赛季时长</span><span>30天</span></div>
-            </div>
-            <button className={styles.registerBtn} onClick={handleJoin} disabled={registering || !session}>
-              {!session ? '请先登录' : registering ? '报名中...' : '立即报名'}
-            </button>
-          </>
-        )}
-      </div>
+          </div>
+        </>
+      ) : (
+        <div className={styles.ladderMyAccount}>
+          <h3><Trophy className={styles.cardIcon} />天梯赛</h3>
+          <p className={styles.matchDesc}>月度收益率排行，赢取丰厚奖励！</p>
+          <div className={styles.matchRules}>
+            <div className={styles.ruleItem}><span>参赛本金</span><span>10,000 银两</span></div>
+            <div className={styles.ruleItem}><span>报名费</span><span>免费</span></div>
+            <div className={styles.ruleItem}><span>赛季时长</span><span>30天</span></div>
+          </div>
+          <button className={styles.registerBtn} onClick={handleJoin} disabled={registering || !session}>
+            {!session ? '请先登录' : registering ? '报名中...' : '立即报名'}
+          </button>
+        </div>
+      )}
 
       {/* 奖励规则 */}
       <div className={styles.rewardSection}>

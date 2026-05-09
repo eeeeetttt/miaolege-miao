@@ -1,0 +1,296 @@
+.container {
+  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+  border-radius: 12px;
+  padding: 16px;
+  color: #fff;
+}
+
+.noAccount {
+  text-align: center;
+  padding: 40px;
+  color: #888;
+  font-size: 14px;
+}
+
+/* 价格区域 */
+.priceSection {
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 8px;
+  padding: 12px;
+  margin-bottom: 12px;
+}
+
+.priceHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.priceLabel {
+  font-size: 12px;
+  color: #888;
+}
+
+.refreshBtn {
+  background: none;
+  border: none;
+  color: #888;
+  cursor: pointer;
+  padding: 4px;
+}
+
+.refreshIcon {
+  transition: transform 0.3s;
+}
+
+.spinning {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.priceMain {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.priceValue {
+  font-size: 28px;
+  font-weight: bold;
+  color: #fff;
+}
+
+.priceChange {
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.priceChange.up {
+  color: #10b981;
+}
+
+.priceChange.down {
+  color: #ef4444;
+}
+
+.bidAsk {
+  display: flex;
+  gap: 16px;
+}
+
+.bid, .ask {
+  display: flex;
+  gap: 6px;
+  font-size: 12px;
+}
+
+.bid span:first-child, .ask span:first-child {
+  color: #888;
+}
+
+.bid span:last-child {
+  color: #10b981;
+}
+
+.ask span:last-child {
+  color: #ef4444;
+}
+
+/* 账户信息 */
+.accountSection {
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 8px;
+  padding: 12px;
+  margin-bottom: 12px;
+}
+
+.accountRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6px 0;
+}
+
+.accountRow span:first-child {
+  color: #888;
+  font-size: 13px;
+}
+
+.accountValue {
+  font-weight: 500;
+  font-size: 14px;
+}
+
+.profit {
+  color: #10b981;
+}
+
+.loss {
+  color: #ef4444;
+}
+
+/* 持仓信息 */
+.positionSection {
+  background: rgba(99, 102, 241, 0.15);
+  border: 1px solid rgba(99, 102, 241, 0.3);
+  border-radius: 8px;
+  padding: 12px;
+  margin-bottom: 12px;
+}
+
+.positionHeader {
+  font-size: 12px;
+  color: #888;
+  margin-bottom: 8px;
+}
+
+.positionInfo {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 13px;
+}
+
+.positionInfo span:first-child {
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-weight: 500;
+}
+
+.long {
+  background: rgba(16, 185, 129, 0.2);
+  color: #10b981;
+}
+
+.short {
+  background: rgba(239, 68, 68, 0.2);
+  color: #ef4444;
+}
+
+.positionProfit {
+  margin-top: 8px;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+/* 手数选择 */
+.lotsSection {
+  margin-bottom: 12px;
+}
+
+.lotsLabel {
+  display: block;
+  font-size: 12px;
+  color: #888;
+  margin-bottom: 8px;
+}
+
+.lotsButtons {
+  display: flex;
+  gap: 8px;
+}
+
+.lotsBtn {
+  flex: 1;
+  padding: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.05);
+  color: #fff;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 13px;
+  transition: all 0.2s;
+}
+
+.lotsBtn:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.lotsBtn.active {
+  background: rgba(99, 102, 241, 0.3);
+  border-color: rgba(99, 102, 241, 0.5);
+}
+
+/* 交易按钮 */
+.tradeSection {
+  display: flex;
+  gap: 12px;
+}
+
+.tradeBtn {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 14px;
+  border: none;
+  border-radius: 8px;
+  font-size: 15px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.tradeBtn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.longBtn {
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  color: #fff;
+}
+
+.longBtn:hover:not(:disabled) {
+  background: linear-gradient(135deg, #059669 0%, #047857 100%);
+  transform: translateY(-1px);
+}
+
+.shortBtn {
+  background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+  color: #fff;
+}
+
+.shortBtn:hover:not(:disabled) {
+  background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
+  transform: translateY(-1px);
+}
+
+.closeBtn {
+  flex: 2;
+  background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+  color: #fff;
+}
+
+.closeBtn:hover:not(:disabled) {
+  background: linear-gradient(135deg, #d97706 0%, #b45309 100%);
+  transform: translateY(-1px);
+}
+
+/* 消息提示 */
+.msg {
+  margin-top: 12px;
+  padding: 10px;
+  border-radius: 6px;
+  text-align: center;
+  font-size: 13px;
+}
+
+.successMsg {
+  background: rgba(16, 185, 129, 0.15);
+  color: #10b981;
+  border: 1px solid rgba(16, 185, 129, 0.3);
+}
+
+.errorMsg {
+  background: rgba(239, 68, 68, 0.15);
+  color: #ef4444;
+  border: 1px solid rgba(239, 68, 68, 0.3);
+}
