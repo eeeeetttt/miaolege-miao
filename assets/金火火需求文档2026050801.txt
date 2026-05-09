@@ -739,3 +739,421 @@ pnpm start
 `curl -X GET https://jinhuohuo.com/api/cron/daily-interest -H "Authorization: Bearer your-cron-secret"`
 
 ---
+
+# 金火火 · 赛事系统完整设计（主账户划拨模式）
+
+> 版本：3.0  
+> 核心变更：所有赛事统一采用"主账户划拨"模式，比赛盈亏直接影响主账户银两。后台管理可调整所有比赛参数。
+
+---
+
+## 一、账户模型（最终版）
+
+### 1.1 主账户
+- 存储用户所有资产：银两、金币、负债、道具、机构等。
+- 赛场内外**唯一资金池**。
+
+### 1.2 赛事临时账户
+- 每场赛事独立创建，生命周期为 **报名 ～ 比赛结束**。
+- 初始资金 = 参赛本金（从主账户扣除的银两）。
+- 比赛期间该账户内的交易盈亏实时影响其净值。
+- 比赛结束后，**最终净值全部转回主账户**，然后销毁账户。
+
+### 1.3 资金流转示意
+```
+报名时：
+主账户银两 -= 参赛本金
+主账户金币 -= 报名费（若报名费使用金币）
+创建临时账户，余额 = 参赛本金
+
+比赛期间：
+临时账户内部交易 → 余额变化 ×
+
+比赛结束：
+主账户银两 += 临时账户最终余额
+销毁临时账户
+```
+
+---
+
+## 二、赛事分类及参数（均可后台配置）
+
+| 赛事名称 | 参赛本金（银两） | 报名费（金币） | 比赛时长 | 目标/排名规则 | 额外奖励 | 负债限制 |
+|----------|----------------|---------------|----------|----------------|----------|----------|
+| K线征途 | 1000 | 200 | 无限 | 10关，每关净值递增100，跌破100失败 | 3000金币+"K线宗师"称号 | **必须为0** |
+| 天梯赛 | 10000 | 0 | 整月 | 按收益率排名 | 月度排名前100名奖励金币 | 无 |
+| 大师邀请赛 | 100000 | 500 | 单轮7天 | 32/64人淘汰赛，比收益率 | 冠军20000金币+称号 | **必须为0** |
+| 月度总决赛 | 100000 | 0 | 3天 | 按收益率排名 | 冠军10000金币+称号 | **必须为0** |
+| 每日挑战赛 | 10000 | 50 | 当天 | 按盈利额排名 | 前10名奖励金币/银两 | 无 |
+
+> 所有数值（本金、报名费、奖励）均可在后台 `system_config` 中动态修改，无需重启服务。
+
+---
+
+## 三、各赛事详细规则
+
+### 3.1 K线征途
+
+**核心规则**：
+- 报名条件：负债=0，主账户银两≥参赛本金，金币≥报名费。
+- 报名时扣除本金1000银两 + 200金币，创建临时账户，初始1000银两。
+- 共10关，每关目标净值递增100：
+  - 第1关初始1000，目标1100
+  - 达到1100后进入第2关，目标1200
+  - ...以此类推
+  - 第10关目标2000
+- 任何时刻净值 < 100 则挑战失败
+- 一次性通过全部10关后，发放通关奖励（3000金币 + "K线宗师"称号）
+- 中途失败无奖励，比赛账户最终余额退回主账户
+- 用户可反复报名参加
+
+**后台可配置项**：
+| 配置键 | 默认值 | 说明 |
+|--------|--------|------|
+| `challenge_kline_entry_fee_gold` | 200 | 报名费（金币） |
+| `challenge_kline_initial_capital_silver` | 1000 | 参赛本金（银两） |
+| `challenge_kline_level_targets` | [1100,1200,...,2000] | 每关目标净值 |
+| `challenge_kline_fail_threshold` | 100 | 失败底线 |
+| `challenge_kline_completion_reward_gold` | 3000 | 通关奖励金币 |
+| `challenge_kline_completion_title` | "K线宗师" | 通关称号 |
+
+### 3.2 天梯赛
+
+**规则**：
+- 用户可选报名，报名时扣除本金10000银两
+- 比赛账户立即生效，有效期至本月最后一天
+- 月末23:59结算，根据收益率排名发放奖励
+- 次月需重新报名（重新扣除本金）
+- 计算公式：收益率 = (期末净值 / 期初本金 - 1) * 100%
+
+**后台可配置项**：
+| 配置键 | 默认值 | 说明 |
+|--------|--------|------|
+| `ladder_entry_capital_silver` | 10000 | 参赛本金 |
+| `ladder_reward_tiers` | 见下表 | 奖励配置 |
+| `ladder_season_days` | 30 | 赛季天数 |
+
+**奖励配置示例**：
+```json
+[
+  {"rank_from": 1, "rank_to": 1, "reward_gold": 5000, "title": "天梯王者"},
+  {"rank_from": 2, "rank_to": 10, "reward_gold": 2000},
+  {"rank_from": 11, "rank_to": 50, "reward_gold": 500},
+  {"rank_from": 51, "rank_to": 100, "reward_gold": 100}
+]
+```
+
+### 3.3 大师邀请赛
+
+**规则**：
+- 报名条件：负债=0，且拥有"K线宗师"称号 或 上月天梯赛前10名 或 管理员手动邀请
+- 报名费500金币，参赛本金100000银两
+- 赛制：32/64人单败淘汰，每轮7天
+- 每轮随机配对，比较该轮收益率
+- 胜者晋级，败者淘汰并退还账户余额
+- 冠亚季军获得金币奖励和称号
+
+**后台可配置项**：
+| 配置键 | 默认值 | 说明 |
+|--------|--------|------|
+| `master_entry_fee_gold` | 500 | 报名费 |
+| `master_initial_capital_silver` | 100000 | 参赛本金 |
+| `master_round_days` | 7 | 每轮天数 |
+| `master_participant_limit` | 64 | 最大参赛人数 |
+| `master_rewards` | 见下表 | 奖励配置 |
+
+**奖励配置示例**：
+```json
+{
+  "champion": {"gold": 20000, "title": "大师赛冠军"},
+  "runner_up": {"gold": 10000, "title": "大师赛亚军"},
+  "third_place": {"gold": 5000, "title": "大师赛季军"},
+  "quarter_finalist": {"gold": 1000}
+}
+```
+
+### 3.4 月度总决赛
+
+**规则**：
+- 参赛资格：上月天梯赛排名前100名，且负债=0
+- 免费报名，参赛本金100000银两从主账户扣除
+- 为期3天的独立比赛
+- 按收益率排名
+- 冠军获得金币和称号
+
+**后台可配置项**：
+| 配置键 | 默认值 | 说明 |
+|--------|--------|------|
+| `monthly_initial_capital_silver` | 100000 | 参赛本金 |
+| `monthly_duration_days` | 3 | 比赛天数 |
+| `monthly_rewards` | 同大师赛 | 奖励配置 |
+
+### 3.5 每日挑战赛
+
+**规则**：
+- 每日00:00-20:00可报名
+- 报名费50金币，参赛本金10000银两
+- 当天23:59前结束
+- 按盈利额（期末净值-期初本金）排名
+- 前10名获得金币/银两奖励
+
+**后台可配置项**：
+| 配置键 | 默认值 | 说明 |
+|--------|--------|------|
+| `daily_entry_fee_gold` | 50 | 报名费 |
+| `daily_initial_capital_silver` | 10000 | 参赛本金 |
+| `daily_entry_start_hour` | 0 | 报名开始时间 |
+| `daily_entry_end_hour` | 20 | 报名截止时间 |
+| `daily_rewards` | 见下表 | 奖励配置 |
+
+**奖励配置示例**：
+```json
+[
+  {"rank": 1, "gold": 500, "silver": 5000},
+  {"rank": 2, "gold": 300, "silver": 3000},
+  {"rank": 3, "gold": 200, "silver": 2000},
+  {"rank": 4, "rank_to": 10, "gold": 100, "silver": 1000}
+]
+```
+
+---
+
+## 四、后台管理界面需求
+
+### 4.1 赛事参数配置
+
+在管理员后台增加"赛事配置"页面：
+- 可编辑所有赛事参数
+- 修改后实时生效（通过 `system_config` 表）
+- 提供默认值重置功能
+
+### 4.2 赛事管理功能
+
+| 功能 | 说明 |
+|------|------|
+| 查看进行中比赛 | 查看所有活跃赛事账户及状态 |
+| 手动结束比赛 | 用于异常处理，强制退还当前余额 |
+| 调整参赛资格 | 人工添加天梯赛资格、邀请码发放 |
+| 赛事开启/暂停 | 控制各赛事是否开放报名 |
+| 手动结算 | 触发定时结算（用于测试） |
+
+---
+
+## 五、数据库扩展设计
+
+### 5.1 赛事临时账户表
+```sql
+-- 赛事临时账户
+CREATE TABLE match_accounts (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    user_id VARCHAR(36) NOT NULL,
+    match_id VARCHAR(50) NOT NULL,      -- 赛事唯一标识
+    match_type ENUM('kline','ladder','master','monthly','daily') NOT NULL,
+    initial_capital DECIMAL(15,2) NOT NULL,
+    current_balance DECIMAL(15,2) NOT NULL,
+    status ENUM('active','completed','failed') DEFAULT 'active',
+    current_level INT DEFAULT 1,        -- K线征途专用
+    started_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    ended_at TIMESTAMP NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES user_accounts(user_id) ON DELETE CASCADE
+);
+
+-- 赛事配置表
+CREATE TABLE match_configs (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    match_type VARCHAR(50) NOT NULL,
+    config_key VARCHAR(100) NOT NULL,
+    config_value TEXT,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    UNIQUE KEY uk_match_config (match_type, config_key)
+);
+
+-- 赛事记录表
+CREATE TABLE match_records (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    user_id VARCHAR(36) NOT NULL,
+    match_type VARCHAR(50) NOT NULL,
+    match_id VARCHAR(50) NOT NULL,
+    initial_capital DECIMAL(15,2) NOT NULL,
+    final_balance DECIMAL(15,2) NOT NULL,
+    profit DECIMAL(15,2) NOT NULL,
+    profit_rate DECIMAL(10,4) NOT NULL,
+    rank INT DEFAULT NULL,
+    reward_gold INT DEFAULT 0,
+    reward_silver DECIMAL(15,2) DEFAULT 0,
+    completed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES user_accounts(user_id) ON DELETE CASCADE
+);
+```
+
+### 5.2 初始化赛事配置数据
+```sql
+-- K线征途配置
+INSERT INTO match_configs (match_type, config_key, config_value) VALUES
+('kline', 'entry_fee_gold', '200'),
+('kline', 'initial_capital_silver', '1000'),
+('kline', 'level_targets', '[1100,1200,1300,1400,1500,1600,1700,1800,1900,2000]'),
+('kline', 'fail_threshold', '100'),
+('kline', 'completion_reward_gold', '3000'),
+('kline', 'completion_title', 'K线宗师'),
+('kline', 'enabled', 'true');
+
+-- 天梯赛配置
+INSERT INTO match_configs (match_type, config_key, config_value) VALUES
+('ladder', 'entry_capital_silver', '10000'),
+('ladder', 'season_days', '30'),
+('ladder', 'reward_tiers', '[{\"rank_from\":1,\"rank_to\":1,\"reward_gold\":5000},{\"rank_from\":2,\"rank_to\":10,\"reward_gold\":2000},{\"rank_from\":11,\"rank_to\":50,\"reward_gold\":500},{\"rank_from\":51,\"rank_to\":100,\"reward_gold\":100}]'),
+('ladder', 'enabled', 'true');
+
+-- 大师邀请赛配置
+INSERT INTO match_configs (match_type, config_key, config_value) VALUES
+('master', 'entry_fee_gold', '500'),
+('master', 'initial_capital_silver', '100000'),
+('master', 'round_days', '7'),
+('master', 'participant_limit', '64'),
+('master', 'rewards', '{\"champion\":{\"gold\":20000,\"title\":\"大师赛冠军\"},\"runner_up\":{\"gold\":10000},\"third_place\":{\"gold\":5000}}'),
+('master', 'enabled', 'false');
+
+-- 月度总决赛配置
+INSERT INTO match_configs (match_type, config_key, config_value) VALUES
+('monthly', 'initial_capital_silver', '100000'),
+('monthly', 'duration_days', '3'),
+('monthly', 'enabled', 'false');
+
+-- 每日挑战赛配置
+INSERT INTO match_configs (match_type, config_key, config_value) VALUES
+('daily', 'entry_fee_gold', '50'),
+('daily', 'initial_capital_silver', '10000'),
+('daily', 'entry_start_hour', '0'),
+('daily', 'entry_end_hour', '20'),
+('daily', 'rewards', '[{\"rank\":1,\"gold\":500,\"silver\":5000},{\"rank\":2,\"gold\":300,\"silver\":3000},{\"rank\":3,\"gold\":200,\"silver\":2000},{\"rank\":4,\"rank_to\":10,\"gold\":100,\"silver\":1000}]'),
+('daily', 'enabled', 'true');
+```
+
+---
+
+## 六、API 接口扩展
+
+### 6.1 赛事通用接口
+
+| 路径 | 方法 | 说明 | 权限 |
+|------|------|------|------|
+| `/api/match/config/{type}` | GET | 获取赛事配置 | 公开 |
+| `/api/match/config/{type}` | PUT | 更新赛事配置 | admin |
+| `/api/match/active/{type}` | GET | 获取用户当前赛事状态 | 登录 |
+| `/api/match/records` | GET | 获取用户历史赛事记录 | 登录 |
+| `/api/match/ranking/{type}` | GET | 获取赛事排行榜 | 公开 |
+
+### 6.2 K线征途接口
+
+| 路径 | 方法 | 说明 | 权限 |
+|------|------|------|------|
+| `/api/match/kline/register` | POST | 报名 | 登录 |
+| `/api/match/kline/update-balance` | POST | 更新净值（模拟交易后） | 登录 |
+| `/api/match/kline/status` | GET | 获取当前关卡状态 | 登录 |
+
+### 6.3 天梯赛接口
+
+| 路径 | 方法 | 说明 | 权限 |
+|------|------|------|------|
+| `/api/match/ladder/register` | POST | 报名参赛 | 登录 |
+| `/api/match/ladder/ranking` | GET | 月度排行榜 | 公开 |
+
+### 6.4 其他赛事接口
+
+| 路径 | 方法 | 说明 | 权限 |
+|------|------|------|------|
+| `/api/match/daily/register` | POST | 每日挑战赛报名 | 登录 |
+| `/api/match/daily/ranking` | GET | 当日排行榜 | 公开 |
+| `/api/match/master/register` | POST | 大师邀请赛报名 | 登录（需资格） |
+| `/api/match/monthly/register` | POST | 月度总决赛报名 | 登录（需资格） |
+
+### 6.5 管理接口
+
+| 路径 | 方法 | 说明 | 权限 |
+|------|------|------|------|
+| `/api/admin/match/{type}/list` | GET | 所有进行中赛事 | admin |
+| `/api/admin/match/{type}/force-end` | POST | 强制结束某用户比赛 | admin |
+| `/api/admin/match/{type}/settle` | POST | 手动结算赛事 | admin |
+| `/api/admin/match/qualification` | POST | 调整参赛资格 | admin |
+
+---
+
+## 七、开发注意事项
+
+### 7.1 并发控制
+- 同一用户同时只能参加**一个**使用临时账户的赛事
+- 报名时检查是否已有活跃临时账户
+
+### 7.2 资金安全
+- 赛事账户盈亏必须与交易模拟器可靠对接
+- 防止用户利用接口刷单
+- 所有资金操作需要记录流水日志
+
+### 7.3 定时任务
+| 任务 | 执行时间 | 说明 |
+|------|----------|------|
+| 天梯赛结算 | 每月最后一天 23:59 | 结算并发放奖励 |
+| 每日挑战赛结算 | 每日 24:00 | 结算并发放奖励 |
+| 大师邀请赛轮次结算 | 每周 | 更新淘汰赛对阵 |
+| 利息结算 | 每日凌晨 2:00 | 钱庄日复利 |
+
+### 7.4 日志记录
+所有以下操作必须记录流水：
+- 报名费扣除
+- 本金划拨
+- 奖励发放
+- 账户结算
+- 退款操作
+
+---
+
+## 八、页面设计
+
+### 8.1 赛事大厅 `/lobby`
+
+展示所有可参加的赛事：
+```
+┌─────────────────────────────────────┐
+│  赛事大厅                            │
+├─────────────────────────────────────┤
+│ [K线征途] [天梯赛] [大师赛] [月赛] [每日] │
+├─────────────────────────────────────┤
+│                                     │
+│  ┌─────────────────────────────┐    │
+│  │ K线征途 - 通关挑战           │    │
+│  │ 参赛本金：1000银两           │    │
+│  │ 报名费：200金币              │    │
+│  │ 奖励：3000金币+"K线宗师"     │    │
+│  │ 负债限制：必须为0            │    │
+│  │                             │    │
+│  │ [当前状态：第3关/10关]       │    │
+│  │ [立即报名] / [继续挑战]      │    │
+│  └─────────────────────────────┘    │
+│                                     │
+│  ┌─────────────────────────────┐    │
+│  │ 天梯赛 - 本月赛季            │    │
+│  │ 参赛本金：10000银两          │    │
+│  │ 报名费：免费                 │    │
+│  │ 当前排名：第15名             │    │
+│  │ 收益率：+12.5%              │    │
+│  │                             │    │
+│  │ [报名参赛] / [查看排行榜]    │    │
+│  └─────────────────────────────┘    │
+│                                     │
+└─────────────────────────────────────┘
+```
+
+### 8.2 赛事详情页 `/lobby/{type}`
+
+进入具体赛事的详细页面，包含：
+- 赛事规则说明
+- 当前报名状态
+- 排行榜
+- 历史战绩
+- 操作按钮（报名/继续/查看详情）
+
+---
+
+*文档版本 3.0 更新完成*

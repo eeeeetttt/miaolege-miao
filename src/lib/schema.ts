@@ -647,3 +647,64 @@ export type NewUserItem = typeof userItems.$inferInsert;
 
 export type Title = typeof titles.$inferSelect;
 export type UserTitle = typeof userTitles.$inferSelect;
+
+// ==================== 赛事系统表 ====================
+
+// 赛事临时账户表
+export const matchAccounts = mysqlTable('match_accounts', {
+  id: int('id').autoincrement().primaryKey(),
+  userId: varchar('user_id', { length: 36 }).notNull(),
+  matchId: varchar('match_id', { length: 50 }).notNull(),           // 赛事唯一标识
+  matchType: mysqlEnum('match_type', ['kline', 'ladder', 'master', 'monthly', 'daily']).notNull(),
+  initialCapital: decimal('initial_capital', { precision: 15, scale: 2 }).notNull(),
+  currentBalance: decimal('current_balance', { precision: 15, scale: 2 }).notNull(),
+  status: mysqlEnum('status', ['active', 'completed', 'failed']).default('active'),
+  currentLevel: int('current_level').default(1),                  // K线征途关卡
+  seasonMonth: varchar('season_month', { length: 7 }).default(''), // 天梯赛赛季月份 YYYY-MM
+  startedAt: timestamp('started_at').defaultNow(),
+  endedAt: timestamp('ended_at'),
+  createdAt: timestamp('created_at').defaultNow(),
+}, (table) => ({
+  userMatchIdx: index('idx_user_match').on(table.userId, table.matchType),
+  matchTypeIdx: index('idx_match_type').on(table.matchType, table.status),
+}));
+
+// 赛事配置表
+export const matchConfigs = mysqlTable('match_configs', {
+  id: int('id').autoincrement().primaryKey(),
+  matchType: varchar('match_type', { length: 50 }).notNull(),
+  configKey: varchar('config_key', { length: 100 }).notNull(),
+  configValue: text('config_value'),
+  updatedAt: timestamp('updated_at').defaultNow().onUpdateNow(),
+}, (table) => ({
+  uniqueKey: uniqueIndex('uk_match_config').on(table.matchType, table.configKey),
+}));
+
+// 赛事记录表
+export const matchRecords = mysqlTable('match_records', {
+  id: int('id').autoincrement().primaryKey(),
+  userId: varchar('user_id', { length: 36 }).notNull(),
+  matchType: varchar('match_type', { length: 50 }).notNull(),
+  matchId: varchar('match_id', { length: 50 }).notNull(),
+  initialCapital: decimal('initial_capital', { precision: 15, scale: 2 }).notNull(),
+  finalBalance: decimal('final_balance', { precision: 15, scale: 2 }).notNull(),
+  profit: decimal('profit', { precision: 15, scale: 2 }).notNull(),
+  profitRate: decimal('profit_rate', { precision: 10, scale: 4 }).notNull(),
+  rank: int('rank'),
+  rewardGold: int('reward_gold').default(0),
+  rewardSilver: decimal('reward_silver', { precision: 15, scale: 2 }).default('0'),
+  completedAt: timestamp('completed_at').defaultNow(),
+}, (table) => ({
+  userMatchIdx: index('idx_user_match_record').on(table.userId, table.matchType),
+  rankIdx: index('idx_match_rank').on(table.matchType, table.matchId, table.rank),
+}));
+
+// 导出类型
+export type MatchAccount = typeof matchAccounts.$inferSelect;
+export type NewMatchAccount = typeof matchAccounts.$inferInsert;
+
+export type MatchConfig = typeof matchConfigs.$inferSelect;
+export type NewMatchConfig = typeof matchConfigs.$inferInsert;
+
+export type MatchRecord = typeof matchRecords.$inferSelect;
+export type NewMatchRecord = typeof matchRecords.$inferInsert;

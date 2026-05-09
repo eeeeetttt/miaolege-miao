@@ -136,6 +136,105 @@ async function initializeFinanceTables() {
 
       console.log('[Init] 金融系统表和数据初始化完成');
       isInitialized = true;
+
+      // 初始化赛事系统表
+      try {
+        // 创建 match_accounts 表（赛事临时账户）
+        try {
+          await connection.execute(`
+            CREATE TABLE IF NOT EXISTS match_accounts (
+              id BIGINT AUTO_INCREMENT PRIMARY KEY,
+              user_id VARCHAR(36) NOT NULL,
+              match_id VARCHAR(50) NOT NULL,
+              match_type ENUM('kline', 'ladder', 'master', 'monthly', 'daily') NOT NULL,
+              initial_capital DECIMAL(15,2) NOT NULL,
+              current_balance DECIMAL(15,2) NOT NULL,
+              status ENUM('active', 'completed', 'failed') DEFAULT 'active',
+              current_level INT DEFAULT 1,
+              season_month VARCHAR(7) DEFAULT '',
+              started_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+              ended_at TIMESTAMP NULL,
+              created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+              INDEX idx_user_match (user_id, match_type),
+              INDEX idx_match_type (match_type, status)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+          `);
+        } catch {}
+
+        // 创建 match_configs 表（赛事配置）
+        try {
+          await connection.execute(`
+            CREATE TABLE IF NOT EXISTS match_configs (
+              id INT AUTO_INCREMENT PRIMARY KEY,
+              match_type VARCHAR(50) NOT NULL,
+              config_key VARCHAR(100) NOT NULL,
+              config_value TEXT,
+              updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+              UNIQUE KEY uk_match_config (match_type, config_key),
+              INDEX idx_match_type (match_type)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+          `);
+          
+          // 插入默认配置
+          const [cfgRows] = await connection.execute('SELECT COUNT(*) as cnt FROM match_configs');
+          if ((cfgRows as any)[0].cnt === 0) {
+            await connection.execute(`
+              INSERT INTO match_configs (match_type, config_key, config_value) VALUES
+              ('kline', 'entry_fee_gold', '200'),
+              ('kline', 'initial_capital_silver', '1000'),
+              ('kline', 'level_targets', '[1100,1200,1300,1400,1500,1600,1700,1800,1900,2000]'),
+              ('kline', 'fail_threshold', '100'),
+              ('kline', 'completion_reward_gold', '3000'),
+              ('kline', 'completion_title', 'K线宗师'),
+              ('kline', 'enabled', 'true'),
+              ('ladder', 'entry_capital_silver', '10000'),
+              ('ladder', 'season_days', '30'),
+              ('ladder', 'reward_tiers', '[{\"rank_from\":1,\"rank_to\":1,\"reward_gold\":5000},{\"rank_from\":2,\"rank_to\":10,\"reward_gold\":2000},{\"rank_from\":11,\"rank_to\":50,\"reward_gold\":500},{\"rank_from\":51,\"rank_to\":100,\"reward_gold\":100}]'),
+              ('ladder', 'enabled', 'true'),
+              ('daily', 'entry_fee_gold', '50'),
+              ('daily', 'initial_capital_silver', '10000'),
+              ('daily', 'entry_start_hour', '0'),
+              ('daily', 'entry_end_hour', '20'),
+              ('daily', 'rewards', '[{\"rank\":1,\"gold\":500,\"silver\":5000},{\"rank\":2,\"gold\":300,\"silver\":3000},{\"rank\":3,\"gold\":200,\"silver\":2000},{\"rank\":4,\"rank_to\":10,\"gold\":100,\"silver\":1000}]'),
+              ('daily', 'enabled', 'true'),
+              ('master', 'entry_fee_gold', '500'),
+              ('master', 'initial_capital_silver', '100000'),
+              ('master', 'round_days', '7'),
+              ('master', 'participant_limit', '64'),
+              ('master', 'enabled', 'false'),
+              ('monthly', 'initial_capital_silver', '100000'),
+              ('monthly', 'duration_days', '3'),
+              ('monthly', 'enabled', 'false')
+            `);
+          }
+        } catch {}
+
+        // 创建 match_records 表（赛事记录）
+        try {
+          await connection.execute(`
+            CREATE TABLE IF NOT EXISTS match_records (
+              id BIGINT AUTO_INCREMENT PRIMARY KEY,
+              user_id VARCHAR(36) NOT NULL,
+              match_type VARCHAR(50) NOT NULL,
+              match_id VARCHAR(50) NOT NULL,
+              initial_capital DECIMAL(15,2) NOT NULL,
+              final_balance DECIMAL(15,2) NOT NULL,
+              profit DECIMAL(15,2) NOT NULL,
+              profit_rate DECIMAL(10,4) NOT NULL,
+              \`rank\` INT DEFAULT NULL,
+              reward_gold INT DEFAULT 0,
+              reward_silver DECIMAL(15,2) DEFAULT 0,
+              completed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+              INDEX idx_user_match_record (user_id, match_type),
+              INDEX idx_match_rank (match_type, match_id, \`rank\`)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+          `);
+        } catch {}
+
+        console.log('[Init] 赛事系统表和配置初始化完成');
+      } catch (error) {
+        console.error('[Init] 赛事系统初始化失败:', error);
+      }
     } finally {
       connection.release();
     }
