@@ -167,11 +167,11 @@ export async function POST(request: NextRequest) {
       }, { status: 400 });
     }
     
-    // 获取用户信息
+    // 获取用户信息 - 使用 email 查询
     const [user] = await db
       .select()
       .from(userAccounts)
-      .where(eq(userAccounts.userId, session.user.id as string));
+      .where(eq(userAccounts.email, session.user.email as string));
     
     if (!user) {
       return NextResponse.json({ error: '用户不存在' }, { status: 404 });

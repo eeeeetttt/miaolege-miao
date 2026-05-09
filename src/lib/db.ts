@@ -79,6 +79,20 @@ async function initializeFinanceTables() {
         }
       } catch {}
 
+      // 创建管理员用户（如果不存在）
+      try {
+        const [adminRows] = await connection.execute("SELECT COUNT(*) as cnt FROM user_accounts WHERE email = '497209390@qq.com'");
+        if ((adminRows as any)[0].cnt === 0) {
+          await connection.execute(`
+            INSERT INTO user_accounts (user_id, email, password_hash, name, role, gold_balance, coin_balance, total_debt)
+            VALUES ('admin_497209390', '497209390@qq.com', 'placeholder', '管理员', 'admin', 10000, 1000000, '0.00')
+          `);
+          console.log('[Init] 创建管理员用户成功');
+        }
+      } catch (e) {
+        console.error('[Init] 创建管理员用户失败:', e);
+      }
+
       // 创建 banks 表
       try {
         await connection.execute(`

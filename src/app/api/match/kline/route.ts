@@ -113,25 +113,25 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'K线征途已关闭' }, { status: 400 });
     }
     
-    // 获取用户信息
-    const userId = session.user.id as string;
-    console.log('[K线征途] 用户ID:', userId);
+    // 获取用户信息 - 使用 email 查询
+    const userEmail = session.user.email as string;
+    console.log('[K线征途] 用户邮箱:', userEmail);
     
     let user: any;
     try {
       const users = await db
         .select()
         .from(userAccounts)
-        .where(eq(userAccounts.userId, userId));
+        .where(eq(userAccounts.email, userEmail));
       user = users[0];
-      console.log('[K线征途] 查询结果:', user ? '找到用户' : '未找到用户');
+      console.log('[K线征途] 查询结果:', user ? `找到用户 ${user.name}` : '未找到用户');
     } catch (err: any) {
-      console.error('[K线征途] 查询用户失败:', err.message, err.stack);
+      console.error('[K线征途] 查询用户失败:', err.message);
       return NextResponse.json({ error: '查询用户失败: ' + err.message }, { status: 500 });
     }
     
     if (!user) {
-      console.log('[K线征途] 用户不存在，userId:', userId);
+      console.log('[K线征途] 用户不存在，邮箱:', userEmail);
       return NextResponse.json({ error: '用户账户不存在，请刷新页面重试' }, { status: 404 });
     }
     
@@ -140,7 +140,7 @@ export async function POST(request: NextRequest) {
       .select()
       .from(matchAccounts)
       .where(and(
-        eq(matchAccounts.userId, session.user.id),
+        eq(matchAccounts.userId, user.userId),
         eq(matchAccounts.matchType, 'kline'),
         eq(matchAccounts.status, 'active')
       ))

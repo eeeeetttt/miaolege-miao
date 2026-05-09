@@ -159,17 +159,17 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: '月度总决赛已关闭' }, { status: 400 });
     }
 
-    // 获取用户信息
-    const userId = session.user.id as string;
-    console.log('[月度总决赛] 用户ID:', userId);
+    // 获取用户信息 - 使用 email 查询
+    const userEmail = session.user.email as string;
+    console.log('[月度总决赛] 用户邮箱:', userEmail);
     
     const [user] = await db
       .select()
       .from(userAccounts)
-      .where(eq(userAccounts.userId, userId));
+      .where(eq(userAccounts.email, userEmail));
     
     if (!user) {
-      console.log('[月度总决赛] 用户不存在，userId:', userId);
+      console.log('[月度总决赛] 用户不存在，邮箱:', userEmail);
       return NextResponse.json({ error: '用户账户不存在，请刷新页面重试' }, { status: 404 });
     }
 

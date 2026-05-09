@@ -170,17 +170,17 @@ export async function POST(request: NextRequest) {
       }, { status: 400 });
     }
     
-    // 获取用户信息
-    const userId = session.user.id as string;
-    console.log('[天梯赛] 用户ID:', userId);
+    // 获取用户信息 - 使用 email 查询
+    const userEmail = session.user.email as string;
+    console.log('[天梯赛] 用户邮箱:', userEmail);
     
     const [user] = await db
       .select()
       .from(userAccounts)
-      .where(eq(userAccounts.userId, userId));
+      .where(eq(userAccounts.email, userEmail));
     
     if (!user) {
-      console.log('[天梯赛] 用户不存在，userId:', userId);
+      console.log('[天梯赛] 用户不存在，邮箱:', userEmail);
       return NextResponse.json({ error: '用户账户不存在，请刷新页面重试' }, { status: 404 });
     }
     
@@ -191,7 +191,7 @@ export async function POST(request: NextRequest) {
     }
     
     // 创建账户
-    const matchId = `ladder_${currentSeason}_${session.user.id}`;
+    const matchId = `ladder_${currentSeason}_${user.userId}`;
     
     const connection = await pool.getConnection();
     try {
