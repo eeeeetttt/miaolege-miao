@@ -1304,3 +1304,683 @@
 .victoryBtn:active {
   transform: translateY(0);
 }
+
+/* ==================== 赛事中心页面样式 ==================== */
+
+/* 页面标题 */
+.pageHeader {
+  text-align: center;
+  margin-bottom: 1.5rem;
+  padding: 1rem;
+}
+
+.pageTitle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: #FFD700;
+  margin: 0 0 0.5rem;
+}
+
+.titleIcon {
+  width: 32px;
+  height: 32px;
+  color: #FFD700;
+}
+
+.pageSubtitle {
+  font-size: 1rem;
+  color: rgba(255, 255, 255, 0.6);
+  margin: 0;
+}
+
+/* 赛事切换标签 */
+.matchTabs {
+  display: flex;
+  gap: 0.75rem;
+  margin-bottom: 1.5rem;
+}
+
+.matchTab {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 1rem;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  color: #a0a5b5;
+  position: relative;
+}
+
+.matchTab:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+.matchTabActive {
+  background: var(--tab-color-light, rgba(59, 130, 246, 0.2));
+  border-color: var(--tab-color, #3b82f6);
+  color: white;
+}
+
+.matchTabActive:hover {
+  background: var(--tab-color-light, rgba(59, 130, 246, 0.2));
+}
+
+.tabIcon {
+  width: 24px;
+  height: 24px;
+  color: currentColor;
+}
+
+.tabName {
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.tabDesc {
+  font-size: 0.75rem;
+  opacity: 0.7;
+}
+
+.tabArrow {
+  position: absolute;
+  right: 0.75rem;
+  width: 16px;
+  height: 16px;
+  color: var(--tab-color, #3b82f6);
+}
+
+/* 赛事内容区域 */
+.matchContent {
+  min-height: 400px;
+}
+
+.matchContainer {
+  animation: fadeIn 0.3s ease;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* 买价卖价显示 */
+.bidAskRow {
+  display: flex;
+  justify-content: space-around;
+  padding: 0.75rem;
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 8px;
+  margin-top: 0.75rem;
+}
+
+.bidAskItem {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.bidAskLabel {
+  font-size: 0.75rem;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.bidAskValue {
+  font-size: 1rem;
+  font-weight: 600;
+  color: white;
+}
+
+/* 赛事描述 */
+.matchDesc {
+  font-size: 0.9rem;
+  color: rgba(255, 255, 255, 0.7);
+  margin-bottom: 1rem;
+  text-align: center;
+}
+
+/* 比赛规则 */
+.matchRules {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 1rem;
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 8px;
+  margin-bottom: 1rem;
+}
+
+.ruleItem {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.9rem;
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.ruleItem span:last-child {
+  font-weight: 600;
+  color: #FFD700;
+}
+
+/* 赛季信息卡片 */
+.seasonInfoCard {
+  background: linear-gradient(135deg, rgba(16, 185, 129, 0.15) 0%, rgba(16, 185, 129, 0.05) 100%);
+  border: 1px solid rgba(16, 185, 129, 0.3);
+  border-radius: 16px;
+  padding: 1.5rem;
+  margin-bottom: 1rem;
+}
+
+.seasonHeader {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.seasonIcon {
+  width: 40px;
+  height: 40px;
+  color: #10b981;
+}
+
+.seasonTitle h2 {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #10b981;
+  margin: 0;
+}
+
+.seasonTitle p {
+  font-size: 0.85rem;
+  color: rgba(255, 255, 255, 0.6);
+  margin: 0;
+}
+
+.seasonStats {
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.seasonStat {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem;
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 8px;
+}
+
+.seasonStatIcon {
+  width: 24px;
+  height: 24px;
+  color: #10b981;
+}
+
+.seasonStatInfo {
+  display: flex;
+  flex-direction: column;
+}
+
+.seasonStatValue {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: white;
+}
+
+.seasonStatLabel {
+  font-size: 0.75rem;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.seasonDate {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.85rem;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+/* 天梯赛我的账户 */
+.ladderMyAccount {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  padding: 1.25rem;
+  margin-bottom: 1rem;
+}
+
+.ladderMyAccount h3 {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 1rem;
+  font-weight: 600;
+  color: #10b981;
+  margin: 0 0 1rem;
+}
+
+.ladderMyStats {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.75rem;
+}
+
+.ladderMyStat {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  padding: 0.75rem;
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 8px;
+}
+
+.ladderMyLabel {
+  font-size: 0.75rem;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.ladderMyValue {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: white;
+}
+
+/* 每日挑战信息卡片 */
+.dailyInfoCard {
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.15) 0%, rgba(245, 158, 11, 0.05) 100%);
+  border: 1px solid rgba(245, 158, 11, 0.3);
+  border-radius: 16px;
+  padding: 1.5rem;
+  margin-bottom: 1rem;
+}
+
+.dailyHeader {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.dailyStatus {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  border-radius: 20px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: white;
+}
+
+.dailyStatusIcon {
+  width: 16px;
+  height: 16px;
+}
+
+.dailyTitle h2 {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #f59e0b;
+  margin: 0;
+}
+
+.dailyTitle p {
+  font-size: 0.85rem;
+  color: rgba(255, 255, 255, 0.6);
+  margin: 0;
+}
+
+.dailyTimeLeft {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.75rem;
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 8px;
+  margin-bottom: 1rem;
+  font-size: 0.9rem;
+  color: #f59e0b;
+}
+
+.dailyTimeIcon {
+  width: 18px;
+  height: 18px;
+}
+
+.dailyStats {
+  display: flex;
+  gap: 0.75rem;
+}
+
+.dailyStat {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.75rem;
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 8px;
+}
+
+.dailyStatValue {
+  font-size: 1rem;
+  font-weight: 700;
+  color: white;
+}
+
+.dailyStatLabel {
+  font-size: 0.7rem;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+/* 每日挑战我的账户 */
+.dailyMyAccount {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  padding: 1.25rem;
+  margin-bottom: 1rem;
+}
+
+.dailyMyAccount h3 {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 1rem;
+  font-weight: 600;
+  color: #f59e0b;
+  margin: 0 0 1rem;
+}
+
+.dailyMyStats {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.75rem;
+}
+
+.dailyMyStat {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  padding: 0.75rem;
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 8px;
+}
+
+.dailyMyLabel {
+  font-size: 0.75rem;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.dailyMyValue {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: white;
+}
+
+/* 奖励区域 */
+.rewardSection {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  padding: 1.25rem;
+  margin-bottom: 1rem;
+}
+
+.rewardSection h3 {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 1rem;
+  font-weight: 600;
+  color: #FFD700;
+  margin: 0 0 1rem;
+}
+
+.rewardList {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.rewardItem {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.75rem;
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 8px;
+}
+
+.rewardRank {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.medalIcon {
+  font-size: 1.25rem;
+}
+
+.rankNumber {
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 50%;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.rankName {
+  font-size: 0.9rem;
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.rewardAmount {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #FFD700;
+}
+
+.goldIcon, .coinIcon {
+  font-size: 1rem;
+}
+
+/* 排行榜 */
+.rankingSection {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  padding: 1.25rem;
+  margin-bottom: 1rem;
+}
+
+.rankingSection h3 {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 1rem;
+  font-weight: 600;
+  color: #FFD700;
+  margin: 0 0 1rem;
+}
+
+.rankingList {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.rankingItem {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem;
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 8px;
+}
+
+.myRanking {
+  background: rgba(59, 130, 246, 0.2);
+  border: 1px solid rgba(59, 130, 246, 0.3);
+}
+
+.rankingPosition {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.topThree {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+
+.topThree.first {
+  background: linear-gradient(135deg, #FFD700 0%, #FFA500 100%);
+  color: #1a1a2e;
+}
+
+.topThree.second {
+  background: linear-gradient(135deg, #C0C0C0 0%, #A0A0A0 100%);
+  color: #1a1a2e;
+}
+
+.topThree.third {
+  background: linear-gradient(135deg, #CD7F32 0%, #A0522D 100%);
+  color: white;
+}
+
+.normalRank {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.rankingInfo {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.rankingName {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: white;
+}
+
+.rankingBalance {
+  font-size: 0.75rem;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.rankingYield {
+  text-align: right;
+}
+
+.yieldValue {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #10b981;
+}
+
+.profitValue {
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.positive {
+  color: #10b981 !important;
+}
+
+.negative {
+  color: #ef4444 !important;
+}
+
+/* 按钮样式 */
+.registerBtn {
+  width: 100%;
+  padding: 14px;
+  background: linear-gradient(135deg, #D4AF37 0%, #FFD700 50%, #D4AF37 100%);
+  background-size: 200% 200%;
+  color: #1a1a2e;
+  border: none;
+  border-radius: 10px;
+  font-size: 1rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 15px rgba(212, 175, 55, 0.3);
+}
+
+.registerBtn:hover:not(:disabled) {
+  background-position: 100% 100%;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(212, 175, 55, 0.4);
+}
+
+.registerBtn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* 响应式 */
+@media (max-width: 640px) {
+  .matchTabs {
+    flex-direction: column;
+  }
+  
+  .matchTab {
+    flex-direction: row;
+    justify-content: flex-start;
+    padding: 0.75rem 1rem;
+  }
+  
+  .tabDesc {
+    display: none;
+  }
+  
+  .tabArrow {
+    display: none;
+  }
+  
+  .seasonStats, .dailyStats {
+    flex-direction: column;
+  }
+  
+  .ladderMyStats, .dailyMyStats {
+    grid-template-columns: 1fr;
+  }
+}
