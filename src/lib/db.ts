@@ -38,6 +38,47 @@ async function initializeFinanceTables() {
       try { await connection.execute(`ALTER TABLE user_accounts ADD COLUMN total_debt DECIMAL(15,2) DEFAULT 0 AFTER coin_balance`); } catch {}
       try { await connection.execute(`ALTER TABLE user_accounts ADD COLUMN active_title VARCHAR(50) DEFAULT NULL AFTER avatar_url`); } catch {}
 
+      // 创建 user_titles 表（用户称号表）
+      try {
+        await connection.execute(`
+          CREATE TABLE IF NOT EXISTS user_titles (
+            id BIGINT AUTO_INCREMENT PRIMARY KEY,
+            user_id VARCHAR(36) NOT NULL,
+            title_id VARCHAR(50) NOT NULL,
+            obtained_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            is_active BOOLEAN DEFAULT TRUE,
+            UNIQUE KEY uk_user_title (user_id, title_id),
+            INDEX idx_user (user_id),
+            INDEX idx_title (title_id)
+          ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+        `);
+      } catch {}
+
+      // 创建 titles 表（称号定义表）
+      try {
+        await connection.execute(`
+          CREATE TABLE IF NOT EXISTS titles (
+            id VARCHAR(50) PRIMARY KEY,
+            name VARCHAR(100) NOT NULL,
+            description TEXT,
+            rarity VARCHAR(20) DEFAULT 'common',
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+          ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+        `);
+        
+        // 插入默认称号
+        const [titleRows] = await connection.execute('SELECT COUNT(*) as cnt FROM titles');
+        if ((titleRows as any)[0].cnt === 0) {
+          await connection.execute(`
+            INSERT INTO titles (id, name, description, rarity) VALUES
+            ('kline_master', 'K线宗师', '通关K线征途10关获得的称号', 'legendary'),
+            ('trading_master', '交易大师', '月度总决赛冠军获得', 'legendary'),
+            ('daily_king', '每日之王', '连续7天获得每日挑战冠军', 'rare'),
+            ('ladder_master', '天梯大师', '天梯赛连续3个月前三', 'rare')
+          `);
+        }
+      } catch {}
+
       // 创建 banks 表
       try {
         await connection.execute(`
