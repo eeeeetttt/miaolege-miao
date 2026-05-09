@@ -117,10 +117,18 @@ export async function POST(request: NextRequest) {
     const userId = session.user.id as string;
     console.log('[K线征途] 用户ID:', userId);
     
-    const [user] = await db
-      .select()
-      .from(userAccounts)
-      .where(eq(userAccounts.userId, userId));
+    let user: any;
+    try {
+      const users = await db
+        .select()
+        .from(userAccounts)
+        .where(eq(userAccounts.userId, userId));
+      user = users[0];
+      console.log('[K线征途] 查询结果:', user ? '找到用户' : '未找到用户');
+    } catch (err: any) {
+      console.error('[K线征途] 查询用户失败:', err.message, err.stack);
+      return NextResponse.json({ error: '查询用户失败: ' + err.message }, { status: 500 });
+    }
     
     if (!user) {
       console.log('[K线征途] 用户不存在，userId:', userId);
