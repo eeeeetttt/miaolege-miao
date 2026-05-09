@@ -111,6 +111,7 @@ export default function FinancePage() {
       }
     } catch (error) {
       console.error('获取数据失败:', error);
+      setMessage({ type: 'error', text: '加载失败，请刷新页面重试' });
     } finally {
       setLoading(false);
     }
@@ -322,7 +323,12 @@ export default function FinancePage() {
         {activeTab === 'banks' ? (
           /* 钱庄列表 */
           <div className="space-y-4">
-            {banks.length === 0 && !loading ? (
+            {loading ? (
+              <div className="text-center py-12 text-gray-400">
+                <div className="w-8 h-8 border-2 border-yellow-500 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+                <p>加载中...</p>
+              </div>
+            ) : banks.length === 0 ? (
               <div className="text-center py-12 text-gray-400">
                 <Building2 className="w-16 h-16 mx-auto mb-4 opacity-50" />
                 <p>暂无钱庄数据</p>
@@ -438,7 +444,12 @@ export default function FinancePage() {
         ) : (
           /* 交易所列表 */
           <div className="space-y-4">
-            {exchanges.length === 0 && !loading ? (
+            {loading ? (
+              <div className="text-center py-12 text-gray-400">
+                <div className="w-8 h-8 border-2 border-yellow-500 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+                <p>加载中...</p>
+              </div>
+            ) : exchanges.length === 0 ? (
               <div className="text-center py-12 text-gray-400">
                 <TrendingUp className="w-16 h-16 mx-auto mb-4 opacity-50" />
                 <p>暂无交易所数据</p>
