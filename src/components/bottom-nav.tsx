@@ -7,7 +7,7 @@ import { useEffect, useState } from 'react';
 const navItems = [
   { href: '/home', icon: Home, label: '大业' },
   { href: '/finance', icon: Building2, label: '金融' },
-  { href: '/lobby', icon: Medal, label: '大赛' },
+  { href: '/challenge', icon: Medal, label: '大赛' },
   { href: '/social', icon: MessageCircle, label: '社交' },
   { href: '/user', icon: User, label: '我的' },
 ];
