@@ -5,12 +5,14 @@ import { useSession } from 'next-auth/react';
 import styles from './page.module.css';
 import { TrendingUp, TrendingDown, Trophy, Zap, Target, Clock, DollarSign, BarChart3, Star, RefreshCw, X, Calendar, Medal, Award, ChevronRight } from 'lucide-react';
 
-// K线征途相关组件
+// 赛事相关组件
 import KLineChallenge from './components/KLineChallenge';
 import LadderChallenge from './components/LadderChallenge';
 import DailyChallenge from './components/DailyChallenge';
+import MasterChallenge from './components/MasterChallenge';
+import MonthlyChallenge from './components/MonthlyChallenge';
 
-type MatchType = 'kline' | 'ladder' | 'daily';
+type MatchType = 'kline' | 'ladder' | 'daily' | 'master' | 'monthly';
 
 interface MatchTab {
   id: MatchType;
@@ -18,6 +20,7 @@ interface MatchTab {
   icon: React.ReactNode;
   color: string;
   description: string;
+  badge?: string;
 }
 
 const matchTabs: MatchTab[] = [
@@ -26,21 +29,35 @@ const matchTabs: MatchTab[] = [
     name: 'K线征途',
     icon: <Target className={styles.tabIcon} />,
     color: '#3b82f6',
-    description: '10关闯关挑战'
+    description: '10关闯关'
   },
   {
     id: 'ladder',
     name: '天梯赛',
     icon: <Trophy className={styles.tabIcon} />,
     color: '#10b981',
-    description: '月度收益率排行'
+    description: '月度排行'
   },
   {
     id: 'daily',
     name: '每日挑战',
     icon: <Zap className={styles.tabIcon} />,
     color: '#f59e0b',
-    description: '每日盈利排行'
+    description: '每日排行'
+  },
+  {
+    id: 'master',
+    name: '大师邀请',
+    icon: <Award className={styles.tabIcon} />,
+    color: '#8b5cf6',
+    description: '淘汰赛'
+  },
+  {
+    id: 'monthly',
+    name: '月度决赛',
+    icon: <Medal className={styles.tabIcon} />,
+    color: '#ef4444',
+    description: '巅峰对决'
   }
 ];
 
@@ -92,6 +109,12 @@ function ChallengeContent() {
           )}
           {activeMatch === 'daily' && (
             <DailyChallenge session={session} />
+          )}
+          {activeMatch === 'master' && (
+            <MasterChallenge />
+          )}
+          {activeMatch === 'monthly' && (
+            <MonthlyChallenge />
           )}
         </div>
       </div>

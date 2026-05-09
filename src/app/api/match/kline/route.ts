@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { db, pool } from '@/lib/db';
-import { users, matchAccounts, matchConfigs, matchRecords, userTitles } from '@/lib/schema';
+import { matchAccounts, matchConfigs, matchRecords, userTitles, titles, userAccounts } from '@/lib/schema';
 import { eq, and, desc } from 'drizzle-orm';
 
 // 获取K线征途配置
@@ -116,8 +116,8 @@ export async function POST(request: NextRequest) {
     // 获取用户信息
     const [user] = await db
       .select()
-      .from(users)
-      .where(eq(users.userId, session.user.id));
+      .from(userAccounts)
+      .where(eq(userAccounts.userId, session.user.id as string));
     
     if (!user) {
       return NextResponse.json({ error: '用户不存在' }, { status: 404 });

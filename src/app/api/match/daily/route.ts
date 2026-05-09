@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { db, pool } from '@/lib/db';
-import { users, matchAccounts, matchConfigs, matchRecords } from '@/lib/schema';
+import { matchAccounts, matchConfigs, matchRecords, userAccounts } from '@/lib/schema';
 import { eq, and, desc } from 'drizzle-orm';
 
 // 获取每日挑战赛配置
@@ -61,10 +61,10 @@ export async function GET(request: NextRequest) {
           userId: matchAccounts.userId,
           currentBalance: matchAccounts.currentBalance,
           initialCapital: matchAccounts.initialCapital,
-          userName: users.name,
+          userName: userAccounts.name,
         })
         .from(matchAccounts)
-        .leftJoin(users, eq(users.userId, matchAccounts.userId))
+        .leftJoin(userAccounts, eq(userAccounts.userId, matchAccounts.userId))
         .where(and(
           eq(matchAccounts.matchType, 'daily'),
           eq(matchAccounts.status, 'active')
@@ -170,8 +170,8 @@ export async function POST(request: NextRequest) {
     // 获取用户信息
     const [user] = await db
       .select()
-      .from(users)
-      .where(eq(users.userId, session.user.id));
+      .from(userAccounts)
+      .where(eq(userAccounts.userId, session.user.id as string));
     
     if (!user) {
       return NextResponse.json({ error: '用户不存在' }, { status: 404 });
