@@ -60,8 +60,8 @@ export default function KLineDetailPage() {
 
   useEffect(() => {
     fetchData();
-    // 每3秒刷新价格
-    const interval = setInterval(fetchData, 3000);
+    // 每1秒刷新价格
+    const interval = setInterval(fetchData, 1000);
     return () => clearInterval(interval);
   }, []);
 
