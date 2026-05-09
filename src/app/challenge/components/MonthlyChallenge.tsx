@@ -152,7 +152,7 @@ export default function MonthlyChallenge() {
     );
   }
 
-  if (status === 'login') {
+  if (status === 'unauthenticated') {
     return (
       <div className="text-center py-12">
         <p className="text-gray-400 mb-4">请先登录后参加月度总决赛</p>

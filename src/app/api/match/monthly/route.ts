@@ -160,13 +160,17 @@ export async function POST(request: NextRequest) {
     }
 
     // 获取用户信息
+    const userId = session.user.id as string;
+    console.log('[月度总决赛] 用户ID:', userId);
+    
     const [user] = await db
       .select()
       .from(userAccounts)
-      .where(eq(userAccounts.userId, session.user.id as string));
+      .where(eq(userAccounts.userId, userId));
     
     if (!user) {
-      return NextResponse.json({ error: '用户不存在' }, { status: 404 });
+      console.log('[月度总决赛] 用户不存在，userId:', userId);
+      return NextResponse.json({ error: '用户账户不存在，请刷新页面重试' }, { status: 404 });
     }
 
     const requirements = getRequirements(config);

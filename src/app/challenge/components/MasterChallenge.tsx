@@ -156,7 +156,7 @@ export default function MasterChallenge() {
     );
   }
 
-  if (status === 'login') {
+  if (status === 'unauthenticated') {
     return (
       <div className="text-center py-12">
         <p className="text-gray-400 mb-4">请先登录后参加大师邀请赛</p>
