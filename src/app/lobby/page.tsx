@@ -209,7 +209,10 @@ export default function LobbyPage() {
               </div>
 
               {klineStatus?.isActive ? (
-                <div className="bg-gradient-to-r from-green-900 to-green-800 rounded-xl p-6 border border-green-600">
+                <Link
+                  href="/lobby/kline"
+                  className="block bg-gradient-to-r from-green-900 to-green-800 rounded-xl p-6 border border-green-600"
+                >
                   <div className="flex items-center justify-between mb-2">
                     <span className="text-green-400">进行中</span>
                     <span className="text-sm text-gray-300">第{klineStatus.currentLevel}关 / 共{klineStatus.maxLevel}关</span>
@@ -230,12 +233,8 @@ export default function LobbyPage() {
                       style={{ width: `${(klineStatus.currentBalance / klineStatus.targetBalance) * 100}%` }}
                     ></div>
                   </div>
-                  <div className="mt-4 p-3 bg-green-800/50 rounded-lg">
-                    <p className="text-sm text-gray-300">
-                      💡 净值达到目标自动通关，跌破 {formatNumber(klineConfig.failThreshold)} 则挑战失败
-                    </p>
-                  </div>
-                </div>
+                  <p className="mt-3 text-center text-amber-400 font-medium">点击进入交易 →</p>
+                </Link>
               ) : (
                 <div className="space-y-4">
                   {klineStatus && klineStatus.bestLevel > 0 && (
@@ -299,8 +298,18 @@ export default function LobbyPage() {
               </div>
 
               {ladderStatus.isRegistered && ladderStatus.myAccount ? (
-                <div className="bg-gradient-to-r from-blue-900 to-blue-800 rounded-xl p-6 border border-blue-600">
-                  <p className="text-blue-400 mb-4">进行中</p>
+                <Link
+                  href="/lobby/ladder"
+                  className="block bg-gradient-to-r from-blue-900 to-blue-800 rounded-xl p-6 border border-blue-600"
+                >
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-blue-400">进行中</span>
+                    {ladderStatus.myRank && (
+                      <span className="px-3 py-1 bg-blue-600 rounded-full text-sm">
+                        第{ladderStatus.myRank}名
+                      </span>
+                    )}
+                  </div>
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <p className="text-gray-400 text-sm">当前净值</p>
@@ -314,7 +323,8 @@ export default function LobbyPage() {
                       </p>
                     </div>
                   </div>
-                </div>
+                  <p className="mt-3 text-center text-amber-400 font-medium">点击进入查看 →</p>
+                </Link>
               ) : (
                 <button
                   onClick={() => handleRegister('ladder')}
@@ -379,8 +389,14 @@ export default function LobbyPage() {
               </div>
 
               {dailyStatus.isRegistered && dailyStatus.myAccount ? (
-                <div className="bg-gradient-to-r from-green-900 to-green-800 rounded-xl p-6 border border-green-600">
-                  <p className="text-green-400 mb-4">进行中</p>
+                <Link
+                  href="/lobby/daily"
+                  className="block bg-gradient-to-r from-green-900 to-green-800 rounded-xl p-6 border border-green-600"
+                >
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-green-400">进行中</span>
+                    <span className="px-3 py-1 bg-green-600 rounded-full text-sm">参赛中</span>
+                  </div>
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <p className="text-gray-400 text-sm">当前净值</p>
@@ -394,7 +410,8 @@ export default function LobbyPage() {
                       </p>
                     </div>
                   </div>
-                </div>
+                  <p className="mt-3 text-center text-amber-400 font-medium">点击进入查看 →</p>
+                </Link>
               ) : (
                 <button
                   onClick={() => handleRegister('daily')}
