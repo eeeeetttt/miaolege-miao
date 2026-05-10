@@ -122,19 +122,29 @@ export async function GET(request: NextRequest) {
       currentValue: Number(acc.currentBalance),
     }));
 
+    const myAccountFormatted = myAccount ? {
+      accountId: myAccount.id,
+      matchType: 'monthly',
+      matchName: '月度总决赛',
+      balance: Number(myAccount.currentBalance),
+      initialValue: Number(myAccount.initialCapital),
+      returnRate: parseFloat(((Number(myAccount.currentBalance) / Number(myAccount.initialCapital) - 1) * 100).toFixed(2)),
+      profit: Number(myAccount.currentBalance) - Number(myAccount.initialCapital),
+      status: myAccount.status,
+    } : null;
+    
+    // 格式化活跃账户列表
+    const activeAccounts = myAccount ? [myAccountFormatted] : [];
+    
     return NextResponse.json({
       config,
       requirements,
-      myAccount: myAccount ? {
-        id: myAccount.id,
-        currentValue: Number(myAccount.currentBalance),
-        initialValue: Number(myAccount.initialCapital),
-        status: myAccount.status,
-      } : null,
+      myAccount: myAccountFormatted,
       leaderboard,
       totalParticipants: accounts.length,
       remainingDays,
       status: myAccount ? 'enrolled' : (config.enabled ? 'open' : 'closed'),
+      activeAccounts,
     });
   } catch (error) {
     console.error('Get monthly challenge error:', error);

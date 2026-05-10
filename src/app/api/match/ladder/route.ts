@@ -121,9 +121,12 @@ export async function GET(request: NextRequest) {
       season: currentSeason,
       isRegistered: myAccount.length > 0,
       myAccount: myAccount[0] ? {
-        initialCapital: Number(myAccount[0].initialCapital),
-        currentBalance: Number(myAccount[0].currentBalance),
-        profitRate: ((Number(myAccount[0].currentBalance) / Number(myAccount[0].initialCapital) - 1) * 100).toFixed(2),
+        accountId: myAccount[0].id,
+        initialValue: Number(myAccount[0].initialCapital),
+        currentValue: Number(myAccount[0].currentBalance),
+        balance: Number(myAccount[0].currentBalance),
+        returnRate: parseFloat(((Number(myAccount[0].currentBalance) / Number(myAccount[0].initialCapital) - 1) * 100).toFixed(2)),
+        status: myAccount[0].status,
       } : null,
       myRank,
     });

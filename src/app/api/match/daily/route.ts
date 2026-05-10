@@ -115,9 +115,13 @@ export async function GET(request: NextRequest) {
       canRegister: canRegister(config),
       isRegistered: myAccount.length > 0,
       myAccount: myAccount[0] ? {
-        initialCapital: Number(myAccount[0].initialCapital),
-        currentBalance: Number(myAccount[0].currentBalance),
+        accountId: myAccount[0].id,
+        initialValue: Number(myAccount[0].initialCapital),
+        currentValue: Number(myAccount[0].currentBalance),
+        balance: Number(myAccount[0].currentBalance),
+        returnRate: parseFloat(((Number(myAccount[0].currentBalance) / Number(myAccount[0].initialCapital) - 1) * 100).toFixed(2)),
         profit: Number(myAccount[0].currentBalance) - Number(myAccount[0].initialCapital),
+        status: myAccount[0].status,
       } : null,
     });
   } catch (error) {

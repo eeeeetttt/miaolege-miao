@@ -75,6 +75,19 @@ export async function GET() {
     const levelTargets = config.levelTargets;
     const currentLevelNum = currentAccount ? Number(currentAccount.currentLevel) : 0;
     
+    // 格式化活跃账户列表（供统一交易面板使用）
+    const activeAccounts = currentAccount ? [{
+      accountId: currentAccount.id,
+      matchType: 'kline',
+      matchName: 'K线征途',
+      balance: Number(currentAccount.currentBalance),
+      initialValue: Number(currentAccount.initialCapital),
+      returnRate: parseFloat(((Number(currentAccount.currentBalance) / Number(currentAccount.initialCapital) - 1) * 100).toFixed(2)),
+      currentLevel: currentLevelNum,
+      profit: Number(currentAccount.currentBalance) - Number(currentAccount.initialCapital),
+      status: currentAccount.status,
+    }] : [];
+    
     return NextResponse.json({
       config,
       status: {
@@ -87,7 +100,8 @@ export async function GET() {
         maxLevel: 10,
         hasCompleted: hasTitle.length > 0,
         bestLevel: bestRecord[0] ? Number(bestRecord[0].rank) : 0,
-      }
+      },
+      activeAccounts,
     });
   } catch (error) {
     console.error('Get K-line status error:', error);
