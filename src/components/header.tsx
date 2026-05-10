@@ -15,7 +15,7 @@ import {
   DropdownMenuTrigger 
 } from '@/components/ui/dropdown-menu';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { User, LogOut, Globe, Settings, Download, Home, Shield, FileText, Trophy, MessageCircle, UserCircle, Wallet, MessageSquare, AlertCircle, Menu, X } from 'lucide-react';
+import { User, LogOut, Globe, Settings, Download, Home, Shield, FileText, Trophy, MessageCircle, UserCircle, Wallet, MessageSquare, AlertCircle, Menu, X, Newspaper } from 'lucide-react';
 
 // 导航栏配置接口
 interface NavConfig {
@@ -122,6 +122,10 @@ export function Header() {
                       K线征途
                     </button>
                   )}
+                  <button onClick={() => navigate('/news')} className="text-orange-600 hover:text-orange-500 dark:text-orange-400 dark:hover:text-orange-300 transition-colors flex items-center gap-1 font-semibold">
+                    <Newspaper className="w-4 h-4" />
+                    资讯
+                  </button>
                   {navConfig.nav_show_social && (
                     <button onClick={() => navigate('/social')} className="text-gray-600 hover:text-purple-600 dark:text-gray-300 dark:hover:text-purple-400 transition-colors flex items-center gap-1">
                       <MessageCircle className="w-4 h-4" />
