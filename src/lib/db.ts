@@ -333,13 +333,26 @@ async function initializeFinanceTables() {
         console.log('[Init] 赛事持仓表初始化完成');
 
       } catch (error) {
-        console.error('[Init] 赛事系统初始化失败:', error);
+        console.error('[Init] 赛事系统表创建失败:', error);
+      }
+      
+      // 验证表是否创建成功
+      try {
+        const [tables] = await connection.execute('SHOW TABLES LIKE "match_positions"');
+        if ((tables as any).length === 0) {
+          console.error('[Init] ERROR: match_positions 表创建失败!');
+        } else {
+          console.log('[Init] match_positions 表创建成功');
+        }
+      } catch (error) {
+        console.error('[Init] 验证表失败:', error);
       }
     } finally {
       connection.release();
     }
   } catch (error) {
     console.error('[Init] 金融系统初始化失败:', error);
+    throw error; // 重新抛出错误以便发现问题
   }
 }
 
