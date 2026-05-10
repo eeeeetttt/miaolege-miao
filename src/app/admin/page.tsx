@@ -35,6 +35,8 @@ interface UserInfo {
   name: string | null;
   avatar: string | null;
   coinBalance: number;
+  goldBalance: number;
+  silverBalance: number;
   role: string;
   createdAt: Date | null;
 }
@@ -126,7 +128,7 @@ export default function AdminDashboardPage() {
   const [usersLoading, setUsersLoading] = useState(false);
   const [userSearch, setUserSearch] = useState('');
   const [editingUser, setEditingUser] = useState<UserInfo | null>(null);
-  const [editForm, setEditForm] = useState({ coinBalance: 0, role: '' });
+  const [editForm, setEditForm] = useState<{ coinBalance: string; goldBalance: string; silverBalance: string; role: string }>({ coinBalance: '', goldBalance: '', silverBalance: '', role: '' });
   
   // 充值审核
   const [rechargeApps, setRechargeApps] = useState<RechargeApplication[]>([]);
@@ -639,7 +641,12 @@ export default function AdminDashboardPage() {
                                 variant="outline"
                                 onClick={() => {
                                   setEditingUser(user);
-                                  setEditForm({ coinBalance: user.coinBalance, role: user.role });
+                                  setEditForm({ 
+                                    coinBalance: (user as any).coinBalance ?? '', 
+                                    goldBalance: (user as any).goldBalance ?? '', 
+                                    silverBalance: (user as any).silverBalance ?? '', 
+                                    role: user.role 
+                                  });
                                 }}
                               >
                                 <Edit className="w-4 h-4" />
@@ -1168,12 +1175,24 @@ export default function AdminDashboardPage() {
             <div>
               <Label>星球币余额</Label>
               <Input 
-                type="number"
+                type="text"
                 value={editForm.coinBalance}
-                onChange={(e) => setEditForm({...editForm, coinBalance: Number(e.target.value)})}
+                onChange={(e) => setEditForm({...editForm, coinBalance: e.target.value})}
               />
             </div>
             <div>
+              <Label>金币</Label>
+              <input
+                type="number"
+                value={editForm.goldBalance || 0}
+                onChange={(e) => setEditForm({...editForm, goldBalance: e.target.value})}
+              />
+              <Label>银两</Label>
+              <input
+                type="number"
+                value={editForm.silverBalance || 0}
+                onChange={(e) => setEditForm({...editForm, silverBalance: e.target.value})}
+              />
               <Label>角色</Label>
               <select 
                 className="w-full p-2 border rounded"
