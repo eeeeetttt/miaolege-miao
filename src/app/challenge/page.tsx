@@ -1,271 +1,404 @@
 'use client';
 
-import { useState, useEffect, useCallback, Suspense } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useSession } from 'next-auth/react';
 import styles from './page.module.css';
-import { TrendingUp, TrendingDown, Trophy, Zap, Target, Clock, DollarSign, BarChart3, Star, RefreshCw, X, Calendar, Medal, Award, ChevronRight, ArrowUpRight, ArrowDownRight } from 'lucide-react';
-
-// 赛事相关组件
-import KLineChallenge from './components/KLineChallenge';
-import LadderChallenge from './components/LadderChallenge';
-import DailyChallenge from './components/DailyChallenge';
-import MasterChallenge from './components/MasterChallenge';
-import MonthlyChallenge from './components/MonthlyChallenge';
-
-// 通用交易面板
+import { TrendingUp, TrendingDown, Trophy, Zap, Target, Clock, DollarSign, Medal, Award, Star, Users, Gift, Crown, Calendar, ChevronRight, ArrowUpRight, ArrowDownRight, Activity } from 'lucide-react';
 import TradingPanel from './components/TradingPanel';
 
 type MatchType = 'kline' | 'ladder' | 'daily' | 'master' | 'monthly';
 
-// 参赛账户信息
 interface MatchAccount {
-  matchType: MatchType;
-  accountId: string;
-  balance: number;
-  currentValue: number;
-  initialValue: number;
-  returnRate: number;
-  level?: number; // K线征途关卡
-  status: string;
+  id: number;
+  initialCapital: number;
+  currentCapital: number;
+  profit: number;
+  profitRate: number;
+  position: {
+    lots: number;
+    direction: 'long' | 'short' | null;
+    entryPrice: number;
+  } | null;
+  accountId?: string;
+  level?: number;
+  status?: string;
 }
 
-// 赛事标签
-interface MatchTab {
+interface MatchInfo {
   id: MatchType;
   name: string;
   icon: React.ReactNode;
-  color: string;
+  bgColor: string;
+  accentColor: string;
   description: string;
-  badge?: string;
+  rules: string[];
+  rewards: string;
+  requirement?: string;
 }
 
-const matchTabs: MatchTab[] = [
-  {
+const matchInfo: Record<MatchType, MatchInfo> = {
+  kline: {
     id: 'kline',
     name: 'K线征途',
-    icon: <Target className={styles.tabIcon} />,
-    color: '#3b82f6',
-    description: '10关闯关'
+    icon: <Target className={styles.matchIcon} />,
+    bgColor: 'linear-gradient(135deg, #1e40af 0%, #3b82f6 100%)',
+    accentColor: '#3b82f6',
+    description: '10关闯关挑战，从1000到2000',
+    rules: ['初始净值1000银两', '每关目标增加100', '净值跌破100则失败', '通关奖励3000金币'],
+    rewards: '通关: 3000金币 + K线宗师称号',
+    requirement: '负债=0，200金币报名'
   },
-  {
+  ladder: {
     id: 'ladder',
     name: '天梯赛',
-    icon: <Trophy className={styles.tabIcon} />,
-    color: '#10b981',
-    description: '月度排行'
+    icon: <Trophy className={styles.matchIcon} />,
+    bgColor: 'linear-gradient(135deg, #047857 0%, #10b981 100%)',
+    accentColor: '#10b981',
+    description: '月度收益率排行',
+    rules: ['初始本金10000银两', '按收益率排名', '每月1日重置', '前10名获得金币奖励'],
+    rewards: '第1名: 5000金币, 第2-5名: 2000金币',
+    requirement: '免费报名，扣除10000银两'
   },
-  {
+  daily: {
     id: 'daily',
     name: '每日挑战',
-    icon: <Zap className={styles.tabIcon} />,
-    color: '#f59e0b',
-    description: '每日排行'
+    icon: <Zap className={styles.matchIcon} />,
+    bgColor: 'linear-gradient(135deg, #d97706 0%, #f59e0b 100%)',
+    accentColor: '#f59e0b',
+    description: '每日盈利额排行',
+    rules: ['00:00-20:00可报名', '当日盈利额排名', '前10名获得奖励', '每日重置'],
+    rewards: '第1名: 500金币 + 500银两',
+    requirement: '50金币报名，扣除10000银两'
   },
-  {
+  master: {
     id: 'master',
     name: '大师邀请',
-    icon: <Award className={styles.tabIcon} />,
-    color: '#8b5cf6',
-    description: '淘汰赛'
+    icon: <Crown className={styles.matchIcon} />,
+    bgColor: 'linear-gradient(135deg, #7c3aed 0%, #a78bfa 100%)',
+    accentColor: '#a78bfa',
+    description: '淘汰赛制',
+    rules: ['需要K线宗师称号', '单败淘汰制', '每周一轮', '冠亚季军获得称号'],
+    rewards: '冠军: 20000金币 + 大师称号',
+    requirement: '需拥有"K线宗师"称号'
   },
-  {
+  monthly: {
     id: 'monthly',
     name: '月度决赛',
-    icon: <Medal className={styles.tabIcon} />,
-    color: '#ef4444',
-    description: '巅峰对决'
+    icon: <Medal className={styles.matchIcon} />,
+    bgColor: 'linear-gradient(135deg, #be185d 0%, #ec4899 100%)',
+    accentColor: '#ec4899',
+    description: '月底3天收益大赛',
+    rules: ['天梯赛前100名参赛', '3天独立比赛', '按收益率排名', '冠军获得称号'],
+    rewards: '冠军: 10000金币 + 月度大师称号',
+    requirement: '上月天梯赛前100名，负债=0'
   }
-];
+};
 
-function ChallengeContent() {
+export default function ChallengePage() {
   const { data: session } = useSession();
-  const [activeMatch, setActiveMatch] = useState<MatchType>('kline');
-  const [activeAccounts, setActiveAccounts] = useState<MatchAccount[]>([]);
-  const [activeAccount, setActiveAccount] = useState<MatchAccount | null>(null);
-  const [showGlobalPanel, setShowGlobalPanel] = useState(false);
+  const [activeTab, setActiveTab] = useState<MatchType>('kline');
+  const [loading, setLoading] = useState(false);
+  const [myAccount, setMyAccount] = useState<MatchAccount | null>(null);
+  const [enrolledMatches, setEnrolledMatches] = useState<MatchType[]>([]);
+  const [goldPrice, setGoldPrice] = useState<{ buy: number; sell: number; spread: number } | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
-  // 获取所有参赛账户
-  const fetchActiveAccounts = useCallback(async () => {
-    if (!session?.user?.email) return;
-    
-    const accounts: MatchAccount[] = [];
-    const matchTypes: MatchType[] = ['kline', 'ladder', 'daily', 'master', 'monthly'];
-    
-    for (const matchType of matchTypes) {
-      try {
-        const res = await fetch(`/api/match/${matchType}`);
+  // 获取伦敦金价格
+  const fetchGoldPrice = useCallback(async () => {
+    try {
+      const res = await fetch('/api/gold-price');
+      if (res.ok) {
         const data = await res.json();
-        
-        if (data.isRegistered && data.myAccount) {
-          const acc = data.myAccount;
-          const initialValue = matchType === 'kline' ? 1000 : 
-                              matchType === 'ladder' ? 10000 :
-                              matchType === 'daily' ? 10000 :
-                              matchType === 'master' ? 100000 : 100000;
-          
-          accounts.push({
-            matchType,
-            accountId: acc.accountId || acc.id,
-            balance: acc.balance || 0,
-            currentValue: acc.currentValue || acc.balance || 0,
-            initialValue: acc.initialValue || initialValue,
-            returnRate: acc.returnRate || 0,
-            level: acc.currentLevel || acc.level,
-            status: acc.status || 'active'
+        if (data.buy && data.sell) {
+          setGoldPrice({
+            buy: data.buy,
+            sell: data.sell,
+            spread: data.buy - data.sell
           });
         }
-      } catch (e) {
-        console.error(`${matchType} fetch error:`, e);
       }
+    } catch (e) {
+      // 忽略错误
     }
+  }, []);
+
+  // 获取用户报名状态
+  const fetchMatchStatus = useCallback(async () => {
+    if (!session?.user) return;
     
-    setActiveAccounts(accounts);
+    setLoading(true);
+    setError(null);
     
-    // 如果当前选中的账户不在列表中，切换到第一个
-    if (accounts.length > 0 && !accounts.find(a => a.accountId === activeAccount?.accountId)) {
-      setActiveAccount(accounts[0]);
+    try {
+      const matchType = activeTab;
+      const res = await fetch(`/api/match/${matchType}`);
+      const data = await res.json();
+      
+      if (res.ok) {
+        if (data.isRegistered && data.myAccount) {
+          setMyAccount({
+            id: data.myAccount.id || 0,
+            initialCapital: data.myAccount.initialCapital,
+            currentCapital: data.myAccount.currentBalance,
+            profit: data.myAccount.currentBalance - data.myAccount.initialCapital,
+            profitRate: data.myAccount.profitRate || 0,
+            position: data.myAccount.position || null,
+            accountId: data.myAccount.accountId,
+            level: data.myAccount.currentLevel,
+            status: 'enrolled'
+          });
+        } else {
+          setMyAccount(null);
+        }
+        
+        // 更新已报名赛事列表
+        const enrolled: MatchType[] = [];
+        for (const type of ['kline', 'ladder', 'daily', 'master', 'monthly'] as MatchType[]) {
+          const r = await fetch(`/api/match/${type}`);
+          const d = await r.json();
+          if (d.isRegistered) enrolled.push(type);
+        }
+        setEnrolledMatches(enrolled);
+      } else {
+        setError(data.error || '获取状态失败');
+      }
+    } catch (e) {
+      setError('网络错误');
+    } finally {
+      setLoading(false);
     }
-  }, [session?.user?.email, activeAccount?.accountId]);
+  }, [activeTab, session]);
 
   useEffect(() => {
-    if (session?.user?.email) {
-      fetchActiveAccounts();
+    fetchGoldPrice();
+    const interval = setInterval(fetchGoldPrice, 1000);
+    return () => clearInterval(interval);
+  }, [fetchGoldPrice]);
+
+  useEffect(() => {
+    if (session?.user) {
+      fetchMatchStatus();
     }
-  }, [session?.user?.email, fetchActiveAccounts]);
+  }, [session, activeTab, fetchMatchStatus]);
 
-  // 切换账户
-  const handleSelectAccount = (account: MatchAccount) => {
-    setActiveAccount(account);
-    setActiveMatch(account.matchType);
-    setShowGlobalPanel(false);
-  };
-
-  // 刷新回调
-  const handleRefresh = () => {
-    fetchActiveAccounts();
-  };
+  const currentMatch = matchInfo[activeTab];
+  const isEnrolled = myAccount !== null;
 
   return (
-    <div className={styles.pageContainer}>
-      <div className={styles.container}>
-        {/* 页面标题 */}
-        <div className={styles.pageHeader}>
-          <h1 className={styles.pageTitle}>
-            <Trophy className={styles.titleIcon} />
-            赛事中心
-          </h1>
-          <p className={styles.pageSubtitle}>选择赛事，挑战自我！</p>
+    <div className={styles.container}>
+      {/* 顶部标题 */}
+      <div className={styles.header}>
+        <h1 className={styles.title}>
+          <Trophy className={styles.titleIcon} />
+          赛事中心
+        </h1>
+      </div>
+
+      {/* 伦敦金价格卡片 */}
+      <div className={styles.priceCard}>
+        <div className={styles.priceHeader}>
+          <span className={styles.priceLabel}>伦敦金</span>
+          <span className={styles.priceSource}>Swissquote</span>
+        </div>
+        <div className={styles.priceBody}>
+          <div className={styles.priceItem}>
+            <span className={styles.priceName}>买价</span>
+            <span className={styles.priceValue}>
+              {goldPrice ? `$${goldPrice.buy.toFixed(2)}` : '--'}
+            </span>
+          </div>
+          <div className={styles.priceDivider} />
+          <div className={styles.priceItem}>
+            <span className={styles.priceName}>卖价</span>
+            <span className={styles.priceValue}>
+              {goldPrice ? `$${goldPrice.sell.toFixed(2)}` : '--'}
+            </span>
+          </div>
+          <div className={styles.priceDivider} />
+          <div className={styles.priceItem}>
+            <span className={styles.priceName}>点差</span>
+            <span className={styles.priceValue}>
+              {goldPrice ? goldPrice.spread.toFixed(2) : '--'}
+            </span>
+          </div>
+        </div>
+        <div className={styles.priceFooter}>
+          <Activity className={styles.liveIcon} />
+          <span>实时报价</span>
+        </div>
+      </div>
+
+      {/* Tab 切换 */}
+      <div className={styles.tabContainer}>
+        {Object.values(matchInfo).map((match) => (
+          <button
+            key={match.id}
+            className={`${styles.tab} ${activeTab === match.id ? styles.tabActive : ''}`}
+            onClick={() => setActiveTab(match.id)}
+            style={activeTab === match.id ? { borderBottomColor: match.accentColor } : {}}
+          >
+            <span className={styles.tabIconWrapper}>{match.icon}</span>
+            <span className={styles.tabName}>{match.name}</span>
+            {enrolledMatches.includes(match.id) && (
+              <span className={styles.enrolledBadge}>进行中</span>
+            )}
+          </button>
+        ))}
+      </div>
+
+      {/* 主内容区 */}
+      <div className={styles.content}>
+        {/* 比赛信息卡片 */}
+        <div className={styles.matchCard} style={{ background: currentMatch.bgColor }}>
+          <div className={styles.matchHeader}>
+            <div className={styles.matchTitleArea}>
+              <span className={styles.matchIconLarge}>{currentMatch.icon}</span>
+              <div>
+                <h2 className={styles.matchName}>{currentMatch.name}</h2>
+                <p className={styles.matchDesc}>{currentMatch.description}</p>
+              </div>
+            </div>
+            {enrolledMatches.includes(activeTab) && (
+              <span className={styles.enrolledTag}>已参赛</span>
+            )}
+          </div>
         </div>
 
-        {/* 全局交易面板入口 */}
-        {activeAccounts.length > 0 && (
-          <div className={styles.globalPanelEntry} onClick={() => setShowGlobalPanel(!showGlobalPanel)}>
-            <div className={styles.globalPanelHeader}>
-              <div className={styles.globalPanelTitle}>
-                <BarChart3 className={styles.globalPanelIcon} />
-                <span>我的参赛账户</span>
-                <span className={styles.accountCount}>{activeAccounts.length}个</span>
+        {/* 我的账户 / 报名区域 */}
+        {isEnrolled ? (
+          <TradingPanel
+            account={myAccount}
+            matchType={activeTab}
+            onRefresh={fetchMatchStatus}
+          />
+        ) : (
+          <div className={styles.enrollCard}>
+            <div className={styles.enrollInfo}>
+              <h3 className={styles.enrollTitle}>参赛条件</h3>
+              <p className={styles.enrollRequirement}>{currentMatch.requirement}</p>
+              
+              <h4 className={styles.rulesTitle}>比赛规则</h4>
+              <ul className={styles.rulesList}>
+                {currentMatch.rules.map((rule, i) => (
+                  <li key={i} className={styles.ruleItem}>
+                    <ChevronRight className={styles.ruleIcon} />
+                    {rule}
+                  </li>
+                ))}
+              </ul>
+              
+              <div className={styles.rewardBox}>
+                <Gift className={styles.rewardIcon} />
+                <span>{currentMatch.rewards}</span>
               </div>
-              <ChevronRight className={`${styles.chevron} ${showGlobalPanel ? styles.chevronOpen : ''}`} />
             </div>
             
-            {showGlobalPanel && (
-              <div className={styles.globalPanelContent}>
-                {activeAccounts.map((account) => (
-                  <div 
-                    key={account.accountId}
-                    className={`${styles.accountCard} ${activeAccount?.accountId === account.accountId ? styles.accountCardActive : ''}`}
-                    onClick={(e) => { e.stopPropagation(); handleSelectAccount(account); }}
-                  >
-                    <div className={styles.accountCardHeader}>
-                      <span className={styles.matchName} style={{ color: matchTabs.find(t => t.id === account.matchType)?.color }}>
-                        {matchTabs.find(t => t.id === account.matchType)?.name}
-                      </span>
-                      {account.level && (
-                        <span className={styles.levelBadge}>第{account.level}关</span>
-                      )}
-                    </div>
-                    <div className={styles.accountCardBody}>
-                      <div className={styles.accountBalance}>
-                        <span className={styles.balanceLabel}>净值</span>
-                        <span className={styles.balanceValue}>{account.currentValue.toLocaleString()}</span>
-                      </div>
-                      <div className={styles.accountRate}>
-                        <span className={`${styles.rateValue} ${account.returnRate >= 0 ? styles.ratePositive : styles.rateNegative}`}>
-                          {account.returnRate >= 0 ? <ArrowUpRight size={14} /> : <ArrowDownRight size={14} />}
-                          {account.returnRate >= 0 ? '+' : ''}{account.returnRate.toFixed(2)}%
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
+            <button
+              className={styles.enrollButton}
+              style={{ background: currentMatch.accentColor }}
+              onClick={async () => {
+                if (!session?.user) {
+                  alert('请先登录');
+                  return;
+                }
+                setLoading(true);
+                try {
+                  const res = await fetch(`/api/match/${activeTab}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ action: 'enroll' })
+                  });
+                  const data = await res.json();
+                  if (res.ok) {
+                    fetchMatchStatus();
+                  } else {
+                    alert(data.error || '报名失败');
+                  }
+                } catch (e) {
+                  alert('网络错误');
+                } finally {
+                  setLoading(false);
+                }
+              }}
+              disabled={loading}
+            >
+              {loading ? '处理中...' : '立即参赛'}
+            </button>
+            
+            {!session?.user && (
+              <p className={styles.loginHint}>请先登录后再报名参赛</p>
             )}
           </div>
         )}
 
-        {/* 活跃账户交易面板 */}
-        {activeAccount && (
-          <div className={styles.activeTradingPanel}>
-            <TradingPanel
-              matchType={activeAccount.matchType}
-              initialBalance={activeAccount.currentValue}
-              matchAccountId={activeAccount.accountId}
-              onRefresh={handleRefresh}
-              compact
-            />
+        {/* 排行榜预览 */}
+        <div className={styles.leaderboardPreview}>
+          <div className={styles.leaderboardHeader}>
+            <h3 className={styles.leaderboardTitle}>
+              <Medal className={styles.leaderboardIcon} />
+              {currentMatch.name}排行榜
+            </h3>
+            <span className={styles.leaderboardMore}>查看全部</span>
           </div>
-        )}
-
-        {/* 赛事切换标签 */}
-        <div className={styles.matchTabs}>
-          {matchTabs.map(tab => (
-            <button
-              key={tab.id}
-              className={`${styles.matchTab} ${activeMatch === tab.id ? styles.matchTabActive : ''}`}
-              onClick={() => setActiveMatch(tab.id)}
-              style={{
-                '--tab-color': tab.color,
-                '--tab-color-light': `${tab.color}20`
-              } as React.CSSProperties}
-            >
-              {tab.icon}
-              <span className={styles.tabName}>{tab.name}</span>
-              <span className={styles.tabDesc}>{tab.description}</span>
-              {activeMatch === tab.id && (
-                <ChevronRight className={styles.tabArrow} />
-              )}
-            </button>
-          ))}
+          <div className={styles.leaderboardList}>
+            <div className={styles.leaderboardItem}>
+              <span className={styles.rank}>🥇</span>
+              <span className={styles.playerName}>玩家***789</span>
+              <span className={styles.playerValue}>+23.5%</span>
+            </div>
+            <div className={styles.leaderboardItem}>
+              <span className={styles.rank}>🥈</span>
+              <span className={styles.playerName}>玩家***456</span>
+              <span className={styles.playerValue}>+18.2%</span>
+            </div>
+            <div className={styles.leaderboardItem}>
+              <span className={styles.rank}>🥉</span>
+              <span className={styles.playerName}>玩家***123</span>
+              <span className={styles.playerValue}>+15.8%</span>
+            </div>
+          </div>
         </div>
 
-        {/* 赛事内容区域 */}
-        <div className={styles.matchContent}>
-          {activeMatch === 'kline' && (
-            <KLineChallenge session={session} />
-          )}
-          {activeMatch === 'ladder' && (
-            <LadderChallenge session={session} />
-          )}
-          {activeMatch === 'daily' && (
-            <DailyChallenge session={session} />
-          )}
-          {activeMatch === 'master' && (
-            <MasterChallenge />
-          )}
-          {activeMatch === 'monthly' && (
-            <MonthlyChallenge />
-          )}
+        {/* 全部赛事概览 */}
+        <div className={styles.allMatches}>
+          <h3 className={styles.allMatchesTitle}>
+            <Star className={styles.allMatchesIcon} />
+            全部赛事
+          </h3>
+          <div className={styles.matchesGrid}>
+            {Object.values(matchInfo).map((match) => (
+              <button
+                key={match.id}
+                className={`${styles.matchMiniCard} ${activeTab === match.id ? styles.matchMiniActive : ''}`}
+                onClick={() => setActiveTab(match.id)}
+                style={activeTab === match.id ? { borderColor: match.accentColor } : {}}
+              >
+                <div 
+                  className={styles.matchMiniIcon}
+                  style={{ background: match.bgColor }}
+                >
+                  {match.icon}
+                </div>
+                <div className={styles.matchMiniInfo}>
+                  <span className={styles.matchMiniName}>{match.name}</span>
+                  <span className={styles.matchMiniDesc}>{match.description}</span>
+                </div>
+                {enrolledMatches.includes(match.id) ? (
+                  <span className={styles.matchMiniBadge}>进行中</span>
+                ) : (
+                  <ChevronRight className={styles.matchMiniArrow} />
+                )}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
-    </div>
-  );
-}
 
-export default function ChallengePage() {
-  return (
-    <Suspense fallback={<div className={styles.loading}>加载中...</div>}>
-      <ChallengeContent />
-    </Suspense>
+      {error && (
+        <div className={styles.errorToast}>
+          {error}
+        </div>
+      )}
+    </div>
   );
 }
