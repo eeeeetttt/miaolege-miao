@@ -14,6 +14,8 @@ interface MatchAccount {
     lots: number;
     direction: 'long' | 'short' | null;
     entryPrice: number;
+    leverage?: number;
+    margin?: number;
   } | null;
 }
 
@@ -206,7 +208,11 @@ export default function TradingPanel({ matchType, account, onRefresh, initialBal
               {effectiveAccount.position.direction === 'long' ? '多' : '空'}
             </span>
             <span>{effectiveAccount.position.lots} 手</span>
-            <span>开仓价: {effectiveAccount.position.entryPrice.toFixed(2)}</span>
+            <span>开仓: {effectiveAccount.position.entryPrice.toFixed(2)}</span>
+            <span>杠杆: {effectiveAccount.position.leverage || 500}x</span>
+          </div>
+          <div className={styles.positionMargin}>
+            保证金: ${(effectiveAccount.position.margin || effectiveAccount.position.lots * 100).toFixed(2)}
           </div>
           <div className={`${styles.positionProfit} ${positionProfit >= 0 ? styles.profit : styles.loss}`}>
             浮动盈亏: {positionProfit >= 0 ? '+' : ''}${positionProfit.toFixed(2)}

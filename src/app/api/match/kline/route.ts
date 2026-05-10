@@ -4,6 +4,7 @@ import { authOptions } from '@/lib/auth';
 import { db, pool } from '@/lib/db';
 import { matchAccounts, matchConfigs, matchRecords, userTitles, titles, userAccounts } from '@/lib/schema';
 import { eq, and, desc } from 'drizzle-orm';
+import { RowDataPacket, FieldPacket } from 'mysql2/promise';
 
 // 获取K线征途配置
 async function getKlineConfig() {
@@ -75,6 +76,24 @@ export async function GET() {
     const levelTargets = config.levelTargets;
     const currentLevelNum = currentAccount ? Number(currentAccount.currentLevel) : 0;
     
+    // 获取用户当前持仓
+    let currentPosition = null;
+    if (currentAccount) {
+      const [positions] = await pool.execute(
+        `SELECT * FROM match_positions WHERE user_id = ? AND match_type = 'kline' AND status = 'open' ORDER BY id DESC LIMIT 1`,
+        [session.user.id]
+      ) as [RowDataPacket[], FieldPacket[]];
+      if (positions.length > 0) {
+        currentPosition = {
+          direction: positions[0].direction,
+          lots: Number(positions[0].lots),
+          leverage: Number(positions[0].leverage),
+          entryPrice: Number(positions[0].entry_price),
+          margin: Number(positions[0].lots) * 100 * (Number(positions[0].leverage) || 500) / 100
+        };
+      }
+    }
+    
     // 格式化活跃账户列表（供统一交易面板使用）
     const activeAccounts = currentAccount ? [{
       accountId: currentAccount.id,
@@ -86,6 +105,7 @@ export async function GET() {
       currentLevel: currentLevelNum,
       profit: Number(currentAccount.currentBalance) - Number(currentAccount.initialCapital),
       status: currentAccount.status,
+      position: currentPosition,
     }] : [];
     
     return NextResponse.json({
@@ -100,6 +120,7 @@ export async function GET() {
         maxLevel: 10,
         hasCompleted: hasTitle.length > 0,
         bestLevel: bestRecord[0] ? Number(bestRecord[0].rank) : 0,
+        position: currentPosition,
       },
       activeAccounts,
     });
@@ -232,10 +253,20 @@ export async function POST(request: NextRequest) {
     
     if (action === 'trade') {
       // 开仓交易
-      const { direction, lots = 1 } = body;
+      const { direction, lots = 0.1, leverage = 500 } = body;
       
       if (!['long', 'short'].includes(direction)) {
         return NextResponse.json({ error: '无效的交易方向' }, { status: 400 });
+      }
+      
+      // 检查是否有未平仓位
+      const [existingPositions] = await pool.execute(
+        `SELECT * FROM match_positions WHERE user_id = ? AND match_type = 'kline' AND status = 'open'`,
+        [session.user.id]
+      ) as [RowDataPacket[], FieldPacket[]];
+      
+      if (existingPositions.length > 0) {
+        return NextResponse.json({ error: '已有未平仓位，请先平仓' }, { status: 400 });
       }
       
       if (!activeAccount || activeAccount.length === 0) {
@@ -244,62 +275,171 @@ export async function POST(request: NextRequest) {
       
       const account = activeAccount[0];
       
-      // 检查余额
-      if (Number(account.currentBalance) < 100) {
-        return NextResponse.json({ error: '余额不足，无法交易' }, { status: 400 });
+      // 计算最大手数（杠杆500，保证金比例10%）
+      const maxLots = Number(account.currentBalance) / 100;
+      const actualLots = Math.min(lots, maxLots, 10); // 最大10手
+      
+      if (actualLots < 0.01) {
+        return NextResponse.json({ error: '余额不足，无法开仓' }, { status: 400 });
       }
       
-      // 计算交易成本（每手约10%保证金）
-      const tradeCost = 100 * lots;
-      
-      // 检查余额是否足够
-      if (Number(account.currentBalance) < tradeCost) {
-        return NextResponse.json({ error: '余额不足，所需最低余额：' + tradeCost }, { status: 400 });
+      // 获取当前金价
+      let entryPrice = 0;
+      try {
+        const priceRes = await fetch(`${process.env.NEXTAUTH_URL || 'http://localhost:5000'}/api/gold-price`);
+        const priceData = await priceRes.json();
+        if (priceData.success && priceData.data) {
+          entryPrice = priceData.data.price;
+        } else {
+          entryPrice = 3300 + Math.random() * 100;
+        }
+      } catch {
+        entryPrice = 3300 + Math.random() * 100;
       }
       
-      // 模拟交易：随机盈亏
-      const priceChange = (Math.random() - 0.5) * 2; // -1% 到 +1%
-      const profit = direction === 'long' ? priceChange : -priceChange;
-      const profitAmount = tradeCost * (profit / 100);
-      
-      // 更新账户余额
-      const newBalance = Number(account.currentBalance) + profitAmount;
+      // 冻结保证金（约10%）
+      const margin = actualLots * 100 * leverage / 100;
+      const newBalance = Number(account.currentBalance) - margin;
       
       // 更新数据库
       const connection = await pool.getConnection();
       try {
         await connection.beginTransaction();
         
+        // 更新账户余额（扣除保证金）
         await connection.execute(
           `UPDATE match_accounts SET current_balance = ? WHERE id = ?`,
           [Math.max(0, newBalance), account.id]
         );
         
+        // 保存持仓记录
+        await connection.execute(
+          `INSERT INTO match_positions (user_id, match_type, match_id, direction, lots, leverage, entry_price)
+           VALUES (?, 'kline', ?, ?, ?, ?, ?)`,
+          [session.user.id, account.matchId, direction, actualLots, leverage, entryPrice]
+        );
+        
         // 记录交易
         await connection.execute(
           `INSERT INTO match_trade_records (user_id, match_type, match_id, action, direction, lots, profit, balance_after)
-           VALUES (?, 'kline', ?, 'trade', ?, ?, ?, ?)`,
-          [session.user.id, account.matchId, direction, lots, profitAmount, Math.max(0, newBalance)]
+           VALUES (?, 'kline', ?, 'open', ?, ?, 0, ?)`,
+          [session.user.id, account.matchId, direction, actualLots, Math.max(0, newBalance)]
         );
         
         await connection.commit();
+        
+        // 查询最新的持仓信息
+        const [newPositions] = await pool.execute(
+          `SELECT * FROM match_positions WHERE user_id = ? AND match_type = 'kline' AND status = 'open' ORDER BY id DESC LIMIT 1`,
+          [session.user.id]
+        ) as [RowDataPacket[], FieldPacket[]];
+        
+        return NextResponse.json({
+          success: true,
+          message: `${direction === 'long' ? '做多' : '做空'}成功，开仓价：${entryPrice.toFixed(2)}`,
+          position: newPositions[0] || {
+            direction,
+            lots: actualLots,
+            leverage,
+            entryPrice,
+            margin
+          },
+          balance: Math.max(0, newBalance)
+        });
       } catch (error) {
         await connection.rollback();
         throw error;
       } finally {
         connection.release();
       }
+    }
+    
+    if (action === 'close') {
+      // 平仓操作
+      const [positions] = await pool.execute(
+        `SELECT * FROM match_positions WHERE user_id = ? AND match_type = 'kline' AND status = 'open' ORDER BY id DESC LIMIT 1`,
+        [session.user.id]
+      ) as [RowDataPacket[], FieldPacket[]];
       
-      return NextResponse.json({
-        success: true,
-        message: `${direction === 'long' ? '做多' : '做空'}成功`,
-        trade: {
-          direction,
-          lots,
-          profit: profitAmount,
-          newBalance: Math.max(0, newBalance)
+      if (positions.length === 0) {
+        return NextResponse.json({ error: '没有未平仓位' }, { status: 400 });
+      }
+      
+      const position = positions[0];
+      
+      if (!activeAccount || activeAccount.length === 0) {
+        return NextResponse.json({ error: '没有进行中的挑战账户' }, { status: 400 });
+      }
+      
+      const account = activeAccount[0];
+      
+      // 获取当前金价
+      let currentPrice = 0;
+      try {
+        const priceRes = await fetch(`${process.env.NEXTAUTH_URL || 'http://localhost:5000'}/api/gold-price`);
+        const priceData = await priceRes.json();
+        if (priceData.success && priceData.data) {
+          currentPrice = priceData.data.price;
+        } else {
+          currentPrice = 3300 + Math.random() * 100;
         }
-      });
+      } catch {
+        currentPrice = 3300 + Math.random() * 100;
+      }
+      
+      // 计算盈亏
+      const priceChange = currentPrice - Number(position.entry_price);
+      const profit = position.direction === 'long' ? priceChange : -priceChange;
+      const profitAmount = profit * Number(position.lots) * 100; // 每手100盎司
+      
+      // 保证金返还 + 盈亏
+      const margin = Number(position.lots) * 100 * (Number(position.leverage) || 500) / 100;
+      const newBalance = Number(account.currentBalance) + margin + profitAmount;
+      
+      // 更新数据库
+      const connection = await pool.getConnection();
+      try {
+        await connection.beginTransaction();
+        
+        // 更新账户余额
+        await connection.execute(
+          `UPDATE match_accounts SET current_balance = ? WHERE id = ?`,
+          [Math.max(0, newBalance), account.id]
+        );
+        
+        // 关闭持仓
+        await connection.execute(
+          `UPDATE match_positions SET status = 'closed', closed_at = NOW() WHERE id = ?`,
+          [position.id]
+        );
+        
+        // 记录平仓交易
+        await connection.execute(
+          `INSERT INTO match_trade_records (user_id, match_type, match_id, action, direction, lots, profit, balance_after)
+           VALUES (?, 'kline', ?, 'close', ?, ?, ?, ?)`,
+          [session.user.id, account.matchId, position.direction, position.lots, profitAmount, Math.max(0, newBalance)]
+        );
+        
+        await connection.commit();
+        
+        return NextResponse.json({
+          success: true,
+          message: `平仓成功，盈亏：${profitAmount >= 0 ? '+' : ''}${profitAmount.toFixed(2)}`,
+          trade: {
+            direction: position.direction,
+            lots: position.lots,
+            entryPrice: position.entry_price,
+            exitPrice: currentPrice,
+            profit: profitAmount,
+            newBalance: Math.max(0, newBalance)
+          }
+        });
+      } catch (error) {
+        await connection.rollback();
+        throw error;
+      } finally {
+        connection.release();
+      }
     }
     
     return NextResponse.json({ error: '未知操作' }, { status: 400 });

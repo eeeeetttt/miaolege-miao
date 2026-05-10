@@ -34,6 +34,10 @@ export async function GET(request: NextRequest) {
     let totalPlanets = 0;
     let totalSignalSources = 0;
     let activeFollows = 0;
+    let totalAIUsers = 0;
+    let activeChallenges = 0;
+    let totalTrades = 0;
+    let totalProfit = 0;
 
     try {
       const [planetsResult] = await pool.query<any>('SELECT COUNT(*) as count FROM planets');
@@ -44,6 +48,19 @@ export async function GET(request: NextRequest) {
 
       const [followsResult] = await pool.query<any>("SELECT COUNT(*) as count FROM follow_records WHERE status = 'active'");
       activeFollows = followsResult[0]?.count || 0;
+
+      // AI用户统计
+      const [aiUsersResult] = await pool.query<any>("SELECT COUNT(*) as count FROM users WHERE is_ai = 1");
+      totalAIUsers = aiUsersResult[0]?.count || 0;
+
+      // 活跃挑战统计
+      const [challengesResult] = await pool.query<any>("SELECT COUNT(*) as count FROM match_accounts WHERE status = 'active'");
+      activeChallenges = challengesResult[0]?.count || 0;
+
+      // 交易统计
+      const [tradesResult] = await pool.query<any>('SELECT COUNT(*) as count, COALESCE(SUM(profit), 0) as total_profit FROM match_trade_records');
+      totalTrades = tradesResult[0]?.count || 0;
+      totalProfit = Number(tradesResult[0]?.total_profit) || 0;
     } catch (e) {
       console.error('Get stats from MySQL error:', e);
     }
@@ -54,6 +71,10 @@ export async function GET(request: NextRequest) {
       totalPlanets,
       totalSignalSources,
       activeFollows,
+      totalAIUsers,
+      activeChallenges,
+      totalTrades,
+      totalProfit,
     });
   } catch (error) {
     console.error('Get stats error:', error);

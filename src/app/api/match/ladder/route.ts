@@ -4,6 +4,7 @@ import { authOptions } from '@/lib/auth';
 import { db, pool } from '@/lib/db';
 import { matchAccounts, matchConfigs, matchRecords, userAccounts } from '@/lib/schema';
 import { eq, and, desc, asc } from 'drizzle-orm';
+import { RowDataPacket, FieldPacket } from 'mysql2/promise';
 
 // 获取天梯赛配置
 async function getLadderConfig() {
@@ -230,10 +231,20 @@ export async function POST(request: NextRequest) {
       });
     }
     
-    // 处理交易
+    // 处理开仓
     if (action === 'trade') {
       if (!config.enabled) {
         return NextResponse.json({ error: '天梯赛已关闭' }, { status: 400 });
+      }
+      
+      // 检查是否有未平仓位
+      const [existingPositions] = await pool.execute(
+        `SELECT * FROM match_positions WHERE user_id = ? AND match_type = 'ladder' AND status = 'open'`,
+        [session.user.id]
+      ) as [RowDataPacket[], FieldPacket[]];
+      
+      if (existingPositions.length > 0) {
+        return NextResponse.json({ error: '已有未平仓位，请先平仓' }, { status: 400 });
       }
       
       if (existingAccount.length === 0) {
@@ -245,17 +256,26 @@ export async function POST(request: NextRequest) {
       }
       
       const account = existingAccount[0];
-      const tradeCost = 100 * lots;
+      const leverage = 500;
+      const maxLots = Number(account.currentBalance) / 100;
+      const actualLots = Math.min(lots || 0.1, maxLots, 10);
       
-      if (Number(account.currentBalance) < tradeCost) {
-        return NextResponse.json({ error: '余额不足' }, { status: 400 });
+      if (actualLots < 0.01) {
+        return NextResponse.json({ error: '余额不足，无法开仓' }, { status: 400 });
       }
       
-      // 模拟交易
-      const priceChange = (Math.random() - 0.5) * 2;
-      const profit = direction === 'long' ? priceChange : -priceChange;
-      const profitAmount = tradeCost * (profit / 100);
-      const newBalance = Number(account.currentBalance) + profitAmount;
+      // 获取当前金价
+      let entryPrice = 3300 + Math.random() * 100;
+      try {
+        const priceRes = await fetch(`${process.env.NEXTAUTH_URL || 'http://localhost:5000'}/api/gold-price`);
+        const priceData = await priceRes.json();
+        if (priceData.success && priceData.data) {
+          entryPrice = priceData.data.price;
+        }
+      } catch {}
+      
+      const margin = actualLots * 100 * leverage / 100;
+      const newBalance = Number(account.currentBalance) - margin;
       
       const connection = await pool.getConnection();
       try {
@@ -267,29 +287,102 @@ export async function POST(request: NextRequest) {
         );
         
         await connection.execute(
+          `INSERT INTO match_positions (user_id, match_type, match_id, direction, lots, leverage, entry_price)
+           VALUES (?, 'ladder', ?, ?, ?, ?, ?)`,
+          [session.user.id, account.matchId, direction, actualLots, leverage, entryPrice]
+        );
+        
+        await connection.execute(
           `INSERT INTO match_trade_records (user_id, match_type, match_id, action, direction, lots, profit, balance_after)
-           VALUES (?, 'ladder', ?, 'trade', ?, ?, ?, ?)`,
-          [session.user.id, account.matchId, direction, lots, profitAmount, Math.max(0, newBalance)]
+           VALUES (?, 'ladder', ?, 'open', ?, ?, 0, ?)`,
+          [session.user.id, account.matchId, direction, actualLots, Math.max(0, newBalance)]
         );
         
         await connection.commit();
+        
+        return NextResponse.json({
+          success: true,
+          message: `${direction === 'long' ? '做多' : '做空'}成功，开仓价：${entryPrice.toFixed(2)}`,
+          position: { direction, lots: actualLots, leverage, entryPrice, margin },
+          balance: Math.max(0, newBalance)
+        });
       } catch (error) {
         await connection.rollback();
         throw error;
       } finally {
         connection.release();
       }
+    }
+    
+    // 处理平仓
+    if (action === 'close') {
+      const [positions] = await pool.execute(
+        `SELECT * FROM match_positions WHERE user_id = ? AND match_type = 'ladder' AND status = 'open' ORDER BY id DESC LIMIT 1`,
+        [session.user.id]
+      ) as [RowDataPacket[], FieldPacket[]];
       
-      return NextResponse.json({
-        success: true,
-        message: `${direction === 'long' ? '做多' : '做空'}成功`,
-        trade: {
-          direction,
-          lots,
-          profit: profitAmount,
-          newBalance: Math.max(0, newBalance)
+      if (positions.length === 0) {
+        return NextResponse.json({ error: '没有未平仓位' }, { status: 400 });
+      }
+      
+      const position = positions[0];
+      
+      if (existingAccount.length === 0) {
+        return NextResponse.json({ error: '没有进行中的挑战账户' }, { status: 400 });
+      }
+      
+      const account = existingAccount[0];
+      
+      // 获取当前金价
+      let currentPrice = 3300 + Math.random() * 100;
+      try {
+        const priceRes = await fetch(`${process.env.NEXTAUTH_URL || 'http://localhost:5000'}/api/gold-price`);
+        const priceData = await priceRes.json();
+        if (priceData.success && priceData.data) {
+          currentPrice = priceData.data.price;
         }
-      });
+      } catch {}
+      
+      const priceChange = currentPrice - Number(position.entry_price);
+      const profit = position.direction === 'long' ? priceChange : -priceChange;
+      const profitAmount = profit * Number(position.lots) * 100;
+      
+      const margin = Number(position.lots) * 100 * (Number(position.leverage) || 500) / 100;
+      const newBalance = Number(account.currentBalance) + margin + profitAmount;
+      
+      const connection = await pool.getConnection();
+      try {
+        await connection.beginTransaction();
+        
+        await connection.execute(
+          `UPDATE match_accounts SET current_balance = ? WHERE id = ?`,
+          [Math.max(0, newBalance), account.id]
+        );
+        
+        await connection.execute(
+          `UPDATE match_positions SET status = 'closed', closed_at = NOW() WHERE id = ?`,
+          [position.id]
+        );
+        
+        await connection.execute(
+          `INSERT INTO match_trade_records (user_id, match_type, match_id, action, direction, lots, profit, balance_after)
+           VALUES (?, 'ladder', ?, 'close', ?, ?, ?, ?)`,
+          [session.user.id, account.matchId, position.direction, position.lots, profitAmount, Math.max(0, newBalance)]
+        );
+        
+        await connection.commit();
+        
+        return NextResponse.json({
+          success: true,
+          message: `平仓成功，盈亏：${profitAmount >= 0 ? '+' : ''}${profitAmount.toFixed(2)}`,
+          trade: { direction: position.direction, lots: position.lots, entryPrice: position.entry_price, exitPrice: currentPrice, profit: profitAmount, newBalance: Math.max(0, newBalance) }
+        });
+      } catch (error) {
+        await connection.rollback();
+        throw error;
+      } finally {
+        connection.release();
+      }
     }
     
     return NextResponse.json({ error: '未知操作' }, { status: 400 });

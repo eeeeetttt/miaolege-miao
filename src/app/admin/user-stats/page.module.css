@@ -1,0 +1,335 @@
+.container {
+  padding: 24px;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+.loading, .error {
+  text-align: center;
+  padding: 60px;
+  color: #888;
+  font-size: 16px;
+}
+
+.error {
+  color: #ef4444;
+}
+
+.title {
+  font-size: 24px;
+  font-weight: 600;
+  color: #fff;
+  margin-bottom: 24px;
+}
+
+/* 总览卡片 */
+.overviewGrid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+  margin-bottom: 32px;
+}
+
+.overviewCard {
+  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+  border-radius: 12px;
+  padding: 20px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.overviewCard.profitCard {
+  border-color: rgba(16, 185, 129, 0.3);
+}
+
+.overviewCard.lossCard {
+  border-color: rgba(239, 68, 68, 0.3);
+}
+
+.overviewIcon {
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #888;
+}
+
+.overviewContent {
+  flex: 1;
+}
+
+.overviewValue {
+  font-size: 24px;
+  font-weight: 700;
+  color: #fff;
+}
+
+.overviewLabel {
+  font-size: 14px;
+  color: #888;
+  margin-top: 4px;
+}
+
+/* 区块标题 */
+.section {
+  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+  border-radius: 12px;
+  padding: 20px;
+  margin-bottom: 24px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.sectionTitle {
+  font-size: 18px;
+  font-weight: 600;
+  color: #fff;
+  margin-bottom: 16px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* 赛事统计 */
+.matchStatsGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 16px;
+}
+
+.matchStatCard {
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 8px;
+  padding: 16px;
+}
+
+.matchStatHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.matchTypeName {
+  font-size: 16px;
+  font-weight: 600;
+  color: #fff;
+}
+
+.participantCount {
+  font-size: 12px;
+  color: #888;
+  background: rgba(255, 255, 255, 0.1);
+  padding: 2px 8px;
+  border-radius: 4px;
+}
+
+.matchStatBody {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.statItem {
+  display: flex;
+  justify-content: space-between;
+  font-size: 14px;
+  color: #888;
+}
+
+.statValue {
+  color: #fff;
+  font-weight: 500;
+}
+
+.statValue.profit {
+  color: #10b981;
+}
+
+.statValue.loss {
+  color: #ef4444;
+}
+
+.statValue.bestProfit {
+  color: #f59e0b;
+}
+
+/* Tab切换 */
+.tabHeader {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.tabBtn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 20px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  color: #888;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.tabBtn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+}
+
+.tabBtn.activeTab {
+  background: rgba(99, 102, 241, 0.2);
+  border-color: rgba(99, 102, 241, 0.5);
+  color: #818cf8;
+}
+
+/* 排行榜 */
+.leaderboard {
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.leaderboardHeader {
+  display: grid;
+  grid-template-columns: 50px 1.5fr 100px 120px 100px 80px 120px;
+  gap: 12px;
+  padding: 12px 16px;
+  background: rgba(255, 255, 255, 0.05);
+  font-size: 12px;
+  color: #888;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.leaderboardRow {
+  display: grid;
+  grid-template-columns: 50px 1.5fr 100px 120px 100px 80px 120px;
+  gap: 12px;
+  padding: 12px 16px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  font-size: 14px;
+  color: #fff;
+  align-items: center;
+}
+
+.leaderboardRow:last-child {
+  border-bottom: none;
+}
+
+.leaderboardRow:hover {
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.rankCol {
+  font-weight: 600;
+  color: #888;
+}
+
+.nameCol {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.botIcon {
+  color: #818cf8;
+}
+
+.userEmail {
+  font-size: 12px;
+  color: #666;
+  margin-left: 8px;
+}
+
+.matchCol {
+  color: #888;
+  font-size: 13px;
+}
+
+.profitCol {
+  font-weight: 600;
+}
+
+.profitCol.profit {
+  color: #10b981;
+}
+
+.profitCol.loss {
+  color: #ef4444;
+}
+
+.tradesCol, .rateCol, .balanceCol {
+  color: #888;
+}
+
+.balanceCol {
+  font-weight: 500;
+}
+
+.gold {
+  color: #f59e0b;
+}
+
+.silver {
+  color: #94a3b8;
+}
+
+.bronze {
+  color: #cd7f32;
+}
+
+.emptyState {
+  text-align: center;
+  padding: 40px;
+  color: #666;
+  font-size: 14px;
+}
+
+/* 响应式 */
+@media (max-width: 1024px) {
+  .overviewGrid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  
+  .leaderboardHeader,
+  .leaderboardRow {
+    grid-template-columns: 40px 1fr 100px 100px;
+  }
+  
+  .tradesCol,
+  .rateCol {
+    display: none;
+  }
+}
+
+@media (max-width: 640px) {
+  .container {
+    padding: 16px;
+  }
+  
+  .overviewGrid {
+    grid-template-columns: 1fr;
+  }
+  
+  .matchStatsGrid {
+    grid-template-columns: 1fr;
+  }
+  
+  .leaderboardHeader,
+  .leaderboardRow {
+    grid-template-columns: 40px 1fr 80px;
+    font-size: 12px;
+  }
+  
+  .matchCol {
+    display: none;
+  }
+}

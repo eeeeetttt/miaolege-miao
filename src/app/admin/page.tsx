@@ -17,7 +17,7 @@ import {
   Shield, Users, Globe, TrendingUp, BarChart3, Coins, 
   Settings, FileText, CreditCard, MessageSquare, Lightbulb,
   Search, Edit, Save, Trash2, Check, X, Plus, AlertCircle, CheckCircle2,
-  Bot, ScrollText, Navigation, UserCog
+  Bot, ScrollText, Navigation, UserCog, Activity
 } from 'lucide-react';
 
 // 类型定义
@@ -27,6 +27,10 @@ interface Stats {
   totalSignalSources: number;
   totalCoins: number;
   activeFollows: number;
+  totalAIUsers: number;
+  activeChallenges: number;
+  totalTrades: number;
+  totalProfit: number;
 }
 
 interface UserInfo {
@@ -523,66 +527,141 @@ export default function AdminDashboardPage() {
 
           {/* 概览 */}
           <TabsContent value="overview">
-            <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-              <Card>
-                <CardContent className="pt-6">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm text-gray-500">用户总数</p>
-                      <p className="text-2xl font-bold">{stats?.totalUsers || 0}</p>
+            {/* 核心指标 */}
+            <div className="mb-6">
+              <h3 className="text-lg font-semibold mb-3 flex items-center gap-2">
+                <BarChart3 className="w-5 h-5" />
+                核心指标
+              </h3>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <Card>
+                  <CardContent className="pt-6">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm text-gray-500">用户总数</p>
+                        <p className="text-2xl font-bold">{stats?.totalUsers || 0}</p>
+                      </div>
+                      <Users className="w-8 h-8 text-blue-500" />
                     </div>
-                    <Users className="w-8 h-8 text-blue-500" />
-                  </div>
-                </CardContent>
-              </Card>
+                  </CardContent>
+                </Card>
 
-              <Card>
-                <CardContent className="pt-6">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm text-gray-500">星球总数</p>
-                      <p className="text-2xl font-bold">{stats?.totalPlanets || 0}</p>
+                <Card>
+                  <CardContent className="pt-6">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm text-gray-500">AI交易员</p>
+                        <p className="text-2xl font-bold text-purple-600">{stats?.totalAIUsers || 0}</p>
+                      </div>
+                      <Bot className="w-8 h-8 text-purple-500" />
                     </div>
-                    <Globe className="w-8 h-8 text-purple-500" />
-                  </div>
-                </CardContent>
-              </Card>
+                  </CardContent>
+                </Card>
 
-              <Card>
-                <CardContent className="pt-6">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm text-gray-500">信号源总数</p>
-                      <p className="text-2xl font-bold">{stats?.totalSignalSources || 0}</p>
+                <Card>
+                  <CardContent className="pt-6">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm text-gray-500">活跃参赛</p>
+                        <p className="text-2xl font-bold text-green-600">{stats?.activeChallenges || 0}</p>
+                      </div>
+                      <TrendingUp className="w-8 h-8 text-green-500" />
                     </div>
-                    <TrendingUp className="w-8 h-8 text-green-500" />
-                  </div>
-                </CardContent>
-              </Card>
+                  </CardContent>
+                </Card>
 
-              <Card>
-                <CardContent className="pt-6">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm text-gray-500">活跃跟单</p>
-                      <p className="text-2xl font-bold">{stats?.activeFollows || 0}</p>
+                <Card>
+                  <CardContent className="pt-6">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm text-gray-500">总交易笔数</p>
+                        <p className="text-2xl font-bold text-orange-600">{stats?.totalTrades || 0}</p>
+                      </div>
+                      <Activity className="w-8 h-8 text-orange-500" />
                     </div>
-                    <BarChart3 className="w-8 h-8 text-orange-500" />
-                  </div>
-                </CardContent>
-              </Card>
+                  </CardContent>
+                </Card>
+              </div>
+            </div>
 
-              <Card>
-                <CardContent className="pt-6">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm text-gray-500">总星球币</p>
-                      <p className="text-2xl font-bold">{stats?.totalCoins || 0}</p>
+            {/* 星球生态 */}
+            <div className="mb-6">
+              <h3 className="text-lg font-semibold mb-3 flex items-center gap-2">
+                <Globe className="w-5 h-5" />
+                星球生态
+              </h3>
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                <Card>
+                  <CardContent className="pt-6">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm text-gray-500">星球总数</p>
+                        <p className="text-2xl font-bold">{stats?.totalPlanets || 0}</p>
+                      </div>
+                      <Globe className="w-8 h-8 text-purple-500" />
                     </div>
-                    <Coins className="w-8 h-8 text-yellow-500" />
-                  </div>
-                </CardContent>
-              </Card>
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardContent className="pt-6">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm text-gray-500">信号源总数</p>
+                        <p className="text-2xl font-bold">{stats?.totalSignalSources || 0}</p>
+                      </div>
+                      <TrendingUp className="w-8 h-8 text-green-500" />
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardContent className="pt-6">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm text-gray-500">活跃跟单</p>
+                        <p className="text-2xl font-bold">{stats?.activeFollows || 0}</p>
+                      </div>
+                      <BarChart3 className="w-8 h-8 text-orange-500" />
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+            </div>
+
+            {/* 财务统计 */}
+            <div>
+              <h3 className="text-lg font-semibold mb-3 flex items-center gap-2">
+                <Coins className="w-5 h-5" />
+                财务统计
+              </h3>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <Card>
+                  <CardContent className="pt-6">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm text-gray-500">总星球币</p>
+                        <p className="text-2xl font-bold text-yellow-600">{(stats?.totalCoins || 0).toLocaleString()}</p>
+                      </div>
+                      <Coins className="w-8 h-8 text-yellow-500" />
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardContent className="pt-6">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm text-gray-500">总盈亏(银两)</p>
+                        <p className={`text-2xl font-bold ${Number(stats?.totalProfit) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                          {(Number(stats?.totalProfit) || 0).toLocaleString()}
+                        </p>
+                      </div>
+                      <TrendingUp className={`w-8 h-8 ${Number(stats?.totalProfit) >= 0 ? 'text-green-500' : 'text-red-500'}`} />
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
             </div>
           </TabsContent>
 
@@ -1105,6 +1184,14 @@ export default function AdminDashboardPage() {
                     >
                       <Bot className="w-6 h-6 text-purple-600" />
                       <span className="text-purple-600">AI行为管理</span>
+                    </Button>
+                    <Button 
+                      variant="outline" 
+                      className="h-20 flex flex-col gap-2 border-green-200 hover:bg-green-50"
+                      onClick={() => window.location.href = '/admin/user-stats'}
+                    >
+                      <BarChart3 className="w-6 h-6 text-green-600" />
+                      <span className="text-green-600">盈利统计</span>
                     </Button>
                   </div>
                   
