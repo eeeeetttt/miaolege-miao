@@ -257,6 +257,45 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: true, message: '已退出比赛' });
     }
 
+    if (action === 'trade') {
+      if (activeAccount.length === 0) {
+        return NextResponse.json({ error: '没有进行中的挑战账户' }, { status: 400 });
+      }
+
+      const { direction, lots = 1 } = body;
+      if (!['long', 'short'].includes(direction)) {
+        return NextResponse.json({ error: '无效的交易方向' }, { status: 400 });
+      }
+
+      const account = activeAccount[0];
+      const tradeCost = 100 * lots;
+
+      if (Number(account.currentBalance) < tradeCost) {
+        return NextResponse.json({ error: '余额不足' }, { status: 400 });
+      }
+
+      // 模拟交易
+      const priceChange = (Math.random() - 0.5) * 2;
+      const profit = direction === 'long' ? priceChange : -priceChange;
+      const profitAmount = tradeCost * (profit / 100);
+      const newBalance = Number(account.currentBalance) + profitAmount;
+
+      await db.update(matchAccounts)
+        .set({ currentBalance: String(Math.max(0, newBalance)) })
+        .where(eq(matchAccounts.id, account.id));
+
+      return NextResponse.json({
+        success: true,
+        message: `${direction === 'long' ? '做多' : '做空'}成功`,
+        trade: {
+          direction,
+          lots,
+          profit: profitAmount,
+          newBalance: Math.max(0, newBalance)
+        }
+      });
+    }
+
     return NextResponse.json({ error: '无效操作' }, { status: 400 });
   } catch (error) {
     console.error('Master challenge action error:', error);

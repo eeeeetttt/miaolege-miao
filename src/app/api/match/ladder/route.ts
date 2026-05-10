@@ -145,11 +145,20 @@ export async function POST(request: NextRequest) {
   }
   
   try {
+    const body = await request.json();
+    const { action, direction, lots = 1 } = body;
     const config = await getLadderConfig();
     const currentSeason = getCurrentSeason();
     
-    if (!config.enabled) {
-      return NextResponse.json({ error: '天梯赛已关闭' }, { status: 400 });
+    // 获取用户信息 - 使用 email 查询
+    const userEmail = session.user.email as string;
+    const [user] = await db
+      .select()
+      .from(userAccounts)
+      .where(eq(userAccounts.email, userEmail));
+    
+    if (!user) {
+      return NextResponse.json({ error: '用户账户不存在' }, { status: 404 });
     }
     
     // 检查是否已报名
@@ -163,75 +172,130 @@ export async function POST(request: NextRequest) {
       ))
       .limit(1);
     
-    if (existingAccount.length > 0) {
-      return NextResponse.json({ 
-        error: '本月已报名',
-        account: {
-          initialCapital: Number(existingAccount[0].initialCapital),
-          currentBalance: Number(existingAccount[0].currentBalance),
-        }
-      }, { status: 400 });
-    }
-    
-    // 获取用户信息 - 使用 email 查询
-    const userEmail = session.user.email as string;
-    console.log('[天梯赛] 用户邮箱:', userEmail);
-    
-    const [user] = await db
-      .select()
-      .from(userAccounts)
-      .where(eq(userAccounts.email, userEmail));
-    
-    if (!user) {
-      console.log('[天梯赛] 用户不存在，邮箱:', userEmail);
-      return NextResponse.json({ error: '用户账户不存在，请刷新页面重试' }, { status: 404 });
-    }
-    
-    // 检查银两
-    const userCoin = Number(user.coinBalance || 0);
-    if (userCoin < config.entryCapitalSilver) {
-      return NextResponse.json({ error: `银两不足，需要${config.entryCapitalSilver}银两` }, { status: 400 });
-    }
-    
-    // 创建账户
-    const matchId = `ladder_${currentSeason}_${user.userId}`;
-    
-    const connection = await pool.getConnection();
-    try {
-      await connection.beginTransaction();
-      
-      // 扣除银两
-      await connection.execute(
-        `UPDATE user_accounts SET coin_balance = coin_balance - ? WHERE user_id = ?`,
-        [config.entryCapitalSilver, session.user.id]
-      );
-      
-      // 创建赛事账户
-      await connection.execute(
-        `INSERT INTO match_accounts (user_id, match_id, match_type, initial_capital, current_balance, season_month, status)
-         VALUES (?, ?, 'ladder', ?, ?, ?, 'active')`,
-        [session.user.id, matchId, config.entryCapitalSilver, config.entryCapitalSilver, currentSeason]
-      );
-      
-      await connection.commit();
-    } catch (error) {
-      await connection.rollback();
-      throw error;
-    } finally {
-      connection.release();
-    }
-    
-    return NextResponse.json({
-      success: true,
-      message: `报名成功，本赛季加油！`,
-      account: {
-        initialCapital: config.entryCapitalSilver,
-        currentBalance: config.entryCapitalSilver,
+    // 处理报名
+    if (action === 'register') {
+      if (!config.enabled) {
+        return NextResponse.json({ error: '天梯赛已关闭' }, { status: 400 });
       }
-    });
+      
+      if (existingAccount.length > 0) {
+        return NextResponse.json({ 
+          error: '本月已报名',
+          account: {
+            initialCapital: Number(existingAccount[0].initialCapital),
+            currentBalance: Number(existingAccount[0].currentBalance),
+          }
+        }, { status: 400 });
+      }
+      
+      // 检查银两
+      const userCoin = Number(user.coinBalance || 0);
+      if (userCoin < config.entryCapitalSilver) {
+        return NextResponse.json({ error: `银两不足，需要${config.entryCapitalSilver}银两` }, { status: 400 });
+      }
+      
+      // 创建账户
+      const matchId = `ladder_${currentSeason}_${user.userId}`;
+      
+      const connection = await pool.getConnection();
+      try {
+        await connection.beginTransaction();
+        
+        await connection.execute(
+          `UPDATE user_accounts SET coin_balance = coin_balance - ? WHERE user_id = ?`,
+          [config.entryCapitalSilver, session.user.id]
+        );
+        
+        await connection.execute(
+          `INSERT INTO match_accounts (user_id, match_id, match_type, initial_capital, current_balance, season_month, status)
+           VALUES (?, ?, 'ladder', ?, ?, ?, 'active')`,
+          [session.user.id, matchId, config.entryCapitalSilver, config.entryCapitalSilver, currentSeason]
+        );
+        
+        await connection.commit();
+      } catch (error) {
+        await connection.rollback();
+        throw error;
+      } finally {
+        connection.release();
+      }
+      
+      return NextResponse.json({
+        success: true,
+        message: `报名成功，本赛季加油！`,
+        account: {
+          initialCapital: config.entryCapitalSilver,
+          currentBalance: config.entryCapitalSilver,
+        }
+      });
+    }
+    
+    // 处理交易
+    if (action === 'trade') {
+      if (!config.enabled) {
+        return NextResponse.json({ error: '天梯赛已关闭' }, { status: 400 });
+      }
+      
+      if (existingAccount.length === 0) {
+        return NextResponse.json({ error: '没有进行中的挑战账户' }, { status: 400 });
+      }
+      
+      if (!['long', 'short'].includes(direction)) {
+        return NextResponse.json({ error: '无效的交易方向' }, { status: 400 });
+      }
+      
+      const account = existingAccount[0];
+      const tradeCost = 100 * lots;
+      
+      if (Number(account.currentBalance) < tradeCost) {
+        return NextResponse.json({ error: '余额不足' }, { status: 400 });
+      }
+      
+      // 模拟交易
+      const priceChange = (Math.random() - 0.5) * 2;
+      const profit = direction === 'long' ? priceChange : -priceChange;
+      const profitAmount = tradeCost * (profit / 100);
+      const newBalance = Number(account.currentBalance) + profitAmount;
+      
+      const connection = await pool.getConnection();
+      try {
+        await connection.beginTransaction();
+        
+        await connection.execute(
+          `UPDATE match_accounts SET current_balance = ? WHERE id = ?`,
+          [Math.max(0, newBalance), account.id]
+        );
+        
+        await connection.execute(
+          `INSERT INTO match_records (user_id, match_type, action, direction, lots, profit, balance_after, created_at)
+           VALUES (?, 'ladder', 'trade', ?, ?, ?, ?, NOW())`,
+          [session.user.id, direction, lots, profitAmount, Math.max(0, newBalance)]
+        );
+        
+        await connection.commit();
+      } catch (error) {
+        await connection.rollback();
+        throw error;
+      } finally {
+        connection.release();
+      }
+      
+      return NextResponse.json({
+        success: true,
+        message: `${direction === 'long' ? '做多' : '做空'}成功`,
+        trade: {
+          direction,
+          lots,
+          profit: profitAmount,
+          newBalance: Math.max(0, newBalance)
+        }
+      });
+    }
+    
+    return NextResponse.json({ error: '未知操作' }, { status: 400 });
   } catch (error) {
-    console.error('Ladder register error:', error);
-    return NextResponse.json({ error: '报名失败' }, { status: 500 });
+    console.error('Ladder action error:', error);
+    return NextResponse.json({ error: '操作失败' }, { status: 500 });
   }
 }
 

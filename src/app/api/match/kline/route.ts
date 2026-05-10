@@ -230,6 +230,78 @@ export async function POST(request: NextRequest) {
       });
     }
     
+    if (action === 'trade') {
+      // 开仓交易
+      const { direction, lots = 1 } = body;
+      
+      if (!['long', 'short'].includes(direction)) {
+        return NextResponse.json({ error: '无效的交易方向' }, { status: 400 });
+      }
+      
+      if (!activeAccount || activeAccount.length === 0) {
+        return NextResponse.json({ error: '没有进行中的挑战账户' }, { status: 400 });
+      }
+      
+      const account = activeAccount[0];
+      
+      // 检查余额
+      if (Number(account.currentBalance) < 100) {
+        return NextResponse.json({ error: '余额不足，无法交易' }, { status: 400 });
+      }
+      
+      // 计算交易成本（每手约10%保证金）
+      const tradeCost = 100 * lots;
+      
+      // 检查余额是否足够
+      if (Number(account.currentBalance) < tradeCost) {
+        return NextResponse.json({ error: '余额不足，所需最低余额：' + tradeCost }, { status: 400 });
+      }
+      
+      // 模拟交易：随机盈亏
+      const priceChange = (Math.random() - 0.5) * 2; // -1% 到 +1%
+      const profit = direction === 'long' ? priceChange : -priceChange;
+      const profitAmount = tradeCost * (profit / 100);
+      
+      // 更新账户余额
+      const newBalance = Number(account.currentBalance) + profitAmount;
+      
+      // 更新数据库
+      const connection = await pool.getConnection();
+      try {
+        await connection.beginTransaction();
+        
+        await connection.execute(
+          `UPDATE match_accounts SET current_balance = ? WHERE id = ?`,
+          [Math.max(0, newBalance), account.id]
+        );
+        
+        // 记录交易
+        await connection.execute(
+          `INSERT INTO match_records (user_id, match_type, action, direction, lots, profit, balance_after, created_at)
+           VALUES (?, 'kline', 'trade', ?, ?, ?, ?, NOW())`,
+          [session.user.id, direction, lots, profitAmount, Math.max(0, newBalance)]
+        );
+        
+        await connection.commit();
+      } catch (error) {
+        await connection.rollback();
+        throw error;
+      } finally {
+        connection.release();
+      }
+      
+      return NextResponse.json({
+        success: true,
+        message: `${direction === 'long' ? '做多' : '做空'}成功`,
+        trade: {
+          direction,
+          lots,
+          profit: profitAmount,
+          newBalance: Math.max(0, newBalance)
+        }
+      });
+    }
+    
     return NextResponse.json({ error: '未知操作' }, { status: 400 });
   } catch (error) {
     console.error('K-line action error:', error);
