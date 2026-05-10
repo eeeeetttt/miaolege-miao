@@ -134,18 +134,20 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { userId, name, avatarUrl, goldBalance, coinBalance, silverBalance, role } = body;
+    const { userId, name, avatarUrl, goldBalance, coinBalance, role } = body;
 
     if (!userId) {
       return NextResponse.json({ error: '用户ID不能为空' }, { status: 400 });
     }
 
-    // 构建更新数据
+    console.log('[Admin] 更新用户:', { userId, name, goldBalance, coinBalance, role });
+
+    // 构建更新数据 - 确保数值类型正确
     const updateData: Record<string, unknown> = {};
     if (name !== undefined) updateData.name = name;
     if (avatarUrl !== undefined) updateData.avatarUrl = avatarUrl;
-    if (goldBalance !== undefined) updateData.goldBalance = goldBalance;
-    if (coinBalance !== undefined) updateData.coinBalance = coinBalance;
+    if (goldBalance !== undefined) updateData.goldBalance = Number(goldBalance);
+    if (coinBalance !== undefined) updateData.coinBalance = Number(coinBalance);
     if (role !== undefined) updateData.role = role;
 
     // 更新用户基础信息

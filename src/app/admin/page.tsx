@@ -303,7 +303,8 @@ export default function AdminDashboardPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           userId: editingUser.userId,
-          coinBalance: editForm.coinBalance,
+          coinBalance: editForm.silverBalance || editForm.coinBalance,
+          goldBalance: editForm.goldBalance,
           role: editForm.role,
         }),
       });
