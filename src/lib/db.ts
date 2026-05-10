@@ -38,9 +38,9 @@ async function initializeFinanceTables() {
       try { await connection.execute(`ALTER TABLE user_accounts ADD COLUMN total_debt DECIMAL(15,2) DEFAULT 0 AFTER coin_balance`); } catch {}
       try { await connection.execute(`ALTER TABLE user_accounts ADD COLUMN active_title VARCHAR(50) DEFAULT NULL AFTER avatar_url`); } catch {}
 
-      // 创建 user_titles 表（用户称号表）
+      // user_titles 表创建
       try {
-        await connection.execute(`
+        await connection.query(`
           CREATE TABLE IF NOT EXISTS user_titles (
             id BIGINT AUTO_INCREMENT PRIMARY KEY,
             user_id VARCHAR(36) NOT NULL,
@@ -52,11 +52,13 @@ async function initializeFinanceTables() {
             INDEX idx_title (title_id)
           ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
         `);
-      } catch {}
+      } catch (e) {
+        console.error('[Init] user_titles表创建失败:', e);
+      }
 
-      // 创建 titles 表（称号定义表）
+      // titles 表创建
       try {
-        await connection.execute(`
+        await connection.query(`
           CREATE TABLE IF NOT EXISTS titles (
             id VARCHAR(50) PRIMARY KEY,
             name VARCHAR(100) NOT NULL,
@@ -77,7 +79,9 @@ async function initializeFinanceTables() {
             ('ladder_master', '天梯大师', '天梯赛连续3个月前三', 'rare')
           `);
         }
-      } catch {}
+      } catch (e) {
+        console.error('[Init] titles表创建失败:', e);
+      }
 
       // 创建管理员用户（如果不存在）
       try {
@@ -93,9 +97,9 @@ async function initializeFinanceTables() {
         console.error('[Init] 创建管理员用户失败:', e);
       }
 
-      // 创建 banks 表
+      // banks 表创建
       try {
-        await connection.execute(`
+        await connection.query(`
           CREATE TABLE IF NOT EXISTS banks (
             bank_id VARCHAR(50) PRIMARY KEY,
             name VARCHAR(100) NOT NULL,
@@ -123,11 +127,13 @@ async function initializeFinanceTables() {
             ('bank5', '瑞丰庄', 3500000, 0.005, 1000000)
           `);
         }
-      } catch {}
+      } catch (e) {
+        console.error('[Init] banks表创建失败:', e);
+      }
 
-      // 创建 exchanges 表
+      // exchanges 表创建
       try {
-        await connection.execute(`
+        await connection.query(`
           CREATE TABLE IF NOT EXISTS exchanges (
             exchange_id VARCHAR(50) PRIMARY KEY,
             name VARCHAR(100) NOT NULL,
@@ -152,11 +158,13 @@ async function initializeFinanceTables() {
             ('ex3', '洪武交易所', 1200000, 0.002)
           `);
         }
-      } catch {}
+      } catch (e) {
+        console.error('[Init] exchanges表创建失败:', e);
+      }
 
-      // 创建 bank_loans 表
+      // bank_loans 表创建
       try {
-        await connection.execute(`
+        await connection.query(`
           CREATE TABLE IF NOT EXISTS bank_loans (
             id BIGINT AUTO_INCREMENT PRIMARY KEY,
             user_id VARCHAR(36) NOT NULL,
@@ -169,11 +177,13 @@ async function initializeFinanceTables() {
             INDEX idx_bank (bank_id)
           ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
         `);
-      } catch {}
+      } catch (e) {
+        console.error('[Init] bank_loans表创建失败:', e);
+      }
 
-      // 创建 exchange_trades 表
+      // exchange_trades 表创建
       try {
-        await connection.execute(`
+        await connection.query(`
           CREATE TABLE IF NOT EXISTS exchange_trades (
             id BIGINT AUTO_INCREMENT PRIMARY KEY,
             user_id VARCHAR(36) NOT NULL,
@@ -187,16 +197,18 @@ async function initializeFinanceTables() {
             INDEX idx_exchange (exchange_id)
           ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
         `);
-      } catch {}
+      } catch (e) {
+        console.error('[Init] exchange_trades表创建失败:', e);
+      }
 
       console.log('[Init] 金融系统表和数据初始化完成');
       isInitialized = true;
 
       // 初始化赛事系统表
       try {
-        // 创建 match_accounts 表（赛事临时账户）
+        // match_accounts 表创建
         try {
-          await connection.execute(`
+          await connection.query(`
             CREATE TABLE IF NOT EXISTS match_accounts (
               id BIGINT AUTO_INCREMENT PRIMARY KEY,
               user_id VARCHAR(36) NOT NULL,
@@ -214,11 +226,14 @@ async function initializeFinanceTables() {
               INDEX idx_match_type (match_type, status)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
           `);
-        } catch {}
+          console.log('[Init] match_accounts 表创建成功');
+        } catch (e) {
+          console.error('[Init] match_accounts 表创建失败:', e);
+        }
 
-        // 创建 match_configs 表（赛事配置）
+        // match_configs 表创建
         try {
-          await connection.execute(`
+          await connection.query(`
             CREATE TABLE IF NOT EXISTS match_configs (
               id INT AUTO_INCREMENT PRIMARY KEY,
               match_type VARCHAR(50) NOT NULL,
@@ -264,9 +279,9 @@ async function initializeFinanceTables() {
           }
         } catch {}
 
-        // 创建 match_records 表（赛事记录）
+        // match_records 表创建
         try {
-          await connection.execute(`
+          await connection.query(`
             CREATE TABLE IF NOT EXISTS match_records (
               id BIGINT AUTO_INCREMENT PRIMARY KEY,
               user_id VARCHAR(36) NOT NULL,
@@ -284,13 +299,16 @@ async function initializeFinanceTables() {
               INDEX idx_match_rank (match_type, match_id, \`rank\`)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
           `);
-        } catch {}
+          console.log('[Init] match_records 表创建成功');
+        } catch (e) {
+          console.error('[Init] match_records 表创建失败:', e);
+        }
 
         console.log('[Init] 赛事系统表和配置初始化完成');
 
-        // 创建 match_trade_records 表（交易记录）
+        // match_trade_records 表创建
         try {
-          await connection.execute(`
+          await connection.query(`
             CREATE TABLE IF NOT EXISTS match_trade_records (
               id BIGINT AUTO_INCREMENT PRIMARY KEY,
               user_id VARCHAR(36) NOT NULL,
@@ -306,29 +324,34 @@ async function initializeFinanceTables() {
               INDEX idx_match_trade (match_type, match_id)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
           `);
-        } catch {}
-        // 创建 match_positions 表（持仓记录）
-        try {
-          await connection.execute(`
-            CREATE TABLE IF NOT EXISTS match_positions (
-              id BIGINT AUTO_INCREMENT PRIMARY KEY,
-              user_id VARCHAR(36) NOT NULL,
-              match_type VARCHAR(50) NOT NULL,
-              match_id VARCHAR(200) NOT NULL,
-              direction VARCHAR(10) NOT NULL,
-              lots DECIMAL(10,2) NOT NULL,
-              leverage INT DEFAULT 500,
-              entry_price DECIMAL(15,4) NOT NULL,
-              stop_loss DECIMAL(15,4) DEFAULT NULL,
-              take_profit DECIMAL(15,4) DEFAULT NULL,
-              status VARCHAR(20) DEFAULT 'open',
-              created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-              closed_at TIMESTAMP DEFAULT NULL,
-              INDEX idx_user_position (user_id, match_type, status),
-              INDEX idx_match_position (match_type, match_id)
-            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
-          `);
-        } catch {}
+          console.log('[Init] match_trade_records 表创建成功');
+        } catch (e) {
+          console.error('[Init] match_trade_records 表创建失败:', e);
+        }
+      try {
+        await connection.query(`
+          CREATE TABLE IF NOT EXISTS match_positions (
+            id BIGINT AUTO_INCREMENT PRIMARY KEY,
+            user_id VARCHAR(36) NOT NULL,
+            match_type VARCHAR(50) NOT NULL,
+            match_id VARCHAR(200) NOT NULL,
+            direction VARCHAR(10) NOT NULL,
+            lots DECIMAL(10,2) NOT NULL,
+            leverage INT DEFAULT 500,
+            entry_price DECIMAL(15,4) NOT NULL,
+            stop_loss DECIMAL(15,4) DEFAULT NULL,
+            take_profit DECIMAL(15,4) DEFAULT NULL,
+            status VARCHAR(20) DEFAULT 'open',
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            closed_at TIMESTAMP NULL,
+            INDEX idx_user_position (user_id, match_type, status),
+            INDEX idx_match_position (match_type, match_id)
+          ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+        `);
+        console.log('[Init] match_positions 表创建成功');
+      } catch (error) {
+        console.error('[Init] match_positions 表创建失败:', error);
+      }
 
         console.log('[Init] 赛事持仓表初始化完成');
 
@@ -338,11 +361,11 @@ async function initializeFinanceTables() {
       
       // 验证表是否创建成功
       try {
-        const [tables] = await connection.execute('SHOW TABLES LIKE "match_positions"');
+        const [tables] = await connection.query('SHOW TABLES LIKE "match_positions"');
         if ((tables as any).length === 0) {
           console.error('[Init] ERROR: match_positions 表创建失败!');
         } else {
-          console.log('[Init] match_positions 表创建成功');
+          console.log('[Init] match_positions 表验证成功');
         }
       } catch (error) {
         console.error('[Init] 验证表失败:', error);
