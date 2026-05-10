@@ -37,6 +37,17 @@ interface MatchInfo {
 }
 
 const matchInfo: Record<MatchType, MatchInfo> = {
+  daily: {
+    id: 'daily',
+    name: '每日挑战',
+    icon: <Zap className={styles.matchIcon} />,
+    bgColor: 'linear-gradient(135deg, #d97706 0%, #f59e0b 100%)',
+    accentColor: '#f59e0b',
+    description: '每日盈利额排行',
+    rules: ['00:00-20:00可报名', '当日盈利额排名', '前10名获得奖励', '每日重置'],
+    rewards: '第1名: 500金币 + 500银两',
+    requirement: '50金币报名，扣除10000银两'
+  },
   kline: {
     id: 'kline',
     name: 'K线征途',
@@ -58,17 +69,6 @@ const matchInfo: Record<MatchType, MatchInfo> = {
     rules: ['初始本金10000银两', '按收益率排名', '每月1日重置', '前10名获得金币奖励'],
     rewards: '第1名: 5000金币, 第2-5名: 2000金币',
     requirement: '免费报名，扣除10000银两'
-  },
-  daily: {
-    id: 'daily',
-    name: '每日挑战',
-    icon: <Zap className={styles.matchIcon} />,
-    bgColor: 'linear-gradient(135deg, #d97706 0%, #f59e0b 100%)',
-    accentColor: '#f59e0b',
-    description: '每日盈利额排行',
-    rules: ['00:00-20:00可报名', '当日盈利额排名', '前10名获得奖励', '每日重置'],
-    rewards: '第1名: 500金币 + 500银两',
-    requirement: '50金币报名，扣除10000银两'
   },
   master: {
     id: 'master',

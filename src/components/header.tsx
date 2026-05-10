@@ -110,16 +110,11 @@ export function Header() {
               </button>
               {session && (
                 <>
-                  {navConfig.nav_show_challenge_hall && (
-                    <button onClick={() => navigate('/challenge/hall')} className="text-gray-600 hover:text-purple-600 dark:text-gray-300 dark:hover:text-purple-400 transition-colors flex items-center gap-1">
-                      <Globe className="w-4 h-4" />
-                      挑战赛大厅
-                    </button>
-                  )}
+
                   {navConfig.nav_show_kline_challenge && (
                     <button onClick={() => navigate('/challenge')} className="text-amber-600 hover:text-amber-500 dark:text-amber-400 dark:hover:text-amber-300 transition-colors flex items-center gap-1 font-semibold">
                       <Trophy className="w-4 h-4" />
-                      K线征途
+                      挑战赛大厅
                     </button>
                   )}
                   <button onClick={() => navigate('/news')} className="text-orange-600 hover:text-orange-500 dark:text-orange-400 dark:hover:text-orange-300 transition-colors flex items-center gap-1 font-semibold">
@@ -138,24 +133,7 @@ export function Header() {
                       文档中心
                     </button>
                   )}
-                  {navConfig.nav_show_suggestion && (
-                    <button onClick={() => navigate('/suggestion')} className="text-gray-600 hover:text-purple-600 dark:text-gray-300 dark:hover:text-purple-400 transition-colors flex items-center gap-1">
-                      <MessageSquare className="w-4 h-4" />
-                      建议
-                    </button>
-                  )}
-                  {navConfig.nav_show_complaint && (
-                    <button onClick={() => navigate('/complaint')} className="text-gray-600 hover:text-purple-600 dark:text-gray-300 dark:hover:text-purple-400 transition-colors flex items-center gap-1">
-                      <AlertCircle className="w-4 h-4" />
-                      投诉
-                    </button>
-                  )}
-                  {navConfig.nav_show_download && (
-                    <button onClick={() => navigate('/download')} className="text-gray-600 hover:text-purple-600 dark:text-gray-300 dark:hover:text-purple-400 transition-colors flex items-center gap-1">
-                      <Download className="w-4 h-4" />
-                      软件下载
-                    </button>
-                  )}
+
                 </>
               )}
             </nav>
@@ -244,16 +222,11 @@ export function Header() {
                 <Home className="w-4 h-4" />
                 首页
               </button>
-              {navConfig.nav_show_challenge_hall && (
-                <button onClick={() => { navigate('/challenge/hall'); setMobileMenuOpen(false); }} className="text-left px-4 py-2 text-gray-600 hover:text-purple-600 dark:text-gray-300 dark:hover:text-purple-400 flex items-center gap-2">
-                  <Globe className="w-4 h-4" />
-                  挑战赛大厅
-                </button>
-              )}
+
               {navConfig.nav_show_kline_challenge && (
                 <button onClick={() => { navigate('/challenge'); setMobileMenuOpen(false); }} className="text-left px-4 py-2 text-amber-600 hover:text-amber-500 dark:text-amber-400 dark:hover:text-amber-300 flex items-center gap-2 font-semibold">
                   <Trophy className="w-4 h-4" />
-                  K线征途
+                  挑战赛大厅
                 </button>
               )}
               {navConfig.nav_show_social && (
@@ -268,12 +241,7 @@ export function Header() {
                   文档中心
                 </button>
               )}
-              {navConfig.nav_show_download && (
-                <button onClick={() => { navigate('/download'); setMobileMenuOpen(false); }} className="text-left px-4 py-2 text-gray-600 hover:text-purple-600 dark:text-gray-300 dark:hover:text-purple-400 flex items-center gap-2">
-                  <Download className="w-4 h-4" />
-                  软件下载
-                </button>
-              )}
+
             </nav>
           </div>
         )}
