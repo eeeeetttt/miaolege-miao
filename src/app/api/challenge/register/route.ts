@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
-import { db } from '@/lib/db';
+import { db, query } from '@/lib/db';
 import { userAccounts } from '@/lib/schema';
-import { eq, desc } from 'drizzle-orm';
+import { eq } from 'drizzle-orm';
 
 // 获取挑战状态
 export async function GET() {
@@ -17,16 +17,16 @@ export async function GET() {
     const userId = session.user.id;
 
     // 查询用户的挑战账户
-    const accounts = await db.query(
+    const accounts = await query(
       `SELECT * FROM match_accounts WHERE user_id = ? AND match_type = 'kline' AND status = 'active' ORDER BY created_at DESC LIMIT 1`,
       [userId]
-    );
+    ) as any[];
 
     // 查询未平仓位
-    const positions = await db.query(
+    const positions = await query(
       `SELECT * FROM match_positions WHERE user_id = ? AND match_type = 'kline' AND status = 'open'`,
       [userId]
-    );
+    ) as any[];
 
     const hasActiveChallenge = accounts && accounts.length > 0;
     const account = hasActiveChallenge ? accounts[0] : null;
@@ -138,7 +138,7 @@ export async function POST(request: NextRequest) {
 
     // 创建挑战账户记录
     const matchId = `kline_${userId}_${Date.now()}`;
-    await db.query(
+    await query(
       `INSERT INTO match_accounts (user_id, match_id, match_type, initial_capital, current_balance, status, current_level, started_at) VALUES (?, ?, 'kline', ?, ?, 'active', 1, NOW())`,
       [userId, matchId, registrationFee, registrationFee]
     );
