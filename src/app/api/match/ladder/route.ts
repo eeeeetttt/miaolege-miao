@@ -267,9 +267,9 @@ export async function POST(request: NextRequest) {
         );
         
         await connection.execute(
-          `INSERT INTO match_records (user_id, match_type, action, direction, lots, profit, balance_after, created_at)
-           VALUES (?, 'ladder', 'trade', ?, ?, ?, ?, NOW())`,
-          [session.user.id, direction, lots, profitAmount, Math.max(0, newBalance)]
+          `INSERT INTO match_trade_records (user_id, match_type, match_id, action, direction, lots, profit, balance_after)
+           VALUES (?, 'ladder', ?, 'trade', ?, ?, ?, ?)`,
+          [session.user.id, account.matchId, direction, lots, profitAmount, Math.max(0, newBalance)]
         );
         
         await connection.commit();
