@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import mysql from 'mysql2/promise';
+import { getSupabaseClient } from '@/storage/database/supabase-client';
 
 // 10个AI角色配置
 const AI_CHARACTERS = [
@@ -87,22 +87,12 @@ const AI_CHARACTERS = [
 
 const INITIAL_COINS = 100000; // 10万金币
 
-// 创建MySQL连接池
-function getPool() {
-  return mysql.createPool({
-    host: process.env.MYSQL_HOST || 'localhost',
-    port: parseInt(process.env.MYSQL_PORT || '3306'),
-    user: process.env.MYSQL_USER || 'root',
-    password: process.env.MYSQL_PASSWORD || '',
-    database: process.env.MYSQL_DATABASE || 'trade',
-    waitForConnections: true,
-    connectionLimit: 10,
-    queueLimit: 0,
-  });
-}
-
 export async function POST(request: NextRequest) {
-  const pool = getPool();
+  const supabase = getSupabaseClient();
+  
+  if (!supabase) {
+    return NextResponse.json({ error: '数据库连接不可用' }, { status: 500 });
+  }
   
   try {
     const { action } = await request.json();
@@ -117,17 +107,22 @@ export async function POST(request: NextRequest) {
         
         try {
           // 检查用户是否已存在
-          const [existingUsers] = await pool.execute(
-            'SELECT user_id, coin_balance FROM users WHERE email = ?',
-            [email]
-          ) as [any[], any];
-          
-          if (existingUsers.length > 0) {
+          const { data: existingUsers } = await supabase
+            .from('users')
+            .select('user_id, coin_balance')
+            .eq('email', email)
+            .limit(1);
+
+          if (existingUsers && existingUsers.length > 0) {
             // 更新金币
-            await pool.execute(
-              'UPDATE users SET coin_balance = ? WHERE user_id = ?',
-              [INITIAL_COINS, existingUsers[0].user_id]
-            );
+            const { error: updateError } = await supabase
+              .from('users')
+              .update({ coin_balance: INITIAL_COINS })
+              .eq('user_id', existingUsers[0].user_id);
+            
+            if (updateError) {
+              throw new Error(updateError.message);
+            }
             
             results.push({
               name: character.name,
@@ -136,38 +131,55 @@ export async function POST(request: NextRequest) {
             });
           } else {
             // 创建新用户
-            const [result] = await pool.execute(
-              `INSERT INTO users (email, password, name, avatar, coin_balance, role) 
-               VALUES (?, ?, ?, ?, ?, 'ai')`,
-              [email, `ai_${character.role}_password_2024`, character.name, character.avatar, INITIAL_COINS]
-            );
+            const { data, error: insertError } = await supabase
+              .from('users')
+              .insert({
+                user_id: character.role,
+                email: email,
+                password: `ai_${character.role}_password_2024`,
+                name: character.name,
+                avatar: character.avatar,
+                coin_balance: INITIAL_COINS,
+                role: 'ai',
+              })
+              .select('user_id')
+              .single();
+            
+            if (insertError) {
+              throw new Error(insertError.message);
+            }
             
             results.push({
               name: character.name,
               status: 'created',
-              userId: (result as any).insertId,
+              userId: data?.user_id || character.role,
             });
           }
 
           // 检查/创建AI角色
-          const [existingRoles] = await pool.execute(
-            'SELECT id FROM chat_hall_ai_roles WHERE name = ?',
-            [character.name]
-          ) as [any[], any];
+          const { data: existingRoles } = await supabase
+            .from('chat_hall_ai_roles')
+            .select('name')
+            .eq('name', character.name)
+            .limit(1);
 
-          if (existingRoles.length === 0) {
-            await pool.execute(
-              `INSERT INTO chat_hall_ai_roles (name, enabled, reply_probability, max_response_length, system_prompt, trigger_keyword, avatar_url, sort_order)
-               VALUES (?, true, ?, 200, ?, ?, ?, ?)`,
-              [
-                character.name,
-                30 + Math.floor(Math.random() * 40), // 30-70%
-                `你是${character.name}，${character.personality}。你是金火火交易平台的AI交易员，参与K线征途挑战赛是你的目标。你的交易风格是${character.tradingStyle}，风险偏好为${character.riskLevel}。你说话直接专业，喜欢用数据说话。`,
-                character.name,
-                character.avatar,
-                i,
-              ]
-            );
+          if (!existingRoles || existingRoles.length === 0) {
+            const { error: roleError } = await supabase
+              .from('chat_hall_ai_roles')
+              .insert({
+                name: character.name,
+                enabled: true,
+                reply_probability: 30 + Math.floor(Math.random() * 40), // 30-70%
+                max_response_length: 200,
+                system_prompt: `你是${character.name}，${character.personality}。你是金火火交易平台的AI交易员，参与K线征途挑战赛是你的目标。你的交易风格是${character.tradingStyle}，风险偏好为${character.riskLevel}。你说话直接专业，喜欢用数据说话。`,
+                trigger_keyword: character.name,
+                avatar_url: character.avatar,
+                sort_order: i,
+              });
+            
+            if (roleError) {
+              console.error(`创建AI角色 ${character.name} 失败:`, roleError);
+            }
           }
         } catch (error: any) {
           results.push({
@@ -191,14 +203,23 @@ export async function POST(request: NextRequest) {
 
     if (action === 'status') {
       // 查看AI用户状态
-      const [aiUsers] = await pool.execute(
-        'SELECT user_id, name, email, coin_balance, role FROM users WHERE role = ? ORDER BY name',
-        ['ai']
-      ) as [any[], any];
+      const { data: aiUsers, error: usersError } = await supabase
+        .from('users')
+        .select('user_id, name, email, coin_balance, role')
+        .eq('role', 'ai')
+        .order('name');
 
-      const [aiRoles] = await pool.execute(
-        'SELECT name, enabled, reply_probability FROM chat_hall_ai_roles ORDER BY sort_order'
-      ) as [any[], any];
+      const { data: aiRoles, error: rolesError } = await supabase
+        .from('chat_hall_ai_roles')
+        .select('name, enabled, reply_probability')
+        .order('sort_order');
+
+      if (usersError || rolesError) {
+        return NextResponse.json({ 
+          error: '获取状态失败',
+          details: usersError?.message || rolesError?.message 
+        }, { status: 500 });
+      }
 
       return NextResponse.json({
         aiUsers: aiUsers || [],
@@ -210,7 +231,5 @@ export async function POST(request: NextRequest) {
   } catch (error: any) {
     console.error('AI用户管理错误:', error);
     return NextResponse.json({ error: error.message || '服务器错误' }, { status: 500 });
-  } finally {
-    await pool.end();
   }
 }
