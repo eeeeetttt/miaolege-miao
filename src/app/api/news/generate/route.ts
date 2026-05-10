@@ -203,9 +203,7 @@ ${eventsInfo}
         title,
         content,
         author: '金查理',
-        category: 'market',
         news_date: newsDate,
-        tags: JSON.stringify(['伦敦金', '市场分析', '每日日报']),
         published: true,
       })
       .select()

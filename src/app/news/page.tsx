@@ -10,7 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { 
   Newspaper, TrendingUp, Trophy, Zap, Calendar, 
-  User, Search, Eye, ChevronRight
+  User, Search, ChevronRight
 } from 'lucide-react';
 
 interface NewsItem {
@@ -18,12 +18,10 @@ interface NewsItem {
   title: string;
   content: string;
   author: string;
-  category: string;
   newsDate: string;
-  coverImage?: string;
-  tags: string[];
-  views: number;
+  published: boolean;
   createdAt: string;
+  updatedAt?: string;
 }
 
 const CATEGORY_INFO: Record<string, { name: string; icon: React.ReactNode; color: string }> = {
@@ -36,6 +34,13 @@ const CATEGORY_COLORS: Record<string, string> = {
   market: 'bg-blue-100 text-blue-700',
   platform: 'bg-green-100 text-green-700',
   hotspot: 'bg-amber-100 text-amber-700',
+};
+
+// 默认分类映射（根据作者名称判断）
+const getCategoryFromAuthor = (author: string): string => {
+  if (author === '金查理') return 'market';
+  if (author === '金火火编辑部') return 'platform';
+  return 'hotspot';
 };
 
 // 主内容组件
@@ -179,8 +184,8 @@ function NewsContent() {
                           <div className="flex-1 min-w-0">
                             {/* 分类标签 */}
                             <div className="flex items-center gap-2 mb-2">
-                              <Badge className={CATEGORY_COLORS[news.category] || 'bg-gray-100 text-gray-700'}>
-                                {CATEGORY_INFO[news.category]?.name || news.category}
+                              <Badge className={CATEGORY_COLORS[getCategoryFromAuthor(news.author)] || 'bg-gray-100 text-gray-700'}>
+                                {CATEGORY_INFO[getCategoryFromAuthor(news.author)]?.name || '资讯'}
                               </Badge>
                               <span className="text-slate-500 text-sm flex items-center gap-1">
                                 <Calendar className="w-3 h-3" />
@@ -203,10 +208,6 @@ function NewsContent() {
                               <span className="flex items-center gap-1">
                                 <User className="w-3 h-3" />
                                 {news.author}
-                              </span>
-                              <span className="flex items-center gap-1">
-                                <Eye className="w-3 h-3" />
-                                {news.views} 阅读
                               </span>
                             </div>
                           </div>

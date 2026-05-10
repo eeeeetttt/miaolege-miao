@@ -25,24 +25,16 @@ export async function GET(
       return NextResponse.json({ error: '新闻不存在' }, { status: 404 });
     }
 
-    // 增加浏览数
-    await supabase
-      .from('daily_news')
-      .update({ views: (data.views || 0) + 1 })
-      .eq('id', parseInt(id));
-
     // 格式化返回数据
     const news = {
       id: data.id,
       title: data.title,
       content: data.content,
       author: data.author,
-      category: data.category || 'market',
       newsDate: data.news_date,
-      coverImage: data.cover_image,
-      tags: data.tags ? JSON.parse(data.tags) : [],
-      views: (data.views || 0) + 1,
+      published: data.published,
       createdAt: data.created_at,
+      updatedAt: data.updated_at,
     };
 
     return NextResponse.json({
@@ -69,15 +61,12 @@ export async function PUT(
     }
 
     const body = await request.json();
-    const { title, content, author, category, tags, coverImage, published } = body;
+    const { title, content, author, published } = body;
 
     const updateData: any = {};
     if (title !== undefined) updateData.title = title;
     if (content !== undefined) updateData.content = content;
     if (author !== undefined) updateData.author = author;
-    if (category !== undefined) updateData.category = category;
-    if (tags !== undefined) updateData.tags = JSON.stringify(tags);
-    if (coverImage !== undefined) updateData.cover_image = coverImage;
     if (published !== undefined) updateData.published = published;
 
     const { data, error } = await supabase

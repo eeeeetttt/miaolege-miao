@@ -38,12 +38,10 @@ export async function GET(request: NextRequest) {
       title: item.title,
       content: item.content,
       author: item.author,
-      category: item.category || 'market',
       newsDate: item.news_date,
-      coverImage: item.cover_image,
-      tags: item.tags ? JSON.parse(item.tags) : [],
-      views: item.views || 0,
+      published: item.published,
       createdAt: item.created_at,
+      updatedAt: item.updated_at,
     }));
 
     return NextResponse.json({
@@ -71,7 +69,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { title, content, author, category, tags, coverImage } = body;
+    const { title, content, author } = body;
 
     if (!title || !content) {
       return NextResponse.json({ error: '标题和内容不能为空' }, { status: 400 });
@@ -85,10 +83,7 @@ export async function POST(request: NextRequest) {
         title,
         content,
         author: author || '金火火编辑部',
-        category: category || 'platform',
         news_date: newsDate,
-        tags: tags ? JSON.stringify(tags) : null,
-        cover_image: coverImage,
         published: true,
       })
       .select()

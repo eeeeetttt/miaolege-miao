@@ -9,7 +9,7 @@ import { Spinner } from '@/components/ui/spinner';
 import { Button } from '@/components/ui/button';
 import { 
   Newspaper, TrendingUp, Trophy, Zap, Calendar, 
-  User, Eye, ArrowLeft, Share2, Clock
+  User, ArrowLeft, Share2, Clock
 } from 'lucide-react';
 
 interface NewsItem {
@@ -17,18 +17,23 @@ interface NewsItem {
   title: string;
   content: string;
   author: string;
-  category: string;
   newsDate: string;
-  coverImage?: string;
-  tags: string[];
-  views: number;
+  published: boolean;
   createdAt: string;
+  updatedAt?: string;
 }
 
 const CATEGORY_INFO: Record<string, { name: string; icon: React.ReactNode; color: string }> = {
   market: { name: '市场分析', icon: <TrendingUp className="w-4 h-4" />, color: '#3b82f6' },
   platform: { name: '平台动态', icon: <Trophy className="w-4 h-4" />, color: '#10b981' },
   hotspot: { name: '热点消息', icon: <Zap className="w-4 h-4" />, color: '#f59e0b' },
+};
+
+// 默认分类映射（根据作者名称判断）
+const getCategoryFromAuthor = (author: string): string => {
+  if (author === '金查理') return 'market';
+  if (author === '金火火编辑部') return 'platform';
+  return 'hotspot';
 };
 
 export default function NewsDetailPage() {
@@ -145,8 +150,8 @@ export default function NewsDetailPage() {
                 {/* 分类和日期 */}
                 <div className="flex items-center gap-4 mb-4">
                   <Badge className="bg-blue-100 text-blue-700">
-                    {CATEGORY_INFO[news.category]?.icon}
-                    <span className="ml-1">{CATEGORY_INFO[news.category]?.name || news.category}</span>
+                    {CATEGORY_INFO[getCategoryFromAuthor(news.author)]?.icon}
+                    <span className="ml-1">{CATEGORY_INFO[getCategoryFromAuthor(news.author)]?.name || '资讯'}</span>
                   </Badge>
                   <span className="text-slate-500 text-sm flex items-center gap-1">
                     <Calendar className="w-3 h-3" />
@@ -166,10 +171,6 @@ export default function NewsDetailPage() {
                     {news.author}
                   </span>
                   <span className="text-slate-400 text-sm flex items-center gap-1">
-                    <Eye className="w-4 h-4" />
-                    {news.views} 阅读
-                  </span>
-                  <span className="text-slate-400 text-sm flex items-center gap-1">
                     <Clock className="w-4 h-4" />
                     {new Date(news.createdAt).toLocaleDateString('zh-CN')}
                   </span>
@@ -181,21 +182,6 @@ export default function NewsDetailPage() {
                     {news.content}
                   </div>
                 </div>
-
-                {/* 标签 */}
-                {news.tags && news.tags.length > 0 && (
-                  <div className="flex flex-wrap gap-2 mt-8 pt-6 border-t border-slate-700">
-                    {news.tags.map((tag, index) => (
-                      <Badge 
-                        key={index}
-                        variant="secondary"
-                        className="bg-slate-700 text-slate-300"
-                      >
-                        #{tag}
-                      </Badge>
-                    ))}
-                  </div>
-                )}
 
                 {/* 分享按钮 */}
                 <div className="flex justify-end mt-6">
