@@ -287,6 +287,26 @@ async function initializeFinanceTables() {
         } catch {}
 
         console.log('[Init] 赛事系统表和配置初始化完成');
+
+        // 创建 match_trade_records 表（交易记录）
+        try {
+          await connection.execute(`
+            CREATE TABLE IF NOT EXISTS match_trade_records (
+              id BIGINT AUTO_INCREMENT PRIMARY KEY,
+              user_id VARCHAR(36) NOT NULL,
+              match_type VARCHAR(50) NOT NULL,
+              match_id VARCHAR(50) NOT NULL,
+              action VARCHAR(50) NOT NULL,
+              direction VARCHAR(10) DEFAULT NULL,
+              lots INT DEFAULT 1,
+              profit DECIMAL(15, 2) DEFAULT 0,
+              balance_after DECIMAL(15, 2) NOT NULL,
+              created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+              INDEX idx_user_trade (user_id, match_type),
+              INDEX idx_match_trade (match_type, match_id)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+          `);
+        } catch {}
       } catch (error) {
         console.error('[Init] 赛事系统初始化失败:', error);
       }

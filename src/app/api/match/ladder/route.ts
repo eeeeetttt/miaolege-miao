@@ -294,8 +294,9 @@ export async function POST(request: NextRequest) {
     
     return NextResponse.json({ error: '未知操作' }, { status: 400 });
   } catch (error) {
-    console.error('Ladder action error:', error);
-    return NextResponse.json({ error: '操作失败' }, { status: 500 });
+    console.error('[Ladder] Action error:', error);
+    const message = error instanceof Error ? error.message : '未知错误';
+    return NextResponse.json({ error: '操作失败: ' + message }, { status: 500 });
   }
 }
 
