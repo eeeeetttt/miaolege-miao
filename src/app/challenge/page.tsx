@@ -135,16 +135,20 @@ export default function ChallengePage() {
       const data = await res.json();
       
       if (res.ok) {
-        if (data.isRegistered && data.myAccount) {
+        // 处理不同的API响应格式
+        const isRegistered = data.isRegistered || (data.status && data.status.isActive) || false;
+        const accountData = data.myAccount || (data.activeAccounts && data.activeAccounts[0]) || null;
+        
+        if (isRegistered && accountData) {
           setMyAccount({
-            id: data.myAccount.id || 0,
-            initialCapital: data.myAccount.initialCapital,
-            currentCapital: data.myAccount.currentBalance,
-            profit: data.myAccount.currentBalance - data.myAccount.initialCapital,
-            profitRate: data.myAccount.profitRate || 0,
-            position: data.myAccount.position || null,
-            accountId: data.myAccount.accountId,
-            level: data.myAccount.currentLevel,
+            id: accountData.id || accountData.accountId || 0,
+            initialCapital: accountData.initialCapital || accountData.initialValue || 0,
+            currentCapital: accountData.currentBalance || accountData.currentValue || accountData.balance || 0,
+            profit: (accountData.currentBalance || accountData.currentValue || accountData.balance || 0) - (accountData.initialCapital || accountData.initialValue || 0),
+            profitRate: accountData.profitRate || accountData.returnRate || 0,
+            position: accountData.position || null,
+            accountId: accountData.accountId || accountData.id,
+            level: accountData.currentLevel || accountData.level || 0,
             status: 'enrolled'
           });
         } else {
@@ -154,9 +158,15 @@ export default function ChallengePage() {
         // 更新已报名赛事列表
         const enrolled: MatchType[] = [];
         for (const type of ['kline', 'ladder', 'daily', 'master', 'monthly'] as MatchType[]) {
-          const r = await fetch(`/api/match/${type}`);
-          const d = await r.json();
-          if (d.isRegistered) enrolled.push(type);
+          try {
+            const r = await fetch(`/api/match/${type}`);
+            const d = await r.json();
+            if (d.isRegistered || (d.status && d.status.isActive) || (d.activeAccounts && d.activeAccounts.length > 0)) {
+              enrolled.push(type);
+            }
+          } catch (e) {
+            // 忽略单个小错误
+          }
         }
         setEnrolledMatches(enrolled);
       } else {
@@ -306,7 +316,7 @@ export default function ChallengePage() {
                   const res = await fetch(`/api/match/${activeTab}`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ action: 'enroll' })
+                    body: JSON.stringify({ action: 'register' })
                   });
                   const data = await res.json();
                   if (res.ok) {
