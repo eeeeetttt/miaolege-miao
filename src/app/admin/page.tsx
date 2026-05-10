@@ -1065,7 +1065,7 @@ export default function AdminDashboardPage() {
               </CardHeader>
               <CardContent>
                 <div className="space-y-6">
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                     <Button 
                       variant="outline" 
                       className="h-20 flex flex-col gap-2"
@@ -1089,6 +1089,14 @@ export default function AdminDashboardPage() {
                     >
                       <Shield className="w-6 h-6" />
                       <span>名人堂管理</span>
+                    </Button>
+                    <Button 
+                      variant="outline" 
+                      className="h-20 flex flex-col gap-2 border-blue-200 hover:bg-blue-50"
+                      onClick={() => window.location.href = '/admin/match-config'}
+                    >
+                      <BarChart3 className="w-6 h-6 text-blue-600" />
+                      <span className="text-blue-600">赛事配置</span>
                     </Button>
                   </div>
                   
