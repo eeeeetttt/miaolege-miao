@@ -14,6 +14,23 @@ export async function GET() {
       return NextResponse.json({ error: '请先登录' }, { status: 401 });
     }
 
+    const userId = session.user.id;
+
+    // 查询用户的挑战账户
+    const accounts = await db.query(
+      `SELECT * FROM match_accounts WHERE user_id = ? AND match_type = 'kline' AND status = 'active' ORDER BY created_at DESC LIMIT 1`,
+      [userId]
+    );
+
+    // 查询未平仓位
+    const positions = await db.query(
+      `SELECT * FROM match_positions WHERE user_id = ? AND match_type = 'kline' AND status = 'open'`,
+      [userId]
+    );
+
+    const hasActiveChallenge = accounts && accounts.length > 0;
+    const account = hasActiveChallenge ? accounts[0] : null;
+
     // 默认挑战配置
     const config = {
       registration_fee: 1000,
@@ -40,13 +57,15 @@ export async function GET() {
     ];
 
     return NextResponse.json({
-      hasActiveChallenge: false,
+      hasActiveChallenge,
       hasPendingApplication: false,
+      account,
+      hasOpenPosition: positions && positions.length > 0,
       registration: null,
       registrationFee: config.registration_fee,
       config,
       levelConfigs,
-      message: '您还未申请挑战赛',
+      message: hasActiveChallenge ? '您已有进行中的挑战' : '您还未申请挑战赛',
     });
   } catch (error) {
     console.error('Get challenge status error:', error);
@@ -116,6 +135,13 @@ export async function POST(request: NextRequest) {
         updatedAt: new Date()
       })
       .where(eq(userAccounts.email, session.user.email));
+
+    // 创建挑战账户记录
+    const matchId = `kline_${userId}_${Date.now()}`;
+    await db.query(
+      `INSERT INTO match_accounts (user_id, match_id, match_type, initial_capital, current_balance, status, current_level, started_at) VALUES (?, ?, 'kline', ?, ?, 'active', 1, NOW())`,
+      [userId, matchId, registrationFee, registrationFee]
+    );
 
     return NextResponse.json({
       success: true,
