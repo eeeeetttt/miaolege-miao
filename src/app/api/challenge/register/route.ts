@@ -87,9 +87,7 @@ export async function POST(request: NextRequest) {
         errorCode: 'NOT_LOGGED_IN'
       }, { status: 401 });
     }
-
-    const userId = session.user.id;
-
+    
     // 获取用户信息（包括负债）
     const userResult = await db
       .select()
@@ -104,6 +102,8 @@ export async function POST(request: NextRequest) {
       }, { status: 404 });
     }
 
+    // 获取 Supabase Auth 的用户ID（用于 match_accounts 表）
+    const authUserId = session.user.id;
     const user = userResult[0];
     const totalDebt = Number(user.totalDebt || 0);
 
@@ -137,10 +137,10 @@ export async function POST(request: NextRequest) {
       .where(eq(userAccounts.email, session.user.email));
 
     // 创建挑战账户记录
-    const matchId = `kline_${userId}_${Date.now()}`;
+    const matchId = `kline_${authUserId}_${Date.now()}`;
     await query(
       `INSERT INTO match_accounts (user_id, match_id, match_type, initial_capital, current_balance, status, current_level, started_at) VALUES (?, ?, 'kline', ?, ?, 'active', 1, NOW())`,
-      [userId, matchId, registrationFee, registrationFee]
+      [authUserId, matchId, registrationFee, registrationFee]
     );
 
     return NextResponse.json({

@@ -1,21 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
-import { db, pool } from '@/lib/db';
-import { matchAccounts, matchConfigs, matchRecords, userAccounts } from '@/lib/schema';
-import { eq, and, desc } from 'drizzle-orm';
+import { pool } from '@/lib/db';
 import { RowDataPacket, FieldPacket } from 'mysql2/promise';
 
 // 获取每日挑战赛配置
 async function getDailyConfig() {
-  const configs = await db
-    .select()
-    .from(matchConfigs)
-    .where(eq(matchConfigs.matchType, 'daily'));
+  const [configs] = await pool.execute(
+    `SELECT config_key, config_value FROM match_configs WHERE match_type = 'daily'`
+  ) as [RowDataPacket[], FieldPacket[]];
   
   const configMap: Record<string, string> = {};
   configs.forEach(c => {
-    configMap[c.configKey] = c.configValue || '';
+    configMap[c.config_key] = c.config_value || '';
   });
   
   return {
@@ -54,33 +51,26 @@ export async function GET(request: NextRequest) {
   try {
     const config = await getDailyConfig();
     const today = getTodayString();
+    const userId = session?.user?.id;
     
     // 获取排行榜
     if (action === 'ranking') {
-      const rankings = await db
-        .select({
-          userId: matchAccounts.userId,
-          currentBalance: matchAccounts.currentBalance,
-          initialCapital: matchAccounts.initialCapital,
-          userName: userAccounts.name,
-        })
-        .from(matchAccounts)
-        .leftJoin(userAccounts, eq(userAccounts.userId, matchAccounts.userId))
-        .where(and(
-          eq(matchAccounts.matchType, 'daily'),
-          eq(matchAccounts.status, 'active')
-        ))
-        .orderBy(desc(matchAccounts.currentBalance))
-        .limit(10);
+      const [rankings] = await pool.execute(
+        `SELECT ma.user_id, ma.current_balance, ma.initial_capital, ua.name
+         FROM match_accounts ma
+         LEFT JOIN user_accounts ua ON ua.user_id = ma.user_id
+         WHERE ma.match_type = 'daily' AND ma.status = 'active'
+         ORDER BY ma.current_balance DESC
+         LIMIT 10`
+      ) as [RowDataPacket[], FieldPacket[]];
       
-      // 计算盈利额并排序
-      const rankedList = rankings.map((r, index) => ({
+      const rankedList = rankings.map((r: any, index: number) => ({
         rank: index + 1,
-        userId: r.userId,
-        userName: r.userName || '神秘用户',
-        initialCapital: Number(r.initialCapital),
-        currentBalance: Number(r.currentBalance),
-        profit: Number(r.currentBalance) - Number(r.initialCapital),
+        userId: r.user_id,
+        userName: r.name || '神秘用户',
+        initialCapital: Number(r.initial_capital),
+        currentBalance: Number(r.current_balance),
+        profit: Number(r.current_balance) - Number(r.initial_capital),
       }));
       
       return NextResponse.json({
@@ -90,7 +80,7 @@ export async function GET(request: NextRequest) {
     }
     
     // 未登录用户
-    if (!session?.user?.id) {
+    if (!userId) {
       return NextResponse.json({
         config,
         today,
@@ -100,29 +90,26 @@ export async function GET(request: NextRequest) {
     }
     
     // 获取用户今日状态
-    const myAccount = await db
-      .select()
-      .from(matchAccounts)
-      .where(and(
-        eq(matchAccounts.userId, session.user.id),
-        eq(matchAccounts.matchType, 'daily'),
-        eq(matchAccounts.status, 'active')
-      ))
-      .limit(1);
+    const [myAccounts] = await pool.execute(
+      `SELECT * FROM match_accounts WHERE user_id = ? AND match_type = 'daily' AND status = 'active' LIMIT 1`,
+      [userId]
+    ) as [RowDataPacket[], FieldPacket[]];
+    
+    const myAccount = myAccounts[0];
     
     return NextResponse.json({
       config,
       today,
       canRegister: canRegister(config),
-      isRegistered: myAccount.length > 0,
-      myAccount: myAccount[0] ? {
-        accountId: myAccount[0].id,
-        initialValue: Number(myAccount[0].initialCapital),
-        currentValue: Number(myAccount[0].currentBalance),
-        balance: Number(myAccount[0].currentBalance),
-        returnRate: parseFloat(((Number(myAccount[0].currentBalance) / Number(myAccount[0].initialCapital) - 1) * 100).toFixed(2)),
-        profit: Number(myAccount[0].currentBalance) - Number(myAccount[0].initialCapital),
-        status: myAccount[0].status,
+      isRegistered: !!myAccount,
+      myAccount: myAccount ? {
+        accountId: myAccount.id,
+        initialValue: Number(myAccount.initial_capital),
+        currentValue: Number(myAccount.current_balance),
+        balance: Number(myAccount.current_balance),
+        returnRate: parseFloat(((Number(myAccount.current_balance) / Number(myAccount.initial_capital) - 1) * 100).toFixed(2)),
+        profit: Number(myAccount.current_balance) - Number(myAccount.initial_capital),
+        status: myAccount.status,
       } : null,
     });
   } catch (error) {
@@ -143,27 +130,25 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { action, direction, lots = 1 } = body;
     const config = await getDailyConfig();
+    const userId = session.user.id;
     
     // 获取用户信息
-    const [user] = await db
-      .select()
-      .from(userAccounts)
-      .where(eq(userAccounts.email, session.user.email as string));
+    const [users] = await pool.execute(
+      `SELECT * FROM user_accounts WHERE user_id = ?`,
+      [userId]
+    ) as [RowDataPacket[], FieldPacket[]];
     
-    if (!user) {
+    if (users.length === 0) {
       return NextResponse.json({ error: '用户不存在' }, { status: 404 });
     }
     
+    const user = users[0];
+    
     // 检查是否已报名
-    const existingAccount = await db
-      .select()
-      .from(matchAccounts)
-      .where(and(
-        eq(matchAccounts.userId, session.user.id),
-        eq(matchAccounts.matchType, 'daily'),
-        eq(matchAccounts.status, 'active')
-      ))
-      .limit(1);
+    const [existingAccounts] = await pool.execute(
+      `SELECT * FROM match_accounts WHERE user_id = ? AND match_type = 'daily' AND status = 'active' LIMIT 1`,
+      [userId]
+    ) as [RowDataPacket[], FieldPacket[]];
     
     // 处理报名
     if (action === 'register') {
@@ -175,30 +160,30 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: '当前时间段不能报名' }, { status: 400 });
       }
       
-      if (existingAccount.length > 0) {
+      if (existingAccounts.length > 0) {
         return NextResponse.json({ 
           error: '今日已报名',
           account: {
-            initialCapital: Number(existingAccount[0].initialCapital),
-            currentBalance: Number(existingAccount[0].currentBalance),
+            initialCapital: Number(existingAccounts[0].initial_capital),
+            currentBalance: Number(existingAccounts[0].current_balance),
           }
         }, { status: 400 });
       }
       
       // 检查金币
-      const userGold = user.goldBalance || 0;
+      const userGold = user.gold_balance || 0;
       if (userGold < config.entryFeeGold) {
         return NextResponse.json({ error: `金币不足，需要${config.entryFeeGold}金币` }, { status: 400 });
       }
       
       // 检查银两
-      const userCoin = Number(user.coinBalance || 0);
+      const userCoin = Number(user.coin_balance || 0);
       if (userCoin < config.initialCapitalSilver) {
         return NextResponse.json({ error: `银两不足，需要${config.initialCapitalSilver}银两` }, { status: 400 });
       }
       
       // 创建账户
-      const matchId = `daily_${getTodayString()}_${session.user.id}`;
+      const matchId = `daily_${getTodayString()}_${userId}`;
       
       const connection = await pool.getConnection();
       try {
@@ -206,13 +191,13 @@ export async function POST(request: NextRequest) {
         
         await connection.execute(
           `UPDATE user_accounts SET gold_balance = gold_balance - ?, coin_balance = coin_balance - ? WHERE user_id = ?`,
-          [config.entryFeeGold, config.initialCapitalSilver, session.user.id]
+          [config.entryFeeGold, config.initialCapitalSilver, userId]
         );
         
         await connection.execute(
           `INSERT INTO match_accounts (user_id, match_id, match_type, initial_capital, current_balance, status)
            VALUES (?, ?, 'daily', ?, ?, 'active')`,
-          [session.user.id, matchId, config.initialCapitalSilver, config.initialCapitalSilver]
+          [userId, matchId, config.initialCapitalSilver, config.initialCapitalSilver]
         );
         
         await connection.commit();
@@ -242,14 +227,14 @@ export async function POST(request: NextRequest) {
       // 检查是否有未平仓位
       const [existingPositions] = await pool.execute(
         `SELECT * FROM match_positions WHERE user_id = ? AND match_type = 'daily' AND status = 'open'`,
-        [session.user.id]
+        [userId]
       ) as [RowDataPacket[], FieldPacket[]];
       
       if (existingPositions.length > 0) {
         return NextResponse.json({ error: '已有未平仓位，请先平仓' }, { status: 400 });
       }
       
-      if (existingAccount.length === 0) {
+      if (existingAccounts.length === 0) {
         return NextResponse.json({ error: '没有进行中的挑战账户' }, { status: 400 });
       }
       
@@ -257,9 +242,9 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: '无效的交易方向' }, { status: 400 });
       }
       
-      const account = existingAccount[0];
+      const account = existingAccounts[0];
       const leverage = 500;
-      const maxLots = Number(account.currentBalance) / 100;
+      const maxLots = Number(account.current_balance) / 100;
       const actualLots = Math.min(lots || 0.1, maxLots, 10);
       
       if (actualLots < 0.01) {
@@ -277,7 +262,7 @@ export async function POST(request: NextRequest) {
       } catch {}
       
       const margin = actualLots * 100 * leverage / 100;
-      const newBalance = Number(account.currentBalance) - margin;
+      const newBalance = Number(account.current_balance) - margin;
       
       const connection = await pool.getConnection();
       try {
@@ -291,13 +276,13 @@ export async function POST(request: NextRequest) {
         await connection.execute(
           `INSERT INTO match_positions (user_id, match_type, match_id, direction, lots, leverage, entry_price)
            VALUES (?, 'daily', ?, ?, ?, ?, ?)`,
-          [session.user.id, account.matchId, direction, actualLots, leverage, entryPrice]
+          [userId, account.match_id, direction, actualLots, leverage, entryPrice]
         );
         
         await connection.execute(
           `INSERT INTO match_trade_records (user_id, match_type, match_id, action, direction, lots, profit, balance_after)
            VALUES (?, 'daily', ?, 'open', ?, ?, 0, ?)`,
-          [session.user.id, account.matchId, direction, actualLots, Math.max(0, newBalance)]
+          [userId, account.match_id, direction, actualLots, Math.max(0, newBalance)]
         );
         
         await connection.commit();
@@ -320,7 +305,7 @@ export async function POST(request: NextRequest) {
     if (action === 'close') {
       const [positions] = await pool.execute(
         `SELECT * FROM match_positions WHERE user_id = ? AND match_type = 'daily' AND status = 'open' ORDER BY id DESC LIMIT 1`,
-        [session.user.id]
+        [userId]
       ) as [RowDataPacket[], FieldPacket[]];
       
       if (positions.length === 0) {
@@ -329,11 +314,11 @@ export async function POST(request: NextRequest) {
       
       const position = positions[0];
       
-      if (existingAccount.length === 0) {
+      if (existingAccounts.length === 0) {
         return NextResponse.json({ error: '没有进行中的挑战账户' }, { status: 400 });
       }
       
-      const account = existingAccount[0];
+      const account = existingAccounts[0];
       
       // 获取当前金价
       let currentPrice = 3300 + Math.random() * 100;
@@ -350,7 +335,7 @@ export async function POST(request: NextRequest) {
       const profitAmount = profit * Number(position.lots) * 100;
       
       const margin = Number(position.lots) * 100 * (Number(position.leverage) || 500) / 100;
-      const newBalance = Number(account.currentBalance) + margin + profitAmount;
+      const newBalance = Number(account.current_balance) + margin + profitAmount;
       
       const connection = await pool.getConnection();
       try {
@@ -369,7 +354,7 @@ export async function POST(request: NextRequest) {
         await connection.execute(
           `INSERT INTO match_trade_records (user_id, match_type, match_id, action, direction, lots, profit, balance_after)
            VALUES (?, 'daily', ?, 'close', ?, ?, ?, ?)`,
-          [session.user.id, account.matchId, position.direction, position.lots, profitAmount, Math.max(0, newBalance)]
+          [userId, account.match_id, position.direction, position.lots, profitAmount, Math.max(0, newBalance)]
         );
         
         await connection.commit();
@@ -406,36 +391,32 @@ export async function PUT(request: NextRequest) {
   try {
     const body = await request.json();
     const { newBalance } = body;
+    const userId = session.user.id;
     
     if (typeof newBalance !== 'number' || newBalance < 0) {
       return NextResponse.json({ error: '无效的净值' }, { status: 400 });
     }
     
     // 获取账户
-    const activeAccount = await db
-      .select()
-      .from(matchAccounts)
-      .where(and(
-        eq(matchAccounts.userId, session.user.id),
-        eq(matchAccounts.matchType, 'daily'),
-        eq(matchAccounts.status, 'active')
-      ))
-      .limit(1);
+    const [activeAccounts] = await pool.execute(
+      `SELECT * FROM match_accounts WHERE user_id = ? AND match_type = 'daily' AND status = 'active' LIMIT 1`,
+      [userId]
+    ) as [RowDataPacket[], FieldPacket[]];
     
-    if (activeAccount.length === 0) {
+    if (activeAccounts.length === 0) {
       return NextResponse.json({ error: '没有进行中的挑战' }, { status: 400 });
     }
     
     // 更新净值
-    await db
-      .update(matchAccounts)
-      .set({ currentBalance: String(newBalance) })
-      .where(eq(matchAccounts.id, activeAccount[0].id));
+    await pool.execute(
+      `UPDATE match_accounts SET current_balance = ? WHERE id = ?`,
+      [newBalance, activeAccounts[0].id]
+    );
     
     return NextResponse.json({
       success: true,
       currentBalance: newBalance,
-      profit: newBalance - Number(activeAccount[0].initialCapital),
+      profit: newBalance - Number(activeAccounts[0].initial_capital),
     });
   } catch (error) {
     console.error('Update daily challenge balance error:', error);
