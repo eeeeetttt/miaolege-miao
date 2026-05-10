@@ -265,10 +265,6 @@ export async function POST(request: NextRequest) {
         [session.user.id]
       ) as [RowDataPacket[], FieldPacket[]];
       
-      if (existingPositions.length > 0) {
-        return NextResponse.json({ error: '已有未平仓位，请先平仓' }, { status: 400 });
-      }
-      
       if (!activeAccount || activeAccount.length === 0) {
         return NextResponse.json({ error: '没有进行中的挑战账户' }, { status: 400 });
       }
@@ -297,14 +293,111 @@ export async function POST(request: NextRequest) {
         entryPrice = 3300 + Math.random() * 100;
       }
       
-      // 冻结保证金（约10%）
-      const margin = actualLots * 100 * leverage / 100;
-      const newBalance = Number(account.currentBalance) - margin;
-      
-      // 更新数据库
       const connection = await pool.getConnection();
+      
       try {
         await connection.beginTransaction();
+        
+        if (existingPositions.length > 0) {
+          // 有未平仓位，判断是否可以加仓
+          const existingPos = existingPositions[0];
+          const currentTotalLots = Number(existingPos.lots) + actualLots;
+          
+          if (currentTotalLots > 10) {
+            await connection.rollback();
+            return NextResponse.json({ 
+              error: `超过最大手数限制。当前${existingPos.lots}手，加上${actualLots}手共${currentTotalLots}手，最大10手` 
+            }, { status: 400 });
+          }
+          
+          if (existingPos.direction === direction) {
+            // 同方向：加仓
+            const newAvgPrice = (Number(existingPos.entryPrice) * Number(existingPos.lots) + entryPrice * actualLots) / currentTotalLots;
+            
+            await connection.execute(
+              `UPDATE match_positions SET lots = ?, entry_price = ? WHERE id = ?`,
+              [currentTotalLots, newAvgPrice, existingPos.id]
+            );
+            
+            // 冻结加仓保证金
+            const addMargin = actualLots * 100 * leverage / 100;
+            const newBalance = Number(account.currentBalance) - addMargin;
+            await connection.execute(
+              `UPDATE match_accounts SET current_balance = ? WHERE id = ?`,
+              [Math.max(0, newBalance), account.id]
+            );
+            
+            // 记录加仓交易
+            await connection.execute(
+              `INSERT INTO match_trade_records (user_id, match_type, match_id, action, direction, lots, profit, balance_after)
+               VALUES (?, 'kline', ?, 'add', ?, ?, 0, ?)`,
+              [session.user.id, account.matchId, direction, actualLots, Math.max(0, newBalance)]
+            );
+            
+            await connection.commit();
+            
+            return NextResponse.json({ 
+              success: true, 
+              message: `加仓成功！当前持仓：${currentTotalLots}手，均价${newAvgPrice.toFixed(2)}`,
+              position: { lots: currentTotalLots, avgPrice: newAvgPrice, direction }
+            });
+          } else {
+            // 反方向：先平仓再反向开仓
+            const closeLots = Number(existingPos.lots);
+            const closePrice = entryPrice;
+            const profit = direction === 'short' 
+              ? (Number(existingPos.entryPrice) - closePrice) * closeLots * 100
+              : (closePrice - Number(existingPos.entryPrice)) * closeLots * 100;
+            const newBalance = Number(account.currentBalance) + profit + (closeLots * 100 * leverage / 100);
+            
+            // 平仓
+            await connection.execute(
+              `UPDATE match_positions SET status = 'closed', exit_price = ?, closed_at = NOW() WHERE id = ?`,
+              [closePrice, existingPos.id]
+            );
+            
+            // 记录平仓交易
+            await connection.execute(
+              `INSERT INTO match_trade_records (user_id, match_type, match_id, action, direction, lots, profit, balance_after)
+               VALUES (?, 'kline', ?, 'close', ?, ?, ?, ?)`,
+              [session.user.id, account.matchId, existingPos.direction, closeLots, profit, newBalance]
+            );
+            
+            // 重新开仓
+            const newMargin = actualLots * 100 * leverage / 100;
+            const finalBalance = newBalance - newMargin;
+            
+            await connection.execute(
+              `UPDATE match_accounts SET current_balance = ? WHERE id = ?`,
+              [Math.max(0, finalBalance), account.id]
+            );
+            
+            await connection.execute(
+              `INSERT INTO match_positions (user_id, match_type, match_id, direction, lots, leverage, entry_price)
+               VALUES (?, 'kline', ?, ?, ?, ?, ?)`,
+              [session.user.id, account.matchId, direction, actualLots, leverage, entryPrice]
+            );
+            
+            await connection.execute(
+              `INSERT INTO match_trade_records (user_id, match_type, match_id, action, direction, lots, profit, balance_after)
+               VALUES (?, 'kline', ?, 'open', ?, ?, 0, ?)`,
+              [session.user.id, account.matchId, direction, actualLots, Math.max(0, finalBalance)]
+            );
+            
+            await connection.commit();
+            
+            return NextResponse.json({ 
+              success: true, 
+              message: `平仓盈利${profit.toFixed(2)}，反向开仓成功！`,
+              position: { lots: actualLots, avgPrice: entryPrice, direction }
+            });
+          }
+        }
+        
+        // 无未平仓位，正常开仓
+        // 冻结保证金（约10%）
+        const margin = actualLots * 100 * leverage / 100;
+        const newBalance = Number(account.currentBalance) - margin;
         
         // 更新账户余额（扣除保证金）
         await connection.execute(
