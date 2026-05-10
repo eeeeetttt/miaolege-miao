@@ -200,7 +200,7 @@ async function initializeFinanceTables() {
             CREATE TABLE IF NOT EXISTS match_accounts (
               id BIGINT AUTO_INCREMENT PRIMARY KEY,
               user_id VARCHAR(36) NOT NULL,
-              match_id VARCHAR(50) NOT NULL,
+              match_id VARCHAR(200) NOT NULL,
               match_type ENUM('kline', 'ladder', 'master', 'monthly', 'daily') NOT NULL,
               initial_capital DECIMAL(15,2) NOT NULL,
               current_balance DECIMAL(15,2) NOT NULL,
@@ -271,7 +271,7 @@ async function initializeFinanceTables() {
               id BIGINT AUTO_INCREMENT PRIMARY KEY,
               user_id VARCHAR(36) NOT NULL,
               match_type VARCHAR(50) NOT NULL,
-              match_id VARCHAR(50) NOT NULL,
+              match_id VARCHAR(200) NOT NULL,
               initial_capital DECIMAL(15,2) NOT NULL,
               final_balance DECIMAL(15,2) NOT NULL,
               profit DECIMAL(15,2) NOT NULL,
@@ -295,7 +295,7 @@ async function initializeFinanceTables() {
               id BIGINT AUTO_INCREMENT PRIMARY KEY,
               user_id VARCHAR(36) NOT NULL,
               match_type VARCHAR(50) NOT NULL,
-              match_id VARCHAR(50) NOT NULL,
+              match_id VARCHAR(200) NOT NULL,
               action VARCHAR(50) NOT NULL,
               direction VARCHAR(10) DEFAULT NULL,
               lots INT DEFAULT 1,
@@ -307,6 +307,31 @@ async function initializeFinanceTables() {
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
           `);
         } catch {}
+        // 创建 match_positions 表（持仓记录）
+        try {
+          await connection.execute(`
+            CREATE TABLE IF NOT EXISTS match_positions (
+              id BIGINT AUTO_INCREMENT PRIMARY KEY,
+              user_id VARCHAR(36) NOT NULL,
+              match_type VARCHAR(50) NOT NULL,
+              match_id VARCHAR(200) NOT NULL,
+              direction VARCHAR(10) NOT NULL,
+              lots DECIMAL(10,2) NOT NULL,
+              leverage INT DEFAULT 500,
+              entry_price DECIMAL(15,4) NOT NULL,
+              stop_loss DECIMAL(15,4) DEFAULT NULL,
+              take_profit DECIMAL(15,4) DEFAULT NULL,
+              status VARCHAR(20) DEFAULT 'open',
+              created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+              closed_at TIMESTAMP DEFAULT NULL,
+              INDEX idx_user_position (user_id, match_type, status),
+              INDEX idx_match_position (match_type, match_id)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+          `);
+        } catch {}
+
+        console.log('[Init] 赛事持仓表初始化完成');
+
       } catch (error) {
         console.error('[Init] 赛事系统初始化失败:', error);
       }
