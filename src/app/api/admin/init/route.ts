@@ -1,24 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
-import { createClient } from '@supabase/supabase-js';
-
-// 获取 Supabase 客户端
-const getSupabase = () => {
-  const supabaseUrl = process.env.COZE_SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const supabaseKey = process.env.COZE_SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY;
-  
-  if (!supabaseUrl || !supabaseKey) {
-    throw new Error('Supabase configuration missing');
-  }
-  
-  return createClient(supabaseUrl, supabaseKey, {
-    auth: {
-      autoRefreshToken: false,
-      persistSession: false
-    }
-  });
-};
+import { query } from '@/lib/db';
 
 /**
  * 初始化管理员
@@ -42,17 +25,11 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: '管理员密码错误' }, { status: 403 });
     }
 
-    // 使用 Supabase 更新用户角色
-    const supabase = getSupabase();
-    const { error } = await supabase
-      .from('users')
-      .update({ role: 'admin' })
-      .eq('user_id', session.user.id);
-
-    if (error) {
-      console.error('Supabase update error:', error);
-      return NextResponse.json({ error: '更新失败' }, { status: 500 });
-    }
+    // 使用 MySQL 更新用户角色
+    await query(
+      'UPDATE users SET role = ? WHERE user_id = ?',
+      ['admin', session.user.id]
+    );
 
     return NextResponse.json({ 
       success: true, 
@@ -75,19 +52,17 @@ export async function GET() {
       return NextResponse.json({ isAdmin: false });
     }
 
-    // 使用 Supabase 查询用户角色
-    const supabase = getSupabase();
-    const { data: userData, error } = await supabase
-      .from('users')
-      .select('role')
-      .eq('user_id', session.user.id)
-      .single();
+    // 使用 MySQL 查询用户角色
+    const users = await query(
+      'SELECT role FROM users WHERE user_id = ?',
+      [session.user.id]
+    );
 
-    if (error || !userData) {
+    if (!users || users.length === 0) {
       return NextResponse.json({ isAdmin: false });
     }
 
-    const isAdmin = userData.role === 'admin';
+    const isAdmin = users[0].role === 'admin';
     
     return NextResponse.json({ isAdmin });
   } catch (error) {

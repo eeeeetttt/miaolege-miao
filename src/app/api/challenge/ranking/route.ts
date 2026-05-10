@@ -1,52 +1,32 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
-import { createClient } from '@supabase/supabase-js';
+import { query } from '@/lib/db';
 
 // 获取排名数据
 export async function GET() {
   try {
     const session = await getServerSession(authOptions);
     
-    // 创建 Supabase 客户端
-    const supabaseUrl = process.env.COZE_SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || '';
-    const supabaseKey = process.env.COZE_SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
-    const supabase = createClient(supabaseUrl, supabaseKey);
-
-    // 获取所有活跃挑战者的排名（基于净值收益率）
-    const { data: registrations, error } = await supabase
-      .from('challenge_registrations')
-      .select(`
-        id,
-        user_id,
-        current_level,
-        status,
-        created_at,
-        profiles:user_id (name, email)
-      `)
-      .in('status', ['active', 'level_passed'])
-      .order('created_at', { ascending: false });
-
-    if (error) {
-      console.error('获取排名失败:', error);
-      // 返回默认排名数据
-      return NextResponse.json({
-        rankings: getDefaultRankings(),
-        totalParticipants: 0
-      });
-    }
+    // 获取所有活跃挑战者的排名
+    const registrations = await query(`
+      SELECT cr.id, cr.user_id, cr.current_level, cr.status, cr.created_at,
+             u.name as user_name, u.avatar
+      FROM challenge_registrations cr
+      JOIN users u ON cr.user_id = u.user_id
+      WHERE cr.status IN ('active', 'level_passed')
+      ORDER BY cr.created_at DESC
+    `);
 
     // 获取每个用户的最新净值
     const rankings = await Promise.all(
       (registrations || []).map(async (reg: any, index: number) => {
         // 获取该用户当前关卡的初始净值
-        const { data: levelConfig } = await supabase
-          .from('challenge_level_config')
-          .select('initial_balance')
-          .eq('level', reg.current_level || 1)
-          .single();
-
-        const initialBalance = levelConfig?.initial_balance || 1000;
+        const levelConfig = await query(
+          'SELECT initial_balance FROM challenge_level_config WHERE level = ?',
+          [reg.current_level || 1]
+        );
+        const initialBalance = levelConfig?.[0]?.initial_balance || 1000;
 
         // 获取最新净值
         const { data: latestEquity } = await supabase
@@ -63,7 +43,7 @@ export async function GET() {
         return {
           rank: index + 1,
           userId: reg.user_id,
-          userName: reg.profiles?.name || reg.profiles?.email?.split('@')[0] || '匿名用户',
+          userName: reg.user_name || '匿名用户',
           level: reg.current_level || 1,
           balance: currentEquity,
           profitPercent: profitPercent

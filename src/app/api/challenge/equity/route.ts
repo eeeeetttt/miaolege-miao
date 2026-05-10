@@ -1,14 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
-import { createClient } from '@supabase/supabase-js';
-
-// 初始化Supabase客户端
-function getSupabase() {
-  const supabaseUrl = process.env.COZE_SPACE_SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || '';
-  const supabaseKey = process.env.COZE_SPACE_SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY || '';
-  return createClient(supabaseUrl, supabaseKey);
-}
+import { query } from '@/lib/db';
 
 // 获取净值
 export async function GET(request: NextRequest) {
@@ -22,20 +15,17 @@ export async function GET(request: NextRequest) {
     const searchParams = request.nextUrl.searchParams;
     const levelParam = searchParams.get('level') || '1';
 
-    const supabase = getSupabase();
-    
     // 尝试从challenge_user_states表获取
-    const { data, error } = await supabase
-      .from('challenge_user_states')
-      .select('equity, positions, level')
-      .eq('user_id', session.user.id)
-      .single(); // 不限制level，获取最新的
+    const userStates = await query(
+      'SELECT equity, positions, level FROM challenge_user_states WHERE user_id = ? ORDER BY level DESC LIMIT 1',
+      [session.user.id]
+    );
 
-    if (data && !error) {
+    if (userStates && userStates.length > 0) {
       return NextResponse.json({
-        equity: data.equity,
-        positions: data.positions || [],
-        level: data.level
+        equity: userStates[0].equity,
+        positions: userStates[0].positions ? JSON.parse(userStates[0].positions) : [],
+        level: userStates[0].level
       });
     }
 
@@ -48,49 +38,11 @@ export async function GET(request: NextRequest) {
     });
   } catch (error) {
     console.error('净值API错误:', error);
-    return NextResponse.json({ equity: 3000, level: 1 });
-  }
-}
-
-// 保存净值
-export async function POST(request: NextRequest) {
-  try {
-    const session = await getServerSession(authOptions);
-    
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: '请先登录' }, { status: 401 });
-    }
-
-    const body = await request.json();
-    const { equity, positions, level } = body;
-
-    const supabase = getSupabase();
-    
-    // 尝试更新或插入（使用 upsert 根据 user_id 和 level）
-    const { data, error } = await supabase
-      .from('challenge_user_states')
-      .upsert({
-        user_id: session.user.id,
-        level: level || 1,
-        equity: equity,
-        positions: positions || [],
-        updated_at: new Date().toISOString()
-      }, {
-        onConflict: 'user_id,level'
-      })
-      .select()
-      .single();
-
-    if (error) {
-      console.error('保存净值失败:', error);
-      // 即使保存失败也不影响前端
-      return NextResponse.json({ success: true });
-    }
-
-    return NextResponse.json({ success: true, data });
-  } catch (error) {
-    console.error('净值API错误:', error);
-    // 即使失败也返回成功，让前端继续工作
-    return NextResponse.json({ success: true });
+    return NextResponse.json({
+      equity: null,
+      positions: [],
+      level: 1,
+      hasData: false
+    });
   }
 }

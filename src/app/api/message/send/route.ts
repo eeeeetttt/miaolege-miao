@@ -1,16 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
-import { getSupabaseClient } from '@/storage/database/supabase-client';
+import { query } from '@/lib/db';
 
 // 发送私信
 export async function POST(request: NextRequest) {
   try {
-    const supabase = getSupabaseClient();
-    if (!supabase) {
-      return NextResponse.json({ error: '数据库连接不可用' }, { status: 503 });
-    }
-    
     const session = await getServerSession(authOptions);
     
     if (!session?.user?.id) {
@@ -31,7 +26,6 @@ export async function POST(request: NextRequest) {
     // 组合消息内容：如果有图片，将图片URL附加到内容中
     let messageContent = content || '';
     if (imageUrl) {
-      // 在内容中嵌入图片标记
       messageContent = messageContent 
         ? `${messageContent}\n[图片]${imageUrl}` 
         : `[图片]${imageUrl}`;
@@ -42,25 +36,17 @@ export async function POST(request: NextRequest) {
     }
 
     // 插入私信
-    const { data, error } = await supabase
-      .from('private_messages')
-      .insert({
-        sender_id: session.user.id,
-        receiver_id: receiverId,
-        content: messageContent,
-        is_read: 0,
-      })
-      .select('id, created_at')
-      .single();
-
-    if (error) throw new Error(`发送私信失败: ${error.message}`);
+    const result = await query(
+      'INSERT INTO private_messages (sender_id, receiver_id, content, is_read, created_at) VALUES (?, ?, ?, 0, NOW())',
+      [session.user.id, receiverId, messageContent]
+    );
 
     return NextResponse.json({
       success: true,
       message: '发送成功',
       data: {
-        id: data.id,
-        createdAt: data.created_at,
+        id: (result as any).insertId,
+        createdAt: new Date().toISOString(),
       },
     });
   } catch (error) {
@@ -74,60 +60,48 @@ export async function POST(request: NextRequest) {
 // 获取与某用户的私信会话
 export async function GET(request: NextRequest) {
   try {
-    const supabase = getSupabaseClient();
-    if (!supabase) {
-      return NextResponse.json({ error: '数据库连接不可用' }, { status: 503 });
-    }
-    
     const session = await getServerSession(authOptions);
     
     if (!session?.user?.id) {
       return NextResponse.json({ error: '请先登录' }, { status: 401 });
     }
 
-    const { searchParams } = new URL(request.url);
-    const conversationUserId = searchParams.get('userId');
-    const page = parseInt(searchParams.get('page') || '1');
-    const pageSize = parseInt(searchParams.get('pageSize') || '20');
+    const searchParams = request.nextUrl.searchParams;
+    const otherUserId = searchParams.get('userId');
 
-    if (!conversationUserId) {
-      return NextResponse.json({ error: '缺少用户ID' }, { status: 400 });
+    if (!otherUserId) {
+      return NextResponse.json({ error: '缺少用户ID参数' }, { status: 400 });
     }
 
-    const offset = (page - 1) * pageSize;
+    // 获取当前用户名称
+    const users = await query(
+      'SELECT name FROM users WHERE user_id = ?',
+      [session.user.id]
+    );
+    const currentUserName = users?.[0]?.name || '未知用户';
 
-    // 获取与该用户的私信记录（双方消息）
-    const { data, error } = await supabase
-      .from('private_messages')
-      .select('id, sender_id, receiver_id, content, is_read, read_at, created_at')
-      .or(`and(sender_id.eq.${session.user.id},receiver_id.eq.${conversationUserId}),and(sender_id.eq.${conversationUserId},receiver_id.eq.${session.user.id})`)
-      .order('created_at', { ascending: false })
-      .range(offset, offset + pageSize - 1);
+    // 获取私信记录（双方消息）
+    const messages = await query(
+      `SELECT * FROM private_messages 
+       WHERE (sender_id = ? AND receiver_id = ?) 
+          OR (sender_id = ? AND receiver_id = ?)
+       ORDER BY created_at ASC`,
+      [session.user.id, otherUserId, otherUserId, session.user.id]
+    );
 
-    if (error) throw new Error(`获取私信失败: ${error.message}`);
-
-    // 将未读消息标记为已读
-    const unreadIds = data
-      ?.filter(m => m.sender_id === conversationUserId && m.is_read === 0)
-      .map(m => m.id) || [];
-
-    if (unreadIds.length > 0) {
-      await supabase
-        .from('private_messages')
-        .update({ is_read: 1, read_at: new Date().toISOString() })
-        .in('id', unreadIds);
-    }
+    // 获取对方用户信息
+    const otherUsers = await query(
+      'SELECT user_id, name, avatar FROM users WHERE user_id = ?',
+      [otherUserId]
+    );
 
     return NextResponse.json({
-      success: true,
-      data: data?.reverse() || [],
-      page,
-      pageSize,
+      messages: messages || [],
+      otherUser: otherUsers?.[0] || null,
+      currentUserName,
     });
   } catch (error) {
     console.error('Get messages error:', error);
-    return NextResponse.json({ 
-      error: error instanceof Error ? error.message : '获取失败' 
-    }, { status: 500 });
+    return NextResponse.json({ messages: [], otherUser: null });
   }
 }

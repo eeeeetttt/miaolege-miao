@@ -382,5 +382,16 @@ async function initializeFinanceTables() {
 // 启动时初始化
 initializeFinanceTables().catch(console.error);
 
+// 导出数据库查询函数
+export async function query<T = any>(sql: string, params?: any[]): Promise<T[]> {
+  try {
+    const [rows] = await pool.query(sql, params);
+    return rows as T[];
+  } catch (error) {
+    console.error('[DB Query Error]:', error);
+    throw error;
+  }
+}
+
 export const db = drizzle(pool, { schema, mode: 'default' });
 export { pool, initializeFinanceTables };

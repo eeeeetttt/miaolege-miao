@@ -1,9 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
-import { db } from '@/lib/db';
-import { userAccounts } from '@/lib/schema';
-import { eq } from 'drizzle-orm';
+import { query } from '@/lib/db';
 
 export async function GET() {
   try {
@@ -13,22 +11,18 @@ export async function GET() {
       return NextResponse.json({ goldBalance: 0, coinBalance: 0 });
     }
 
-    const user = await db
-      .select({
-        goldBalance: userAccounts.goldBalance,
-        coinBalance: userAccounts.coinBalance,
-      })
-      .from(userAccounts)
-      .where(eq(userAccounts.email, session.user.email))
-      .limit(1);
+    const users = await query(
+      'SELECT gold_balance, coin_balance FROM users WHERE email = ?',
+      [session.user.email]
+    );
 
-    if (!user.length) {
+    if (!users || users.length === 0) {
       return NextResponse.json({ goldBalance: 0, coinBalance: 0 });
     }
 
     return NextResponse.json({
-      goldBalance: Number(user[0].goldBalance || 0),
-      coinBalance: Number(user[0].coinBalance || 0),
+      goldBalance: Number(users[0].gold_balance || 0),
+      coinBalance: Number(users[0].coin_balance || 0),
     });
   } catch (error) {
     console.error('Get balance error:', error);
