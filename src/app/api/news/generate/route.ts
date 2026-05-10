@@ -73,24 +73,128 @@ async function getPlatformEvents(supabase: any) {
   }
 }
 
-// 获取热点消息（模拟，实际可接入新闻API）
-async function getHotTopics(): Promise<{ title: string; impact: string }[]> {
+// 获取热点消息（使用网络搜索获取真实财经日历）
+async function getHotTopics(): Promise<{ title: string; impact: string; date: string }[]> {
   try {
-    // 这里可以接入真实的新闻API获取黄金相关热点
-    // 目前返回常见的影响因素
-    return [
-      { title: '美国CPI数据', impact: '高于预期利空黄金，低于预期利好黄金' },
-      { title: '美联储利率决议', impact: '鹰派立场利空黄金，鸽派立场利好黄金' },
-      { title: '地缘政治风险', impact: '冲突升级避险需求上升，利好黄金' },
-      { title: '美元指数走势', impact: '美元走强压制黄金，走弱利好黄金' },
-    ];
+    const { Config, SearchClient } = await import('coze-coding-dev-sdk');
+    const config = new Config();
+    const client = new SearchClient(config);
+    
+    // 获取当前日期信息
+    const now = new Date();
+    const dayOfWeek = now.getDay(); // 0=周日, 6=周六
+    const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+    
+    // 搜索本周/今日重要财经事件
+    const searchQuery = isWeekend 
+      ? '本周重要财经事件 黄金市场'
+      : '今日财经日历 重要数据 黄金';
+    
+    const response = await client.webSearch(searchQuery, 5, true);
+    
+    const topics: { title: string; impact: string; date: string }[] = [];
+    
+    // 解析搜索结果
+    if (response.web_items && response.web_items.length > 0) {
+      for (const item of response.web_items) {
+        // 提取热点标题和影响说明
+        const title = item.title || item.snippet || '';
+        const snippet = item.snippet || '';
+        
+        // 识别是否包含重要财经事件关键词
+        const eventKeywords = ['CPI', '通胀', '利率', '美联储', '非农', 'GDP', '零售'];
+        const hasEvent = eventKeywords.some(keyword => 
+          title.toLowerCase().includes(keyword.toLowerCase()) || 
+          snippet.toLowerCase().includes(keyword.toLowerCase())
+        );
+        
+        if (hasEvent && topics.length < 4) {
+          // 根据事件类型确定对黄金的影响
+          let impact = '';
+          if (title.includes('CPI') || title.includes('通胀')) {
+            impact = '高于预期利空黄金，低于预期利好黄金';
+          } else if (title.includes('利率') || title.includes('美联储')) {
+            impact = '鹰派立场利空黄金，鸽派立场利好黄金';
+          } else if (title.includes('非农')) {
+            impact = '就业数据强劲利空黄金，疲软利好黄金';
+          } else if (title.includes('GDP') || title.includes('经济')) {
+            impact = '经济强劲利空黄金，衰退风险利好黄金';
+          } else {
+            impact = '需关注数据结果对市场情绪的影响';
+          }
+          
+          topics.push({
+            title: title.substring(0, 50),
+            impact,
+            date: isWeekend ? '本周' : '今日'
+          });
+        }
+      }
+    }
+    
+    // 如果没有找到具体事件，返回通用市场因素
+    if (topics.length === 0) {
+      // 检查是否是周末
+      if (isWeekend) {
+        topics.push({
+          title: '周末市场清淡',
+          impact: '周末流动性降低，价格波动可能收窄',
+          date: '周末'
+        });
+        topics.push({
+          title: '等待下周数据指引',
+          impact: '基本面清淡，市场关注下周财经数据',
+          date: '周末'
+        });
+      } else {
+        // 工作日但无特殊事件
+        topics.push({
+          title: '美元指数走势',
+          impact: '美元走强压制黄金，走弱利好黄金',
+          date: '今日'
+        });
+        topics.push({
+          title: '地缘政治动态',
+          impact: '避险情绪影响黄金短期走势',
+          date: '今日'
+        });
+      }
+    }
+    
+    return topics;
   } catch (e) {
-    return [];
+    console.error('获取热点消息失败:', e);
+    // 返回默认值
+    const now = new Date();
+    const dayOfWeek = now.getDay();
+    const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+    
+    return [
+      { 
+        title: isWeekend ? '周末市场清淡' : '市场观望情绪', 
+        impact: '消息面清淡，价格维持震荡',
+        date: isWeekend ? '周末' : '今日'
+      }
+    ];
   }
 }
 
 // 金查理的系统提示词
-const SYSTEM_PROMPT = `你是金查理，一位资深黄金交易分析师，为金火火茶馆撰写每日伦敦金市场分析。
+function getSystemPrompt(isWeekend: boolean): string {
+  const weekendInstruction = `
+## 周末分析要点
+- 周末市场流动性较低，主要金融 markets休市
+- 分析上周走势总结和本周展望
+- 关注周一开盘可能出现的跳空缺口
+- 可回顾地缘政治等中长期影响因素`;
+
+  const weekdayInstruction = `
+## 工作日分析要点
+- 关注当日重要财经数据和事件（如果有）
+- 分析美元指数、实际利率等核心驱动因素
+- 关注市场风险情绪变化`;
+
+  return `你是金查理，一位资深黄金交易分析师，为金火火茶馆撰写每日伦敦金市场分析。
 
 ## 基本信息
 - 你要分析的是真实伦敦金(XAU/USD)价格
@@ -109,10 +213,17 @@ const SYSTEM_PROMPT = `你是金查理，一位资深黄金交易分析师，为
 3. 技术参考：基于价格给出简单的技术面参考
 4. 操作建议：给出当日操作参考
 
+## 关键原则
+- 只分析实际存在的财经事件，不要假设或虚构"今晚"或"今日"有重大数据发布
+- 如果当日没有重要财经事件，应以"基本面清淡"或"市场观望情绪"为切入点
+- 如实反映当前市场状态，不要编造不存在的CPI、美联储利率决议等事件
+${isWeekend ? weekendInstruction : weekdayInstruction}
+
 ## 注意事项
 - 只输出分析内容，不要加标题符号
 - 语言简洁有力，像专业交易员交流
 - 不要使用表情符号`;
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -146,6 +257,11 @@ export async function POST(request: NextRequest) {
     const platformEvents = await getPlatformEvents(supabase);
     const hotTopics = await getHotTopics();
 
+    // 判断是否周末
+    const dayOfWeek = today.getDay();
+    const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+    const dayName = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'][dayOfWeek];
+
     // 构建提示词
     let goldPriceInfo = '价格数据获取失败';
     if (goldPrice) {
@@ -159,10 +275,10 @@ export async function POST(request: NextRequest) {
 
     let topicsInfo = '';
     if (hotTopics.length > 0) {
-      topicsInfo = '今日热点: ' + hotTopics.map(t => `${t.title}(${t.impact})`).join('；');
+      topicsInfo = '当日热点: ' + hotTopics.map(t => `${t.title}(${t.impact})`).join('；');
     }
 
-    const userMessage = `今天是${newsDate}。
+    const userMessage = `今天是${newsDate}，${dayName}。
 
 ${goldPriceInfo}
 
@@ -170,16 +286,16 @@ ${topicsInfo}
 
 ${eventsInfo}
 
-请根据以上信息，撰写今日伦敦金市场分析。`;
+请根据以上真实信息，撰写今日伦敦金市场分析。注意：只分析实际存在的财经事件，不要虚构任何"今晚"或"今日"的数据发布。`;
 
     // 调用AI生成内容
     const config = new Config();
     const client = new LLMClient(config);
 
-    const title = `${newsDate} 伦敦金市场日报`;
+    const title = `${newsDate} ${dayName}伦敦金市场日报`;
 
     const messages: Array<{ role: 'system' | 'user' | 'assistant'; content: string }> = [
-      { role: 'system', content: SYSTEM_PROMPT },
+      { role: 'system', content: getSystemPrompt(isWeekend) },
       { role: 'user', content: userMessage },
     ];
 
@@ -254,6 +370,12 @@ export async function PUT(request: NextRequest) {
     const platformEvents = await getPlatformEvents(supabase);
     const hotTopics = await getHotTopics();
 
+    // 判断是否周末
+    const today = new Date(newsDate);
+    const dayOfWeek = today.getDay();
+    const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+    const dayName = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'][dayOfWeek];
+
     // 构建提示词
     let goldPriceInfo = '价格数据获取失败';
     if (goldPrice) {
@@ -267,10 +389,10 @@ export async function PUT(request: NextRequest) {
 
     let topicsInfo = '';
     if (hotTopics.length > 0) {
-      topicsInfo = '今日热点: ' + hotTopics.map(t => `${t.title}(${t.impact})`).join('；');
+      topicsInfo = '当日热点: ' + hotTopics.map(t => `${t.title}(${t.impact})`).join('；');
     }
 
-    const userMessage = `今天是${newsDate}。
+    const userMessage = `今天是${newsDate}，${dayName}。
 
 ${goldPriceInfo}
 
@@ -278,16 +400,16 @@ ${topicsInfo}
 
 ${eventsInfo}
 
-请根据以上信息，撰写今日伦敦金市场分析。`;
+请根据以上真实信息，撰写今日伦敦金市场分析。注意：只分析实际存在的财经事件，不要虚构任何"今晚"或"今日"的数据发布。`;
 
     // 调用AI生成内容
     const config = new Config();
     const client = new LLMClient(config);
 
-    const title = `${newsDate} 伦敦金市场日报`;
+    const title = `${newsDate} ${dayName}伦敦金市场日报`;
 
     const messages2: Array<{ role: 'system' | 'user' | 'assistant'; content: string }> = [
-      { role: 'system', content: SYSTEM_PROMPT },
+      { role: 'system', content: getSystemPrompt(isWeekend) },
       { role: 'user', content: userMessage },
     ];
 
