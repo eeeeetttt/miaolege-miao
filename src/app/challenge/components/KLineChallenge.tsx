@@ -101,6 +101,17 @@ export default function KLineChallenge({ session }: KLineChallengeProps) {
 
   const currentEquity = useMemo(() => balance + totalPositionProfit, [balance, totalPositionProfit]);
 
+  // 保存状态到 localStorage
+  const saveState = useCallback((state: {
+    balance: number;
+    positions: Position[];
+    currentLevel: number;
+    hasRegistered: boolean;
+  }) => {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    localStorage.setItem(EQUITY_HISTORY_KEY, JSON.stringify(equityHistory));
+  }, [equityHistory]);
+
   const maxLots = useMemo(() => {
     if (goldAsk === 0 || balance <= 0) return 0;
     const marginPerLot = goldAsk * CONTRACT_SIZE / LEVERAGE;
@@ -283,7 +294,7 @@ export default function KLineChallenge({ session }: KLineChallengeProps) {
     return () => clearTimeout(timer);
   }, [checkAndLevelUp]);
 
-  // 开多单
+  // 开多单 - 支持加仓
   const handleLong = async () => {
     if (!session) { showToast('请先登录', 'warning'); return; }
     if (!canChallenge) { showToast('今日挑战次数已用完', 'warning'); return; }
@@ -299,25 +310,51 @@ export default function KLineChallenge({ session }: KLineChallengeProps) {
       showToast(`余额不足，保证金$${marginRequired.toFixed(2)}`, 'warning'); return;
     }
 
-    const newPosition: Position = {
-      id: `pos_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-      type: 'long',
-      openPrice: goldAsk,
-      closePrice: goldAsk,
-      amount: lotSize,
-      openTime: new Date().toISOString(),
-      profit: 0
-    };
-
     setPositions(prev => {
+      // 检查是否有未平的多单仓位（用于加仓）
+      const existingLongPosition = prev.find(pos => pos.type === 'long');
+      
+      if (existingLongPosition) {
+        // 加仓：追加到现有仓位
+        const oldTotalLots = existingLongPosition.amount;
+        const newTotalLots = oldTotalLots + lotSize;
+        const newAvgPrice = (existingLongPosition.openPrice * oldTotalLots + goldAsk * lotSize) / newTotalLots;
+        const addMargin = lotSize * 100 * goldAsk / LEVERAGE;
+        
+        const updated = prev.map(pos => 
+          pos.type === 'long' 
+            ? { ...pos, amount: newTotalLots, openPrice: newAvgPrice }
+            : pos
+        );
+        positionsRef.current = updated;
+        
+        setBalance(b => Math.max(0, b - addMargin));
+        showToast(`加仓成功！当前持仓${newTotalLots.toFixed(2)}手，均价$${newAvgPrice.toFixed(2)}，消耗保证金$${addMargin.toFixed(2)}`, 'success');
+        saveState({ balance: Math.max(0, balance - addMargin), positions: updated, currentLevel, hasRegistered });
+        return updated;
+      }
+      
+      // 新开仓位
+      const newPosition: Position = {
+        id: `pos_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+        type: 'long',
+        openPrice: goldAsk,
+        closePrice: goldAsk,
+        amount: lotSize,
+        openTime: new Date().toISOString(),
+        profit: 0
+      };
+      
       const updated = [...prev, newPosition];
       positionsRef.current = updated;
+      setBalance(b => Math.max(0, b - marginRequired));
+      showToast(`做多成功！开仓价: $${goldAsk.toFixed(2)}，手数: ${lotSize}，保证金: $${marginRequired.toFixed(2)}`, 'success');
+      saveState({ balance: Math.max(0, balance - marginRequired), positions: updated, currentLevel, hasRegistered });
       return updated;
     });
-    showToast(`做多成功，开仓价: $${goldAsk.toFixed(2)}`, 'success');
   };
 
-  // 开空单
+  // 开空单 - 支持加仓
   const handleShort = async () => {
     if (!session) { showToast('请先登录', 'warning'); return; }
     if (!canChallenge) { showToast('今日挑战次数已用完', 'warning'); return; }
@@ -333,22 +370,48 @@ export default function KLineChallenge({ session }: KLineChallengeProps) {
       showToast(`余额不足，保证金$${marginRequired.toFixed(2)}`, 'warning'); return;
     }
 
-    const newPosition: Position = {
-      id: `pos_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-      type: 'short',
-      openPrice: goldBid,
-      closePrice: goldBid,
-      amount: lotSize,
-      openTime: new Date().toISOString(),
-      profit: 0
-    };
-
     setPositions(prev => {
+      // 检查是否有未平的空单仓位（用于加仓）
+      const existingShortPosition = prev.find(pos => pos.type === 'short');
+      
+      if (existingShortPosition) {
+        // 加仓：追加到现有仓位
+        const oldTotalLots = existingShortPosition.amount;
+        const newTotalLots = oldTotalLots + lotSize;
+        const newAvgPrice = (existingShortPosition.openPrice * oldTotalLots + goldBid * lotSize) / newTotalLots;
+        const addMargin = lotSize * 100 * goldBid / LEVERAGE;
+        
+        const updated = prev.map(pos => 
+          pos.type === 'short' 
+            ? { ...pos, amount: newTotalLots, openPrice: newAvgPrice }
+            : pos
+        );
+        positionsRef.current = updated;
+        
+        setBalance(b => Math.max(0, b - addMargin));
+        showToast(`加仓成功！当前持仓${newTotalLots.toFixed(2)}手，均价$${newAvgPrice.toFixed(2)}，消耗保证金$${addMargin.toFixed(2)}`, 'success');
+        saveState({ balance: Math.max(0, balance - addMargin), positions: updated, currentLevel, hasRegistered });
+        return updated;
+      }
+      
+      // 新开仓位
+      const newPosition: Position = {
+        id: `pos_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+        type: 'short',
+        openPrice: goldBid,
+        closePrice: goldBid,
+        amount: lotSize,
+        openTime: new Date().toISOString(),
+        profit: 0
+      };
+      
       const updated = [...prev, newPosition];
       positionsRef.current = updated;
+      setBalance(b => Math.max(0, b - marginRequired));
+      showToast(`做空成功！开仓价: $${goldBid.toFixed(2)}，手数: ${lotSize}，保证金: $${marginRequired.toFixed(2)}`, 'success');
+      saveState({ balance: Math.max(0, balance - marginRequired), positions: updated, currentLevel, hasRegistered });
       return updated;
     });
-    showToast(`做空成功，开仓价: $${goldBid.toFixed(2)}`, 'success');
   };
 
   // 平仓

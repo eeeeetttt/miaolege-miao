@@ -4,6 +4,7 @@ import { authOptions } from '@/lib/auth';
 import { db } from '@/lib/db';
 import { users } from '@/lib/schema';
 import { sql } from 'drizzle-orm';
+import { getSupabaseClient } from '@/storage/database/supabase-client';
 
 /**
  * 获取系统统计信息
@@ -30,6 +31,7 @@ export async function GET(request: NextRequest) {
 
     // 获取其他统计数据
     const { pool } = await import('@/lib/db');
+    const supabase = getSupabaseClient();
     
     let totalPlanets = 0;
     let totalSignalSources = 0;
@@ -49,9 +51,14 @@ export async function GET(request: NextRequest) {
       const [followsResult] = await pool.query<any>("SELECT COUNT(*) as count FROM follow_records WHERE status = 'active'");
       activeFollows = followsResult[0]?.count || 0;
 
-      // AI用户统计
-      const [aiUsersResult] = await pool.query<any>("SELECT COUNT(*) as count FROM users WHERE is_ai = 1");
-      totalAIUsers = aiUsersResult[0]?.count || 0;
+      // AI用户统计 - 从 Supabase 获取
+      if (supabase) {
+        const { count: aiCount } = await supabase
+          .from('users')
+          .select('*', { count: 'exact', head: true })
+          .eq('role', 'ai');
+        totalAIUsers = aiCount || 0;
+      }
 
       // 活跃挑战统计
       const [challengesResult] = await pool.query<any>("SELECT COUNT(*) as count FROM match_accounts WHERE status = 'active'");
