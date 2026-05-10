@@ -28,16 +28,14 @@ export async function GET() {
         );
         const initialBalance = levelConfig?.[0]?.initial_balance || 1000;
 
-        // 获取最新净值
-        const { data: latestEquity } = await supabase
-          .from('challenge_equity_history')
-          .select('equity')
-          .eq('user_id', reg.user_id)
-          .order('created_at', { ascending: false })
-          .limit(1)
-          .single();
+        // 获取最新净值 (使用MySQL)
+        const equityHistory = await query(
+          'SELECT equity FROM challenge_equity_history WHERE user_id = ? ORDER BY created_at DESC LIMIT 1',
+          [reg.user_id]
+        );
+        const latestEquity = equityHistory?.[0]?.equity;
 
-        const currentEquity = latestEquity?.equity || initialBalance;
+        const currentEquity = latestEquity || initialBalance;
         const profitPercent = ((currentEquity - initialBalance) / initialBalance) * 100;
 
         return {
