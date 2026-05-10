@@ -115,7 +115,7 @@ export default function DailyChallenge({ session }: DailyChallengeProps) {
           initialCapital: data.daily.initialCapital || 10000,
           entryFee: data.daily.entryFee || 50
         });
-        setHasJoined(data.daily.hasJoined || false);
+        setHasJoined(data.isRegistered || false);
         
         if (data.account) {
           setMyAccount({

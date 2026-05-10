@@ -88,7 +88,7 @@ export default function LadderChallenge({ session }: LadderChallengeProps) {
           myBalance: data.season.myBalance || 0,
           initialCapital: data.season.initialCapital || 10000
         });
-        setHasJoined(data.season.hasJoined || false);
+        setHasJoined(data.isRegistered || (data.account && data.account.id) || false);
         
         if (data.account) {
           setMyAccount({
