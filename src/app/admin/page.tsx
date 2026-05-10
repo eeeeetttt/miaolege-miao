@@ -1098,6 +1098,14 @@ export default function AdminDashboardPage() {
                       <BarChart3 className="w-6 h-6 text-blue-600" />
                       <span className="text-blue-600">赛事配置</span>
                     </Button>
+                    <Button 
+                      variant="outline" 
+                      className="h-20 flex flex-col gap-2 border-purple-200 hover:bg-purple-50"
+                      onClick={() => window.location.href = '/admin/ai-active'}
+                    >
+                      <Bot className="w-6 h-6 text-purple-600" />
+                      <span className="text-purple-600">AI行为管理</span>
+                    </Button>
                   </div>
                   
                   <div className="border-t pt-6">
