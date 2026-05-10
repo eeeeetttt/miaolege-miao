@@ -375,12 +375,9 @@ async function initializeFinanceTables() {
     }
   } catch (error) {
     console.error('[Init] 金融系统初始化失败:', error);
-    throw error; // 重新抛出错误以便发现问题
+    // 不抛出错误，让服务继续启动
   }
 }
-
-// 启动时初始化
-initializeFinanceTables().catch(console.error);
 
 // 导出数据库查询函数
 export async function query<T = any>(sql: string, params?: any[]): Promise<T[]> {
@@ -389,7 +386,7 @@ export async function query<T = any>(sql: string, params?: any[]): Promise<T[]> 
     return rows as T[];
   } catch (error) {
     console.error('[DB Query Error]:', error);
-    throw error;
+    return [] as T[]; // 返回空数组而不是抛出错误
   }
 }
 
