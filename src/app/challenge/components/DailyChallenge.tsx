@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { Zap, Clock, Trophy, TrendingUp, Medal, BarChart3 } from 'lucide-react';
-import TradingPanel from './TradingPanel';
 import styles from '../page.module.css';
 
 interface DailyChallengeProps {
@@ -243,21 +242,6 @@ export default function DailyChallenge({ session }: DailyChallengeProps) {
       {/* 交易面板或报名入口 */}
       {hasJoined ? (
         <>
-          <div className={styles.tradingHeader}>
-            <BarChart3 size={18} />
-            <span>交易面板</span>
-            <button className={styles.toggleTrading} onClick={() => setShowTrading(!showTrading)}>
-              {showTrading ? '收起' : '展开'}
-            </button>
-          </div>
-          {showTrading && (
-            <TradingPanel
-              matchType="daily"
-              account={myAccount}
-              onRefresh={fetchDailyInfo}
-            />
-          )}
-          
           {/* 我的账户概览 */}
           <div className={styles.dailyMyAccount}>
             <h3><TrendingUp className={styles.cardIcon} />我的账户</h3>

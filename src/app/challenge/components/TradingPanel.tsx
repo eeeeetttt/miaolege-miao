@@ -25,9 +25,11 @@ interface TradingPanelProps {
   // 方式2：直接传入初始值和账户ID
   initialBalance?: number;
   matchAccountId?: string;
+  // 是否为紧凑模式
+  compact?: boolean;
 }
 
-export default function TradingPanel({ matchType, account, onRefresh, initialBalance, matchAccountId }: TradingPanelProps) {
+export default function TradingPanel({ matchType, account, onRefresh, initialBalance, matchAccountId, compact = false }: TradingPanelProps) {
   // 如果传入的是 initialBalance 和 matchAccountId，构建 account 对象
   const effectiveAccount: MatchAccount | null = account || (initialBalance && matchAccountId ? {
     id: 0,

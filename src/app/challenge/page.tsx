@@ -1,9 +1,9 @@
 'use client';
 
-import { useState, useEffect, useCallback, useRef, useMemo, lazy, Suspense } from 'react';
+import { useState, useEffect, useCallback, Suspense } from 'react';
 import { useSession } from 'next-auth/react';
 import styles from './page.module.css';
-import { TrendingUp, TrendingDown, Trophy, Zap, Target, Clock, DollarSign, BarChart3, Star, RefreshCw, X, Calendar, Medal, Award, ChevronRight } from 'lucide-react';
+import { TrendingUp, TrendingDown, Trophy, Zap, Target, Clock, DollarSign, BarChart3, Star, RefreshCw, X, Calendar, Medal, Award, ChevronRight, ArrowUpRight, ArrowDownRight } from 'lucide-react';
 
 // 赛事相关组件
 import KLineChallenge from './components/KLineChallenge';
@@ -12,8 +12,24 @@ import DailyChallenge from './components/DailyChallenge';
 import MasterChallenge from './components/MasterChallenge';
 import MonthlyChallenge from './components/MonthlyChallenge';
 
+// 通用交易面板
+import TradingPanel from './components/TradingPanel';
+
 type MatchType = 'kline' | 'ladder' | 'daily' | 'master' | 'monthly';
 
+// 参赛账户信息
+interface MatchAccount {
+  matchType: MatchType;
+  accountId: string;
+  balance: number;
+  currentValue: number;
+  initialValue: number;
+  returnRate: number;
+  level?: number; // K线征途关卡
+  status: string;
+}
+
+// 赛事标签
 interface MatchTab {
   id: MatchType;
   name: string;
@@ -64,6 +80,70 @@ const matchTabs: MatchTab[] = [
 function ChallengeContent() {
   const { data: session } = useSession();
   const [activeMatch, setActiveMatch] = useState<MatchType>('kline');
+  const [activeAccounts, setActiveAccounts] = useState<MatchAccount[]>([]);
+  const [activeAccount, setActiveAccount] = useState<MatchAccount | null>(null);
+  const [showGlobalPanel, setShowGlobalPanel] = useState(false);
+
+  // 获取所有参赛账户
+  const fetchActiveAccounts = useCallback(async () => {
+    if (!session?.user?.email) return;
+    
+    const accounts: MatchAccount[] = [];
+    const matchTypes: MatchType[] = ['kline', 'ladder', 'daily', 'master', 'monthly'];
+    
+    for (const matchType of matchTypes) {
+      try {
+        const res = await fetch(`/api/match/${matchType}`);
+        const data = await res.json();
+        
+        if (data.isRegistered && data.myAccount) {
+          const acc = data.myAccount;
+          const initialValue = matchType === 'kline' ? 1000 : 
+                              matchType === 'ladder' ? 10000 :
+                              matchType === 'daily' ? 10000 :
+                              matchType === 'master' ? 100000 : 100000;
+          
+          accounts.push({
+            matchType,
+            accountId: acc.accountId || acc.id,
+            balance: acc.balance || 0,
+            currentValue: acc.currentValue || acc.balance || 0,
+            initialValue: acc.initialValue || initialValue,
+            returnRate: acc.returnRate || 0,
+            level: acc.currentLevel || acc.level,
+            status: acc.status || 'active'
+          });
+        }
+      } catch (e) {
+        console.error(`${matchType} fetch error:`, e);
+      }
+    }
+    
+    setActiveAccounts(accounts);
+    
+    // 如果当前选中的账户不在列表中，切换到第一个
+    if (accounts.length > 0 && !accounts.find(a => a.accountId === activeAccount?.accountId)) {
+      setActiveAccount(accounts[0]);
+    }
+  }, [session?.user?.email, activeAccount?.accountId]);
+
+  useEffect(() => {
+    if (session?.user?.email) {
+      fetchActiveAccounts();
+    }
+  }, [session?.user?.email, fetchActiveAccounts]);
+
+  // 切换账户
+  const handleSelectAccount = (account: MatchAccount) => {
+    setActiveAccount(account);
+    setActiveMatch(account.matchType);
+    setShowGlobalPanel(false);
+  };
+
+  // 刷新回调
+  const handleRefresh = () => {
+    fetchActiveAccounts();
+  };
 
   return (
     <div className={styles.pageContainer}>
@@ -76,6 +156,66 @@ function ChallengeContent() {
           </h1>
           <p className={styles.pageSubtitle}>选择赛事，挑战自我！</p>
         </div>
+
+        {/* 全局交易面板入口 */}
+        {activeAccounts.length > 0 && (
+          <div className={styles.globalPanelEntry} onClick={() => setShowGlobalPanel(!showGlobalPanel)}>
+            <div className={styles.globalPanelHeader}>
+              <div className={styles.globalPanelTitle}>
+                <BarChart3 className={styles.globalPanelIcon} />
+                <span>我的参赛账户</span>
+                <span className={styles.accountCount}>{activeAccounts.length}个</span>
+              </div>
+              <ChevronRight className={`${styles.chevron} ${showGlobalPanel ? styles.chevronOpen : ''}`} />
+            </div>
+            
+            {showGlobalPanel && (
+              <div className={styles.globalPanelContent}>
+                {activeAccounts.map((account) => (
+                  <div 
+                    key={account.accountId}
+                    className={`${styles.accountCard} ${activeAccount?.accountId === account.accountId ? styles.accountCardActive : ''}`}
+                    onClick={(e) => { e.stopPropagation(); handleSelectAccount(account); }}
+                  >
+                    <div className={styles.accountCardHeader}>
+                      <span className={styles.matchName} style={{ color: matchTabs.find(t => t.id === account.matchType)?.color }}>
+                        {matchTabs.find(t => t.id === account.matchType)?.name}
+                      </span>
+                      {account.level && (
+                        <span className={styles.levelBadge}>第{account.level}关</span>
+                      )}
+                    </div>
+                    <div className={styles.accountCardBody}>
+                      <div className={styles.accountBalance}>
+                        <span className={styles.balanceLabel}>净值</span>
+                        <span className={styles.balanceValue}>{account.currentValue.toLocaleString()}</span>
+                      </div>
+                      <div className={styles.accountRate}>
+                        <span className={`${styles.rateValue} ${account.returnRate >= 0 ? styles.ratePositive : styles.rateNegative}`}>
+                          {account.returnRate >= 0 ? <ArrowUpRight size={14} /> : <ArrowDownRight size={14} />}
+                          {account.returnRate >= 0 ? '+' : ''}{account.returnRate.toFixed(2)}%
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* 活跃账户交易面板 */}
+        {activeAccount && (
+          <div className={styles.activeTradingPanel}>
+            <TradingPanel
+              matchType={activeAccount.matchType}
+              initialBalance={activeAccount.currentValue}
+              matchAccountId={activeAccount.accountId}
+              onRefresh={handleRefresh}
+              compact
+            />
+          </div>
+        )}
 
         {/* 赛事切换标签 */}
         <div className={styles.matchTabs}>

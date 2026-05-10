@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import TradingPanel from './TradingPanel';
 
 interface MonthlyConfig {
   enabled: boolean;
@@ -237,15 +236,6 @@ export default function MonthlyChallenge() {
             {enrolling ? '处理中...' : '退出比赛'}
           </button>
         </div>
-      )}
-
-      {/* 交易面板 */}
-      {status === 'enrolled' && myAccount && (
-        <TradingPanel
-          matchType="monthly"
-          initialBalance={myAccount.currentValue}
-          matchAccountId={myAccount.accountId}
-        />
       )}
 
       {/* 报名按钮 */}

@@ -1,8 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { Trophy, Medal, TrendingUp, Calendar, Star, BarChart3 } from 'lucide-react';
-import TradingPanel from './TradingPanel';
+import { Trophy, Medal, TrendingUp, Calendar, Star } from 'lucide-react';
 import styles from '../page.module.css';
 
 interface LadderChallengeProps {
@@ -203,69 +202,36 @@ export default function LadderChallenge({ session }: LadderChallengeProps) {
         </div>
       </div>
 
-      {/* 交易面板或报名入口 */}
-      {hasJoined ? (
-        <>
-          <div className={styles.tradingHeader}>
-            <BarChart3 size={18} />
-            <span>交易面板</span>
-            <button className={styles.toggleTrading} onClick={() => setShowTrading(!showTrading)}>
-              {showTrading ? '收起' : '展开'}
-            </button>
+      {/* 我的账户概览 */}
+      <div className={styles.ladderMyAccount}>
+        <h3><TrendingUp className={styles.cardIcon} />我的账户</h3>
+        <div className={styles.ladderMyStats}>
+          <div className={styles.ladderMyStat}>
+            <span className={styles.ladderMyLabel}>排名</span>
+            <span className={styles.ladderMyValue}>
+              {seasonInfo?.myRank ? `#${seasonInfo.myRank}` : '-'}
+            </span>
           </div>
-          {showTrading && (
-            <TradingPanel
-              matchType="ladder"
-              account={myAccount}
-              onRefresh={fetchSeasonInfo}
-            />
-          )}
-          
-          {/* 我的账户概览 */}
-          <div className={styles.ladderMyAccount}>
-            <h3><TrendingUp className={styles.cardIcon} />我的账户</h3>
-            <div className={styles.ladderMyStats}>
-              <div className={styles.ladderMyStat}>
-                <span className={styles.ladderMyLabel}>排名</span>
-                <span className={styles.ladderMyValue}>
-                  {seasonInfo?.myRank ? `#${seasonInfo.myRank}` : '-'}
-                </span>
-              </div>
-              <div className={styles.ladderMyStat}>
-                <span className={styles.ladderMyLabel}>收益率</span>
-                <span className={`${styles.ladderMyValue} ${(seasonInfo?.myYield || 0) >= 0 ? styles.positive : styles.negative}`}>
-                  {(seasonInfo?.myYield || 0) >= 0 ? '+' : ''}{seasonInfo?.myYield?.toFixed(2) || '0.00'}%
-                </span>
-              </div>
-              <div className={styles.ladderMyStat}>
-                <span className={styles.ladderMyLabel}>当前净值</span>
-                <span className={styles.ladderMyValue}>
-                  ${(seasonInfo?.myBalance || 0).toLocaleString()}
-                </span>
-              </div>
-              <div className={styles.ladderMyStat}>
-                <span className={styles.ladderMyLabel}>初始本金</span>
-                <span className={styles.ladderMyValue}>
-                  ${(seasonInfo?.initialCapital || 10000).toLocaleString()}
-                </span>
-              </div>
-            </div>
+          <div className={styles.ladderMyStat}>
+            <span className={styles.ladderMyLabel}>收益率</span>
+            <span className={`${styles.ladderMyValue} ${(seasonInfo?.myYield || 0) >= 0 ? styles.positive : styles.negative}`}>
+              {(seasonInfo?.myYield || 0) >= 0 ? '+' : ''}{seasonInfo?.myYield?.toFixed(2) || '0.00'}%
+            </span>
           </div>
-        </>
-      ) : (
-        <div className={styles.ladderMyAccount}>
-          <h3><Trophy className={styles.cardIcon} />天梯赛</h3>
-          <p className={styles.matchDesc}>月度收益率排行，赢取丰厚奖励！</p>
-          <div className={styles.matchRules}>
-            <div className={styles.ruleItem}><span>参赛本金</span><span>10,000 银两</span></div>
-            <div className={styles.ruleItem}><span>报名费</span><span>免费</span></div>
-            <div className={styles.ruleItem}><span>赛季时长</span><span>30天</span></div>
+          <div className={styles.ladderMyStat}>
+            <span className={styles.ladderMyLabel}>当前净值</span>
+            <span className={styles.ladderMyValue}>
+              ${(seasonInfo?.myBalance || 0).toLocaleString()}
+            </span>
           </div>
-          <button className={styles.registerBtn} onClick={handleJoin} disabled={registering || !session}>
-            {!session ? '请先登录' : registering ? '报名中...' : '立即报名'}
-          </button>
+          <div className={styles.ladderMyStat}>
+            <span className={styles.ladderMyLabel}>初始本金</span>
+            <span className={styles.ladderMyValue}>
+              ${(seasonInfo?.initialCapital || 10000).toLocaleString()}
+            </span>
+          </div>
         </div>
-      )}
+      </div>
 
       {/* 奖励规则 */}
       <div className={styles.rewardSection}>

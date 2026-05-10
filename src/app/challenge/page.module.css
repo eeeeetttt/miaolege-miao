@@ -1984,3 +1984,182 @@
     grid-template-columns: 1fr;
   }
 }
+
+/* 全局交易面板入口 */
+.globalPanelEntry {
+  background: rgba(30, 35, 50, 0.9);
+  border: 1px solid rgba(212, 175, 55, 0.3);
+  border-radius: 12px;
+  margin-bottom: 1rem;
+  overflow: hidden;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.globalPanelEntry:hover {
+  border-color: rgba(212, 175, 55, 0.6);
+  box-shadow: 0 4px 20px rgba(212, 175, 55, 0.15);
+}
+
+.globalPanelHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem 1.25rem;
+  background: linear-gradient(135deg, rgba(212, 175, 55, 0.1) 0%, rgba(212, 175, 55, 0.05) 100%);
+}
+
+.globalPanelTitle {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  font-weight: 600;
+  color: #D4AF37;
+}
+
+.globalPanelIcon {
+  color: #D4AF37;
+}
+
+.accountCount {
+  font-size: 0.75rem;
+  background: rgba(212, 175, 55, 0.2);
+  padding: 0.25rem 0.5rem;
+  border-radius: 12px;
+  color: #D4AF37;
+}
+
+.chevron {
+  color: rgba(255, 255, 255, 0.5);
+  transition: transform 0.3s ease;
+}
+
+.chevronOpen {
+  transform: rotate(90deg);
+}
+
+.globalPanelContent {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 1rem;
+  background: rgba(15, 17, 23, 0.5);
+}
+
+.accountCard {
+  background: rgba(30, 35, 50, 0.8);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+  padding: 0.875rem 1rem;
+  transition: all 0.2s ease;
+}
+
+.accountCard:hover {
+  background: rgba(40, 45, 60, 0.9);
+  border-color: rgba(212, 175, 55, 0.4);
+}
+
+.accountCardActive {
+  border-color: #D4AF37;
+  background: rgba(212, 175, 55, 0.1);
+}
+
+.accountCardHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.5rem;
+}
+
+.matchName {
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.levelBadge {
+  font-size: 0.7rem;
+  background: rgba(212, 175, 55, 0.2);
+  color: #D4AF37;
+  padding: 0.2rem 0.5rem;
+  border-radius: 8px;
+}
+
+.accountCardBody {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.accountBalance {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.balanceLabel {
+  font-size: 0.7rem;
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.balanceValue {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: white;
+}
+
+.accountRate {
+  display: flex;
+  align-items: center;
+}
+
+.rateValue {
+  display: flex;
+  align-items: center;
+  gap: 0.15rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.ratePositive {
+  color: #10b981;
+}
+
+.rateNegative {
+  color: #ef4444;
+}
+
+/* 活跃账户交易面板 */
+.activeTradingPanel {
+  margin-bottom: 1.5rem;
+  animation: fadeIn 0.3s ease;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* 响应式优化 */
+@media (max-width: 640px) {
+  .globalPanelHeader {
+    padding: 0.875rem 1rem;
+  }
+  
+  .globalPanelContent {
+    padding: 0.75rem;
+  }
+  
+  .accountCard {
+    padding: 0.75rem;
+  }
+  
+  .balanceValue {
+    font-size: 1rem;
+  }
+}
