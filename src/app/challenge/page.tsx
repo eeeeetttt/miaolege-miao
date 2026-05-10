@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useSession } from 'next-auth/react';
 import styles from './page.module.css';
-import { TrendingUp, TrendingDown, Trophy, Zap, Target, Clock, DollarSign, Medal, Award, Star, Users, Gift, Crown, Calendar, ChevronRight, ArrowUpRight, ArrowDownRight, Activity } from 'lucide-react';
+import { TrendingUp, TrendingDown, Trophy, Zap, Target, Clock, DollarSign, Medal, Award, Star, Users, Gift, Crown, Calendar, ChevronRight, ArrowUpRight, ArrowDownRight } from 'lucide-react';
 import TradingPanel from './components/TradingPanel';
 
 type MatchType = 'kline' | 'ladder' | 'daily' | 'master' | 'monthly';
@@ -100,27 +100,7 @@ export default function ChallengePage() {
   const [loading, setLoading] = useState(false);
   const [myAccount, setMyAccount] = useState<MatchAccount | null>(null);
   const [enrolledMatches, setEnrolledMatches] = useState<MatchType[]>([]);
-  const [goldPrice, setGoldPrice] = useState<{ buy: number; sell: number; spread: number } | null>(null);
   const [error, setError] = useState<string | null>(null);
-
-  // 获取伦敦金价格
-  const fetchGoldPrice = useCallback(async () => {
-    try {
-      const res = await fetch('/api/gold-price');
-      if (res.ok) {
-        const data = await res.json();
-        if (data.buy && data.sell) {
-          setGoldPrice({
-            buy: data.buy,
-            sell: data.sell,
-            spread: data.buy - data.sell
-          });
-        }
-      }
-    } catch (e) {
-      // 忽略错误
-    }
-  }, []);
 
   // 获取用户报名状态
   const fetchMatchStatus = useCallback(async () => {
@@ -180,12 +160,6 @@ export default function ChallengePage() {
   }, [activeTab, session]);
 
   useEffect(() => {
-    fetchGoldPrice();
-    const interval = setInterval(fetchGoldPrice, 1000);
-    return () => clearInterval(interval);
-  }, [fetchGoldPrice]);
-
-  useEffect(() => {
     if (session?.user) {
       fetchMatchStatus();
     }
@@ -196,48 +170,6 @@ export default function ChallengePage() {
 
   return (
     <div className={styles.container}>
-      {/* 顶部标题 */}
-      <div className={styles.header}>
-        <h1 className={styles.title}>
-          <Trophy className={styles.titleIcon} />
-          赛事中心
-        </h1>
-      </div>
-
-      {/* 伦敦金价格卡片 */}
-      <div className={styles.priceCard}>
-        <div className={styles.priceHeader}>
-          <span className={styles.priceLabel}>伦敦金</span>
-          <span className={styles.priceSource}>Swissquote</span>
-        </div>
-        <div className={styles.priceBody}>
-          <div className={styles.priceItem}>
-            <span className={styles.priceName}>买价</span>
-            <span className={styles.priceValue}>
-              {goldPrice ? `$${goldPrice.buy.toFixed(2)}` : '--'}
-            </span>
-          </div>
-          <div className={styles.priceDivider} />
-          <div className={styles.priceItem}>
-            <span className={styles.priceName}>卖价</span>
-            <span className={styles.priceValue}>
-              {goldPrice ? `$${goldPrice.sell.toFixed(2)}` : '--'}
-            </span>
-          </div>
-          <div className={styles.priceDivider} />
-          <div className={styles.priceItem}>
-            <span className={styles.priceName}>点差</span>
-            <span className={styles.priceValue}>
-              {goldPrice ? goldPrice.spread.toFixed(2) : '--'}
-            </span>
-          </div>
-        </div>
-        <div className={styles.priceFooter}>
-          <Activity className={styles.liveIcon} />
-          <span>实时报价</span>
-        </div>
-      </div>
-
       {/* Tab 切换 */}
       <div className={styles.tabContainer}>
         {Object.values(matchInfo).map((match) => (

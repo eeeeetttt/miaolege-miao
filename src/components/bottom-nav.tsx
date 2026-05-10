@@ -1,14 +1,14 @@
 'use client';
 
 import { usePathname, useRouter } from 'next/navigation';
-import { Home, Building2, Medal, MessageCircle, Space, User } from 'lucide-react';
+import { Home, Building2, Medal, MessageCircle, Newspaper, User } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
 const navItems = [
   { href: '/home', icon: Home, label: '大业' },
-  { href: '/finance', icon: Building2, label: '金融' },
   { href: '/challenge', icon: Medal, label: '大赛' },
   { href: '/social', icon: MessageCircle, label: '社交' },
+  { href: '/news', icon: Newspaper, label: '资讯' },
   { href: '/user', icon: User, label: '我的' },
 ];
 
