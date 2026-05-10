@@ -122,7 +122,7 @@ export async function GET(request: NextRequest) {
 /**
  * 更新用户信息（管理员）
  */
-export async function POST(request: NextRequest) {
+export async function PUT(request: NextRequest) {
   try {
     // 检查管理员权限
     const session = await getServerSession(authOptions);
