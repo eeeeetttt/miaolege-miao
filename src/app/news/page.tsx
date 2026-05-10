@@ -1,17 +1,16 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Spinner } from '@/components/ui/spinner';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { 
   Newspaper, TrendingUp, Trophy, Zap, Calendar, 
-  User, Search, Eye, ArrowLeft, ChevronRight
+  User, Search, Eye, ChevronRight
 } from 'lucide-react';
 
 interface NewsItem {
@@ -39,7 +38,8 @@ const CATEGORY_COLORS: Record<string, string> = {
   hotspot: 'bg-amber-100 text-amber-700',
 };
 
-export default function NewsPage() {
+// 主内容组件
+function NewsContent() {
   const searchParams = useSearchParams();
   const initialCategory = searchParams.get('category') || 'all';
   
@@ -296,6 +296,19 @@ export default function NewsPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+// 默认导出 - 用 Suspense 包裹
+export default function NewsPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-gradient-to-b from-slate-900 to-slate-800 flex items-center justify-center">
+        <Spinner className="w-8 h-8" />
+      </div>
+    }>
+      <NewsContent />
+    </Suspense>
   );
 }
 
