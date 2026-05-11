@@ -39,9 +39,8 @@ jobs:
 
       - name: Deploy to Vercel
         run: |
-          # 使用 vercel.json 配置构建产物目录
-          echo '{"builds":[{"src":"package.json","use":"@vercel/next"}],"routes":[{"src":"/(.*)","dest":"/$1"}]}' > vercel.json
           vercel deploy . \
+            --yes \
             --prod \
             --token=$VERCEL_TOKEN
         env:
