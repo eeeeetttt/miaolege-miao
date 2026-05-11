@@ -34,11 +34,35 @@ jobs:
           NEXTAUTH_SECRET: ${{ secrets.NEXTAUTH_SECRET }}
           NEXTAUTH_URL: ${{ secrets.NEXTAUTH_URL }}
       
-      - name: Deploy to Vercel
-        uses: amondnet/vercel-action@v25.2.0
-        with:
-          vercel-token: ${{ secrets.VERCEL_TOKEN }}
-          vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
-          vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}
-          vercel-args: '--prod'
-          working-directory: ./
+      - name: Deploy to Vercel via API
+        run: |
+          # 使用 Vercel API 触发部署
+          RESPONSE=$(curl -s -X POST "https://api.vercel.com/v13/deployments" \
+            -H "Authorization: Bearer $VERCEL_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d '{
+              "name": "miaolege-miao-new",
+              "project": "'$VERCEL_PROJECT_ID'",
+              "target": "production",
+              "gitSource": {
+                "type": "github",
+                "repo": "eeeeetttt/miaolege-miao",
+                "ref": "main",
+                "sha": "'$GITHUB_SHA'"
+              }
+            }')
+          
+          echo "$RESPONSE" | python3 -c "
+import sys, json
+d = json.load(sys.stdin)
+if 'id' in d:
+    print('✅ 部署已触发!')
+    print('Deployment ID:', d['id'])
+    print('URL:', d.get('url', 'N/A'))
+else:
+    print('❌ 部署失败:')
+    print(d)
+"
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
