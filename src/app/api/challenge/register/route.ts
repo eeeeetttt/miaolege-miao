@@ -1,9 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
-import { db, query } from '@/lib/db';
-import { userAccounts } from '@/lib/schema';
-import { eq } from 'drizzle-orm';
+import { query } from '@/lib/db';
 
 // 获取挑战状态
 export async function GET() {
@@ -88,12 +86,11 @@ export async function POST(request: NextRequest) {
       }, { status: 401 });
     }
     
-    // 获取用户信息（包括负债）
-    const userResult = await db
-      .select()
-      .from(userAccounts)
-      .where(eq(userAccounts.email, session.user.email))
-      .limit(1);
+    // 获取用户信息（包括负债）- 使用原始SQL
+    const userResult = await query(
+      `SELECT * FROM user_accounts WHERE email = ? LIMIT 1`,
+      [session.user.email]
+    ) as any[];
 
     if (!userResult || userResult.length === 0) {
       return NextResponse.json({ 
@@ -105,7 +102,7 @@ export async function POST(request: NextRequest) {
     // 获取 Supabase Auth 的用户ID（用于 match_accounts 表）
     const authUserId = session.user.id;
     const user = userResult[0];
-    const totalDebt = Number(user.totalDebt || 0);
+    const totalDebt = Number(user.total_debt || 0);
 
     // 核心规则：总负债 > 0 不能报名
     if (totalDebt > 0) {
@@ -117,7 +114,7 @@ export async function POST(request: NextRequest) {
     }
 
     const registrationFee = 1000;
-    const coinBalance = Number(user.coinBalance || 0);
+    const coinBalance = Number(user.coin_balance || 0);
 
     // 检查银两余额
     if (coinBalance < registrationFee) {
@@ -128,13 +125,10 @@ export async function POST(request: NextRequest) {
     }
 
     // 扣除报名费
-    await db
-      .update(userAccounts)
-      .set({ 
-        coinBalance: String(Number(coinBalance) - registrationFee),
-        updatedAt: new Date()
-      })
-      .where(eq(userAccounts.email, session.user.email));
+    await query(
+      `UPDATE user_accounts SET coin_balance = ?, updated_at = NOW() WHERE email = ?`,
+      [coinBalance - registrationFee, session.user.email]
+    );
 
     // 创建挑战账户记录
     const matchId = `kline_${authUserId}_${Date.now()}`;

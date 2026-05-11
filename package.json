@@ -8,7 +8,10 @@
     "preinstall": "npx only-allow pnpm",
     "lint": "eslint",
     "start": "bash ./scripts/start.sh",
-    "ts-check": "tsc -p tsconfig.json"
+    "ts-check": "tsc -p tsconfig.json",
+    "validate": "bash ./scripts/validate.sh",
+    "quick-check": "bash ./scripts/quick-check.sh",
+    "test": "bash ./scripts/validate.sh --api-only"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.958.0",

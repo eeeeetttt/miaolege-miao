@@ -22,14 +22,21 @@ export const authOptions = {
         const email = credentials.email as string;
         const password = credentials.password as string;
 
-        // 管理员直接使用任意密码登录
+        // 管理员直接使用任意密码登录，从 MySQL 查询真实 user_id
         if (email === '497209390@qq.com') {
-          return {
-            id: 'admin_497209390',
-            email: '497209390@qq.com',
-            name: '管理员',
-            role: 'admin',
-          };
+          try {
+            const result = await db.select().from(userAccounts).where(eq(userAccounts.email, email)).limit(1);
+            if (result && result[0]) {
+              return {
+                id: result[0].userId, // 使用 MySQL 中的真实 user_id
+                email: result[0].email,
+                name: result[0].name || '管理员',
+                role: result[0].role as "admin" | "user",
+              };
+            }
+          } catch (e) {
+            console.error('Admin query error:', e);
+          }
         }
 
         try {

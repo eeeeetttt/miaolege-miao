@@ -295,6 +295,96 @@
   border: 1px solid rgba(16, 185, 129, 0.3);
 }
 
+/* 持仓列表样式 */
+.positionsList {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 12px;
+  width: 100%;
+}
+
+.positionItem {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 14px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.longPosition {
+  border-left: 3px solid #10b981;
+}
+
+.shortPosition {
+  border-left: 3px solid #ef4444;
+}
+
+.posInfo {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.posDirection {
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.longPosition .posDirection {
+  color: #10b981;
+}
+
+.shortPosition .posDirection {
+  color: #ef4444;
+}
+
+.posLots {
+  color: #94a3b8;
+  font-size: 13px;
+}
+
+.posPrice {
+  color: #64748b;
+  font-size: 12px;
+}
+
+.posProfit {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.posProfit .profitText {
+  color: #10b981;
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.posProfit .lossText {
+  color: #ef4444;
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.posCloseBtn {
+  padding: 6px 14px;
+  border: none;
+  border-radius: 6px;
+  background: #f59e0b;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.posCloseBtn:hover {
+  background: #d97706;
+}
+
 .errorMsg {
   background: rgba(239, 68, 68, 0.15);
   color: #ef4444;

@@ -152,3 +152,42 @@ MYSQL_DATABASE=trade
 NEXTAUTH_SECRET=
 NEXTAUTH_URL=
 ```
+
+## 自动化验证
+
+项目已配置自动化验证脚本，支持快速检查和完整验证。
+
+### 快速命令
+
+```bash
+# 快速检查（开发中使用）
+pnpm quick-check
+
+# 完整验证（包括 API 测试）
+pnpm validate
+
+# 只测试 API
+pnpm validate --api-only
+
+# 完整验证（包括构建）
+pnpm validate --full
+```
+
+### Git Hooks
+
+项目已配置 Git Hooks：
+
+- **pre-commit**: 提交前自动检查 TypeScript 和 ESLint
+- **pre-push**: 推送前运行完整验证
+
+### 验证脚本
+
+- `scripts/validate.sh` - 完整验证脚本
+- `scripts/quick-check.sh` - 快速检查脚本
+
+### 验证项目
+
+1. **静态检查**: TypeScript 类型检查、ESLint 检查
+2. **服务检测**: 验证开发服务器运行状态
+3. **API 测试**: 测试关键 API 接口
+4. **日志检查**: 检查应用日志健康状态

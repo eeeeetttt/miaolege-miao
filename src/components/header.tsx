@@ -196,7 +196,11 @@ export function Header() {
                   <DropdownMenuSeparator />
                   <DropdownMenuItem 
                     className="cursor-pointer text-red-600 focus:text-red-600"
-                    onClick={() => signOut({ callbackUrl: '/' })}
+                    onClick={async () => {
+                      await signOut({ redirect: false });
+                      // 停留在当前页面
+                      window.location.href = '/';
+                    }}
                   >
                     <LogOut className="mr-2 h-4 w-4" />
                     退出登录

@@ -429,6 +429,17 @@ export default function KLineChallenge({ session }: KLineChallengeProps) {
   };
 
   // 全部平仓
+  // 单笔平仓
+  const handleCloseSingle = async (positionId: string) => {
+    const idx = parseInt(positionId);
+    if (isNaN(idx) || idx < 0 || idx >= positions.length) return;
+    const pos = positions[idx];
+    const { profit } = calculatePositionProfit(pos);
+    setBalance(prev => prev + profit);
+    setPositions(prev => prev.filter((_, i) => i !== idx));
+    showToast(`平仓成功，${profit >= 0 ? '盈利' : '亏损'} $${Math.abs(profit).toFixed(2)}`, profit >= 0 ? 'success' : 'warning');
+  };
+
   const handleCloseAll = async () => {
     if (positions.length === 0) { showToast('当前没有持仓', 'warning'); return; }
     let totalProfit = 0;
@@ -547,21 +558,44 @@ export default function KLineChallenge({ session }: KLineChallengeProps) {
             </div>
           )}
 
-          {/* 交易按钮 */}
+          {/* 交易按钮 - 始终显示，同一行排列 */}
           {hasRegistered && (
-            <div className={styles.tradeButtons}>
-              <button className={`${styles.tradeBtn} ${styles.longBtn}`} onClick={handleLong}>
-                <TrendingUp className={styles.tradeIcon} /><span>做多</span>
-              </button>
-              <button className={`${styles.tradeBtn} ${styles.shortBtn}`} onClick={handleShort}>
-                <TrendingDown className={styles.tradeIcon} /><span>做空</span>
-              </button>
-              {positions.length > 0 && (
+            <>
+              <div className={styles.tradeButtons}>
+                <button className={`${styles.tradeBtn} ${styles.longBtn}`} onClick={handleLong}>
+                  <TrendingUp className={styles.tradeIcon} /><span>做多</span>
+                </button>
+                <button className={`${styles.tradeBtn} ${styles.shortBtn}`} onClick={handleShort}>
+                  <TrendingDown className={styles.tradeIcon} /><span>做空</span>
+                </button>
                 <button className={`${styles.tradeBtn} ${styles.closeBtn}`} onClick={handleCloseAll}>
                   <BarChart3 className={styles.tradeIcon} /><span>全部平仓</span>
                 </button>
+              </div>
+              
+              {/* 持仓列表 - 每单一行 */}
+              {positions.length > 0 && (
+                <div className={styles.positionsList}>
+                  {positions.map((pos, idx) => (
+                    <div key={idx} className={`${styles.positionItem} ${pos.type === 'long' ? styles.longPosition : styles.shortPosition}`}>
+                      <div className={styles.posInfo}>
+                        <span className={styles.posDirection}>{pos.type === 'long' ? '多' : '空'}</span>
+                        <span className={styles.posLots}>{pos.amount.toFixed(2)}手</span>
+                        <span className={styles.posPrice}>@${pos.openPrice.toFixed(2)}</span>
+                      </div>
+                      <div className={styles.posProfit}>
+                        <span className={pos.profit >= 0 ? styles.profitText : styles.lossText}>
+                          {pos.profit >= 0 ? '+' : ''}${pos.profit.toFixed(2)}
+                        </span>
+                        <button className={styles.posCloseBtn} onClick={() => handleCloseSingle(idx.toString())}>
+                          平
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
               )}
-            </div>
+            </>
           )}
         </div>
 
