@@ -1,12 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
-
-// 使用环境变量或默认值
-const supabaseUrl = process.env.COZE_SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || '';
-const supabaseKey = process.env.COZE_SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY || '';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/auth';
+import db from '@/lib/db';
 
 export async function POST(request: NextRequest) {
   try {
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: '未登录' }, { status: 401 });
+    }
+
     const { applicationId, transactionId } = await request.json();
 
     if (!applicationId || !transactionId) {
@@ -16,30 +19,16 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (!supabaseUrl || !supabaseKey) {
+    // 使用 MySQL 更新充值申请记录
+    const [result] = await db.execute({
+      sql: `UPDATE recharge_applications SET transaction_id = ?, status = 'pending', updated_at = NOW() WHERE id = ?`,
+      args: [transactionId, applicationId]
+    });
+
+    if ((result as any).affectedRows === 0) {
       return NextResponse.json(
-        { success: false, error: '数据库配置缺失' },
-        { status: 500 }
-      );
-    }
-
-    const supabase = createClient(supabaseUrl, supabaseKey);
-
-    // 更新充值申请记录，添加交易单号
-    const { error } = await supabase
-      .from('recharge_applications')
-      .update({ 
-        transaction_id: transactionId,
-        status: 'pending',
-        updated_at: new Date().toISOString()
-      })
-      .eq('id', applicationId);
-
-    if (error) {
-      console.error('更新交易单号失败:', error);
-      return NextResponse.json(
-        { success: false, error: '更新失败' },
-        { status: 500 }
+        { success: false, error: '记录不存在' },
+        { status: 404 }
       );
     }
 
