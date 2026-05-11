@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
-import { db } from '@/lib/db';
+import { pool } from '@/lib/db';
 
 export async function POST(request: NextRequest) {
   try {
@@ -20,10 +20,10 @@ export async function POST(request: NextRequest) {
     }
 
     // 使用 MySQL 更新充值申请记录
-    const [result] = await db.execute({
-      sql: `UPDATE recharge_applications SET transaction_id = ?, status = 'pending', updated_at = NOW() WHERE id = ?`,
-      args: [transactionId, applicationId]
-    });
+    const [result] = await pool.execute(
+      'UPDATE recharge_applications SET transaction_id = ?, status = ?, updated_at = NOW() WHERE id = ?',
+      [transactionId, 'pending', applicationId]
+    );
 
     if ((result as any).affectedRows === 0) {
       return NextResponse.json(
