@@ -1,125 +1,67 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
-import { getSupabaseClient } from '@/storage/database/supabase-client';
-import { db } from '@/lib/db';
-import { users } from '@/lib/schema';
-import { eq } from 'drizzle-orm';
+import { pool } from '@/lib/db';
 
-// 关注/取消关注用户
-export async function POST(request: NextRequest) {
+// 获取/创建关注关系
+export async function GET(request: NextRequest) {
   try {
-    const supabase = getSupabaseClient();
-    if (!supabase) {
-      return NextResponse.json({ error: '数据库连接不可用' }, { status: 503 });
-    }
-    
     const session = await getServerSession(authOptions);
-    
     if (!session?.user?.id) {
       return NextResponse.json({ error: '请先登录' }, { status: 401 });
     }
 
-    const { followedId } = await request.json();
+    const userId = session.user.id;
+    const { searchParams } = new URL(request.url);
+    const targetUserId = searchParams.get('targetUserId');
 
-    if (!followedId) {
-      return NextResponse.json({ error: '缺少关注用户ID' }, { status: 400 });
+    if (targetUserId) {
+      // 查询关注状态
+      const [rows] = await pool.query(
+        'SELECT * FROM user_follows WHERE follower_id = ? AND following_id = ?',
+        [userId, targetUserId]
+      ) as [any[], any];
+      
+      return NextResponse.json({ following: rows.length > 0 });
     }
 
-    if (followedId === session.user.id) {
-      return NextResponse.json({ error: '不能关注自己' }, { status: 400 });
-    }
-
-    // 检查目标用户是否存在
-    const [targetUser] = await db
-      .select({ userId: users.userId })
-      .from(users)
-      .where(eq(users.userId, followedId))
-      .limit(1);
-
-    if (!targetUser) {
-      return NextResponse.json({ error: '用户不存在' }, { status: 404 });
-    }
-
-    // 检查是否已关注
-    const { data: existingFollow } = await supabase
-      .from('user_follows')
-      .select('id')
-      .eq('follower_id', session.user.id)
-      .eq('followed_id', followedId)
-      .maybeSingle();
-
-    if (existingFollow) {
-      // 已关注，取消关注
-      await supabase
-        .from('user_follows')
-        .delete()
-        .eq('id', existingFollow.id);
-
-      return NextResponse.json({
-        success: true,
-        message: '已取消关注',
-        isFollowing: false,
-      });
-    } else {
-      // 未关注，添加关注
-      await supabase
-        .from('user_follows')
-        .insert({
-          follower_id: session.user.id,
-          followed_id: followedId,
-        });
-
-      return NextResponse.json({
-        success: true,
-        message: '关注成功',
-        isFollowing: true,
-      });
-    }
-  } catch (error) {
-    console.error('Follow user error:', error);
-    return NextResponse.json({ 
-      error: error instanceof Error ? error.message : '操作失败' 
-    }, { status: 500 });
+    return NextResponse.json({ error: '缺少目标用户ID' }, { status: 400 });
+  } catch (error: any) {
+    console.error('获取关注状态失败:', error);
+    return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
 
-// 获取关注状态
-export async function GET(request: NextRequest) {
+// 添加/取消关注
+export async function POST(request: NextRequest) {
   try {
-    const supabase = getSupabaseClient();
-    if (!supabase) {
-      return NextResponse.json({ error: '数据库连接不可用' }, { status: 503 });
-    }
-    
     const session = await getServerSession(authOptions);
-    
     if (!session?.user?.id) {
       return NextResponse.json({ error: '请先登录' }, { status: 401 });
     }
 
-    const { searchParams } = new URL(request.url);
-    const followedId = searchParams.get('followedId');
+    const userId = session.user.id;
+    const { targetUserId, action } = await request.json();
 
-    if (!followedId) {
-      return NextResponse.json({ error: '缺少用户ID' }, { status: 400 });
+    if (!targetUserId) {
+      return NextResponse.json({ error: '缺少目标用户ID' }, { status: 400 });
     }
 
-    const { data } = await supabase
-      .from('user_follows')
-      .select('id')
-      .eq('follower_id', session.user.id)
-      .eq('followed_id', followedId)
-      .maybeSingle();
-
-    return NextResponse.json({
-      success: true,
-      isFollowing: !!data,
-    });
-  } catch (error) {
-    console.error('Get follow status error:', error);
-    return NextResponse.json({ 
-      error: error instanceof Error ? error.message : '获取失败' 
-    }, { status: 500 });
+    if (action === 'follow') {
+      await pool.query(
+        'INSERT IGNORE INTO user_follows (id, follower_id, following_id) VALUES (UUID(), ?, ?)',
+        [userId, targetUserId]
+      );
+      return NextResponse.json({ success: true, message: '关注成功' });
+    } else {
+      await pool.query(
+        'DELETE FROM user_follows WHERE follower_id = ? AND following_id = ?',
+        [userId, targetUserId]
+      );
+      return NextResponse.json({ success: true, message: '取消关注成功' });
+    }
+  } catch (error: any) {
+    console.error('关注操作失败:', error);
+    return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }

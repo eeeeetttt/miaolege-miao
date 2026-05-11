@@ -1,235 +1,155 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getSupabaseClient } from '@/storage/database/supabase-client';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/auth';
+import { pool } from '@/lib/db';
 
-// 10个AI角色配置
-const AI_CHARACTERS = [
-  {
-    name: '金查理',
-    role: 'ai_gold_charli',
-    personality: '沉稳老练的趋势追踪者，擅长技术分析，看重长期收益',
-    avatar: '/avatars/ai-gold-charli.png',
-    tradingStyle: '趋势跟踪',
-    riskLevel: '中等',
-  },
-  {
-    name: '银威廉',
-    role: 'ai_silver_william',
-    personality: '保守稳健的波段交易者，追求稳定盈利，控制回撤',
-    avatar: '/avatars/ai-silver-william.png',
-    tradingStyle: '波段交易',
-    riskLevel: '低',
-  },
-  {
-    name: '铜麦克',
-    role: 'ai_copper_mike',
-    personality: '激进的日内交易者，喜欢快进快出，捕捉短期波动',
-    avatar: '/avatars/ai-copper-mike.png',
-    tradingStyle: '日内交易',
-    riskLevel: '高',
-  },
-  {
-    name: '铁托尼',
-    role: 'ai_iron_tony',
-    personality: '务实的价值投资者，相信基本面分析，耐心等待机会',
-    avatar: '/avatars/ai-iron-tony.png',
-    tradingStyle: '价值投资',
-    riskLevel: '中低',
-  },
-  {
-    name: '铂金斯',
-    role: 'ai_platinum_kins',
-    personality: '精密的量化交易者，使用数学模型指导交易决策',
-    avatar: '/avatars/ai-platinum-kins.png',
-    tradingStyle: '量化交易',
-    riskLevel: '中等',
-  },
-  {
-    name: '钨沃尔特',
-    role: 'ai_tungsten_walter',
-    personality: '耐心的区间震荡交易者，高卖低买，稳定积累',
-    avatar: '/avatars/ai-tungsten-walter.png',
-    tradingStyle: '震荡交易',
-    riskLevel: '中低',
-  },
-  {
-    name: '锌齐格',
-    role: 'ai_zinc_zig',
-    personality: '灵活的多策略交易者，能根据市场状态切换风格',
-    avatar: '/avatars/ai-zinc-zig.png',
-    tradingStyle: '多策略',
-    riskLevel: '中等',
-  },
-  {
-    name: '钛汤姆',
-    role: 'ai_titan_tom',
-    personality: '坚定的突破交易者，耐心等待关键价位突破',
-    avatar: '/avatars/ai-titan-tom.png',
-    tradingStyle: '突破交易',
-    riskLevel: '中高',
-  },
-  {
-    name: '铬克里斯',
-    role: 'ai_chrome_chris',
-    personality: '冷静的对冲交易者，同时关注多品种寻找机会',
-    avatar: '/avatars/ai-chrome-chris.png',
-    tradingStyle: '对冲交易',
-    riskLevel: '中',
-  },
-  {
-    name: '镍娜拉',
-    role: 'ai_nickel_nora',
-    personality: '直觉敏锐的盘感交易者，靠经验和盘感把握机会',
-    avatar: '/avatars/ai-nickel-nora.png',
-    tradingStyle: '盘感交易',
-    riskLevel: '中高',
-  },
-];
-
-const INITIAL_COINS = 100000; // 10万金币
-
-export async function POST(request: NextRequest) {
-  const supabase = getSupabaseClient();
-  
-  if (!supabase) {
-    return NextResponse.json({ error: '数据库连接不可用' }, { status: 500 });
-  }
-  
+// 获取 AI 用户列表
+export async function GET() {
   try {
-    const { action } = await request.json();
-
-    if (action === 'init') {
-      // 初始化AI用户
-      const results = [];
-      
-      for (let i = 0; i < AI_CHARACTERS.length; i++) {
-        const character = AI_CHARACTERS[i];
-        const email = `${character.role}@jinhuohuo.ai`;
-        
-        try {
-          // 检查用户是否已存在
-          const { data: existingUsers } = await supabase
-            .from('users')
-            .select('user_id, coin_balance')
-            .eq('email', email)
-            .limit(1);
-
-          if (existingUsers && existingUsers.length > 0) {
-            // 更新金币
-            const { error: updateError } = await supabase
-              .from('users')
-              .update({ coin_balance: INITIAL_COINS })
-              .eq('user_id', existingUsers[0].user_id);
-            
-            if (updateError) {
-              throw new Error(updateError.message);
-            }
-            
-            results.push({
-              name: character.name,
-              status: 'updated',
-              userId: existingUsers[0].user_id,
-            });
-          } else {
-            // 创建新用户
-            const { data, error: insertError } = await supabase
-              .from('users')
-              .insert({
-                user_id: character.role,
-                email: email,
-                password: `ai_${character.role}_password_2024`,
-                name: character.name,
-                avatar: character.avatar,
-                coin_balance: INITIAL_COINS,
-                role: 'ai',
-              })
-              .select('user_id')
-              .single();
-            
-            if (insertError) {
-              throw new Error(insertError.message);
-            }
-            
-            results.push({
-              name: character.name,
-              status: 'created',
-              userId: data?.user_id || character.role,
-            });
-          }
-
-          // 检查/创建AI角色
-          const { data: existingRoles } = await supabase
-            .from('chat_hall_ai_roles')
-            .select('name')
-            .eq('name', character.name)
-            .limit(1);
-
-          if (!existingRoles || existingRoles.length === 0) {
-            const { error: roleError } = await supabase
-              .from('chat_hall_ai_roles')
-              .insert({
-                name: character.name,
-                enabled: true,
-                reply_probability: 30 + Math.floor(Math.random() * 40), // 30-70%
-                max_response_length: 200,
-                system_prompt: `你是${character.name}，${character.personality}。你是金火火交易平台的AI交易员，参与K线征途挑战赛是你的目标。你的交易风格是${character.tradingStyle}，风险偏好为${character.riskLevel}。你说话直接专业，喜欢用数据说话。`,
-                trigger_keyword: character.name,
-                avatar_url: character.avatar,
-                sort_order: i,
-              });
-            
-            if (roleError) {
-              console.error(`创建AI角色 ${character.name} 失败:`, roleError);
-            }
-          }
-        } catch (error: any) {
-          results.push({
-            name: character.name,
-            status: 'error',
-            error: error.message,
-          });
-        }
-      }
-
-      return NextResponse.json({
-        success: true,
-        message: 'AI用户初始化完成',
-        results,
-        summary: {
-          total: AI_CHARACTERS.length,
-          coinsEach: INITIAL_COINS,
-        },
-      });
+    const session = await getServerSession(authOptions);
+    
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: '请先登录' }, { status: 401 });
     }
 
-    if (action === 'status') {
-      // 查看AI用户状态
-      const { data: aiUsers, error: usersError } = await supabase
-        .from('users')
-        .select('user_id, name, email, coin_balance, role')
-        .eq('role', 'ai')
-        .order('name');
+    const [aiUsers] = await pool.query(`
+      SELECT ua.user_id, ua.name, ua.email, ua.coin_balance, ua.avatar_url,
+             ar.role_name, ar.personality, ar.risk_level, ar.trade_style
+      FROM user_accounts ua
+      LEFT JOIN ai_roles ar ON ua.user_id = ar.user_id
+      WHERE ua.role = 'ai'
+      ORDER BY ua.created_at DESC
+    `);
 
-      const { data: aiRoles, error: rolesError } = await supabase
-        .from('chat_hall_ai_roles')
-        .select('name, enabled, reply_probability')
-        .order('sort_order');
+    const [stats] = await pool.query(`
+      SELECT 
+        COUNT(*) as total,
+        COUNT(CASE WHEN status = 'active' THEN 1 END) as active
+      FROM match_accounts ma
+      JOIN user_accounts ua ON ma.user_id = ua.user_id
+      WHERE ua.role = 'ai'
+    `);
 
-      if (usersError || rolesError) {
-        return NextResponse.json({ 
-          error: '获取状态失败',
-          details: usersError?.message || rolesError?.message 
-        }, { status: 500 });
-      }
-
-      return NextResponse.json({
-        aiUsers: aiUsers || [],
-        aiRoles: aiRoles || [],
-      });
-    }
-
-    return NextResponse.json({ error: '无效的操作' }, { status: 400 });
+    return NextResponse.json({
+      aiUsers,
+      stats
+    });
   } catch (error: any) {
-    console.error('AI用户管理错误:', error);
-    return NextResponse.json({ error: error.message || '服务器错误' }, { status: 500 });
+    console.error('获取AI用户失败:', error);
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+}
+
+// 管理 AI 用户
+export async function POST(request: Request) {
+  try {
+    const session = await getServerSession(authOptions);
+    
+    if (!session?.user?.id || session.user.role !== 'admin') {
+      return NextResponse.json({ error: '需要管理员权限' }, { status: 403 });
+    }
+
+    const body = await request.json();
+    const { action, user_id, ...data } = body;
+
+    switch (action) {
+      case 'init_ai': {
+        // 初始化 AI 用户和角色
+        const aiConfigs = [
+          { name: '碳凯文', email: 'ai_carbon_kevin@jinhuohuo.ai', role_name: '激进型', personality: '高风险高回报型AI交易员', risk_level: 9, trade_style: '日内高频' },
+          { name: '金查理', email: 'ai_gold_charli@jinhuohuo.ai', role_name: '稳健型', personality: '稳健收益型AI交易员', risk_level: 5, trade_style: '趋势跟踪' },
+          { name: '钛特蕾莎', email: 'ai_titanium_teresa@jinhuohuo.ai', role_name: '保守型', personality: '低风险稳定型AI交易员', risk_level: 3, trade_style: '波段交易' },
+          { name: '钨沃尔特', email: 'ai_tungsten_walter@jinhuohuo.ai', role_name: '激进型', personality: '激进型AI交易员', risk_level: 9, trade_style: '日内高频' },
+          { name: '铁托尼', email: 'ai_iron_tony@jinhuohuo.ai', role_name: '稳健型', personality: '稳健型AI交易员', risk_level: 5, trade_style: '趋势跟踪' },
+          { name: '铂金斯', email: 'ai_platinum_kins@jinhuohuo.ai', role_name: '保守型', personality: '保守型AI交易员', risk_level: 3, trade_style: '波段交易' },
+          { name: '铜麦克', email: 'ai_copper_mike@jinhuohuo.ai', role_name: '激进型', personality: '激进型AI交易员', risk_level: 8, trade_style: '日内高频' },
+          { name: '铝亚历克斯', email: 'ai_aluminum_alex@jinhuohuo.ai', role_name: '稳健型', personality: '稳健型AI交易员', risk_level: 6, trade_style: '趋势跟踪' },
+          { name: '银威廉', email: 'ai_silver_william@jinhuohuo.ai', role_name: '保守型', personality: '保守型AI交易员', risk_level: 4, trade_style: '波段交易' },
+          { name: '锌齐格', email: 'ai_zinc_zig@jinhuohuo.ai', role_name: '激进型', personality: '激进型AI交易员', risk_level: 9, trade_style: '日内高频' },
+        ];
+
+        let created = 0;
+        let skipped = 0;
+
+        for (const config of aiConfigs) {
+          // 检查是否已存在
+          const [existing] = await pool.query('SELECT user_id FROM user_accounts WHERE email = ?', [config.email]);
+          if ((existing as any).length > 0) {
+            skipped++;
+            continue;
+          }
+
+          const userId = crypto.randomUUID();
+          await pool.query(`
+            INSERT INTO user_accounts (user_id, email, password_hash, name, role, coin_balance)
+            VALUES (?, ?, 'ai-placeholder', ?, 'ai', 100000)
+          `, [userId, config.email, config.name]);
+
+          await pool.query(`
+            INSERT INTO ai_roles (id, user_id, role_name, personality, risk_level, trade_style)
+            VALUES (UUID(), ?, ?, ?, ?, ?)
+          `, [userId, config.role_name, config.personality, config.risk_level, config.trade_style]);
+
+          created++;
+        }
+
+        return NextResponse.json({ 
+          success: true, 
+          message: `初始化完成：新建 ${created} 个，跳过 ${skipped} 个（已存在）` 
+        });
+      }
+
+      case 'delete': {
+        // 删除 AI 用户
+        if (!user_id) {
+          return NextResponse.json({ error: '缺少用户ID' }, { status: 400 });
+        }
+        await pool.query('DELETE FROM ai_roles WHERE user_id = ?', [user_id]);
+        await pool.query('DELETE FROM user_accounts WHERE user_id = ? AND role = "ai"', [user_id]);
+        return NextResponse.json({ success: true, message: 'AI用户已删除' });
+      }
+
+      case 'update': {
+        // 更新 AI 配置
+        if (!user_id) {
+          return NextResponse.json({ error: '缺少用户ID' }, { status: 400 });
+        }
+        const { name, role_name, personality, risk_level, trade_style } = data;
+        
+        if (name) {
+          await pool.query('UPDATE user_accounts SET name = ? WHERE user_id = ?', [name, user_id]);
+        }
+        
+        if (role_name || personality || risk_level !== undefined || trade_style) {
+          await pool.query(`
+            UPDATE ai_roles SET 
+              role_name = COALESCE(?, role_name),
+              personality = COALESCE(?, personality),
+              risk_level = COALESCE(?, risk_level),
+              trade_style = COALESCE(?, trade_style)
+            WHERE user_id = ?
+          `, [role_name, personality, risk_level, trade_style, user_id]);
+        }
+        
+        return NextResponse.json({ success: true, message: '配置已更新' });
+      }
+
+      case 'status': {
+        // 获取状态
+        const [aiUsers] = await pool.query(`
+          SELECT ua.user_id, ua.name, ua.email, ua.coin_balance
+          FROM user_accounts ua
+          WHERE ua.role = 'ai'
+          LIMIT 10
+        `);
+        return NextResponse.json({ aiUsers });
+      }
+
+      default:
+        return NextResponse.json({ error: '未知操作' }, { status: 400 });
+    }
+  } catch (error: any) {
+    console.error('AI用户管理失败:', error);
+    return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }

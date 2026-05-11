@@ -1,36 +1,19 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { getSupabaseClient } from '@/storage/database/supabase-client';
+import { NextResponse } from 'next/server';
+import { pool } from '@/lib/db';
 
-/**
- * 获取AI活跃用户列表（用于AI自主行为管理）
- * 
- * 获取有活跃挑战账户的AI用户列表
- */
-export async function GET(request: NextRequest) {
+export async function GET() {
   try {
-    const supabase = getSupabaseClient();
-    if (!supabase) {
-      return NextResponse.json({ error: '数据库连接失败' }, { status: 500 });
-    }
+    const [rows] = await pool.query(
+      `SELECT ma.*, ua.name as user_name, ua.email 
+       FROM match_accounts ma
+       JOIN user_accounts ua ON ma.user_id = ua.user_id
+       WHERE ma.status = 'active' AND ma.user_id IN (SELECT user_id FROM user_accounts WHERE role = 'ai')
+       ORDER BY ma.created_at DESC`
+    ) as [any[], any];
 
-    // 从 Supabase 获取所有AI用户
-    const { data: aiUsers, error: aiError } = await supabase
-      .from('users')
-      .select('user_id, name, email')
-      .eq('role', 'ai')
-      .order('name');
-
-    if (aiError) {
-      console.error('Get AI users error:', aiError);
-      return NextResponse.json({ error: '获取AI用户失败' }, { status: 500 });
-    }
-
-    return NextResponse.json({
-      aiUsers: aiUsers || [],
-      aiAccounts: [],
-    });
-  } catch (error) {
-    console.error('AI active error:', error);
-    return NextResponse.json({ error: '获取AI活跃用户失败' }, { status: 500 });
+    return NextResponse.json({ aiUsers: rows });
+  } catch (error: any) {
+    console.error('获取AI用户失败:', error);
+    return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }

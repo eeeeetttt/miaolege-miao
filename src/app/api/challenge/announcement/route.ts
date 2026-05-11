@@ -1,40 +1,20 @@
 import { NextResponse } from 'next/server';
-import { getSupabaseClient } from '@/storage/database/supabase-client';
+import { pool } from '@/lib/db';
 
 export async function GET() {
   try {
-    const supabase = getSupabaseClient();
-    if (!supabase) {
-      return NextResponse.json({ 
-        announcement: null,
-        error: '数据库连接失败' 
-      }, { status: 500 });
-    }
+    const [rows] = await pool.query(
+      'SELECT * FROM challenge_announcement WHERE is_active = 1 ORDER BY created_at DESC LIMIT 1'
+    ) as [any[], any];
     
-    const { data, error } = await supabase
-      .from('challenge_announcement')
-      .select('*')
-      .eq('is_active', 1)
-      .order('created_at', { ascending: false })
-      .limit(1)
-      .maybeSingle();
+    const announcement = rows.length > 0 ? rows[0] : null;
     
-    if (error) {
-      console.error('Error fetching announcement:', error);
-      return NextResponse.json({ 
-        announcement: null,
-        error: '获取公告失败' 
-      }, { status: 500 });
-    }
-    
-    return NextResponse.json({ 
-      announcement: data 
-    });
-  } catch (error) {
-    console.error('Error in GET /api/challenge/announcement:', error);
+    return NextResponse.json({ announcement });
+  } catch (error: any) {
+    console.error('获取公告失败:', error);
     return NextResponse.json({ 
       announcement: null,
-      error: '服务器错误' 
+      error: error.message 
     }, { status: 500 });
   }
 }

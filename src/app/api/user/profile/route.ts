@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
+import { pool } from '@/lib/db';
 
 export async function GET(request: NextRequest) {
   try {
@@ -17,88 +18,57 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ success: false, error: '缺少用户ID' }, { status: 400 });
     }
 
-    const supabaseUrl = process.env.COZE_SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || '';
-    const supabaseKey = process.env.COZE_SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
-    
-    // 获取用户信息
-    const userRes = await fetch(`${supabaseUrl}/rest/v1/users?userId=eq.${targetUserId}&select=*`, {
-      headers: {
-        'Content-Type': 'application/json',
-        'apikey': supabaseKey,
-        'Authorization': `Bearer ${session.user.accessToken || ''}`,
-      },
-      cache: 'no-store',
-    });
+    // 获取用户信息（MySQL）
+    const [users] = await pool.execute(
+      `SELECT user_id, email, name, role, coin_balance, gold_balance, avatar_url, active_title, created_at
+       FROM user_accounts WHERE user_id = ? LIMIT 1`
+    ) as [any[], any];
 
-    if (!userRes.ok) {
-      return NextResponse.json({ success: false, error: '用户不存在' }, { status: 404 });
-    }
-
-    const users = await userRes.json();
-    
     if (!users || users.length === 0) {
       return NextResponse.json({ success: false, error: '用户不存在' }, { status: 404 });
     }
 
     const user = users[0];
 
-    // 获取用户星球币余额
-    let coinBalance = 0;
-    try {
-      const balanceRes = await fetch(
-        `${supabaseUrl}/rest/v1/coin_balances?userId=eq.${targetUserId}&select=balance`,
-        {
-          headers: {
-            'Content-Type': 'application/json',
-            'apikey': supabaseKey,
-          },
-        }
-      );
-      if (balanceRes.ok) {
-        const balances = await balanceRes.json();
-        if (balances && balances.length > 0) {
-          coinBalance = balances[0].balance || 0;
-        }
-      }
-    } catch (e) {
-      console.error('Failed to get coin balance:', e);
-    }
-
-    // 获取用户勋章
-    let medals: string[] = [];
-    try {
-      const medalsRes = await fetch(
-        `${supabaseUrl}/rest/v1/user_medals?userId=eq.${targetUserId}&select=*`,
-        {
-          headers: {
-            'Content-Type': 'application/json',
-            'apikey': supabaseKey,
-          },
-        }
-      );
-      if (medalsRes.ok) {
-        const medalsData = await medalsRes.json();
-        medals = medalsData?.map((m: any) => m.medalName) || [];
-      }
-    } catch (e) {
-      console.error('Failed to get medals:', e);
-    }
-
     return NextResponse.json({
       success: true,
       data: {
-        userId: user.userId,
-        name: user.name,
+        id: user.user_id,
         email: user.email,
-        avatar: user.avatarUrl,
-        coinBalance,
-        createdAt: user.createdAt,
-        medals,
-        bio: user.bio || null,
-      },
+        name: user.name,
+        role: user.role,
+        coinBalance: user.coin_balance || 0,
+        goldBalance: user.gold_balance || 0,
+        avatarUrl: user.avatar_url,
+        activeTitle: user.active_title,
+        createdAt: user.created_at,
+      }
     });
   } catch (error) {
-    console.error('Error fetching user profile:', error);
-    return NextResponse.json({ success: false, error: '获取用户资料失败' }, { status: 500 });
+    console.error('获取用户资料错误:', error);
+    return NextResponse.json({ success: false, error: '获取失败' }, { status: 500 });
+  }
+}
+
+// 更新用户资料
+export async function PUT(request: NextRequest) {
+  try {
+    const session = await getServerSession(authOptions);
+    
+    if (!session?.user?.id) {
+      return NextResponse.json({ success: false, error: '未登录' }, { status: 401 });
+    }
+
+    const { name, avatarUrl } = await request.json();
+
+    await pool.execute(
+      `UPDATE user_accounts SET name = COALESCE(?, name), avatar_url = COALESCE(?, avatar_url) WHERE user_id = ?`,
+      [name, avatarUrl, session.user.id]
+    );
+
+    return NextResponse.json({ success: true, message: '更新成功' });
+  } catch (error) {
+    console.error('更新用户资料错误:', error);
+    return NextResponse.json({ success: false, error: '更新失败' }, { status: 500 });
   }
 }

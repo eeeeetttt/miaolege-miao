@@ -1,255 +1,113 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
-import { getSupabaseClient } from '@/storage/database/supabase-client';
+import { pool } from '@/lib/db';
 
 // 获取聊天大厅配置和禁言列表
 export async function GET() {
   try {
     const session = await getServerSession(authOptions);
     
-    // 详细日志
-    console.log('Admin GET session:', {
-      exists: !!session,
-      hasUser: !!session?.user,
-      userId: session?.user?.id,
-      role: session?.user?.role
-    });
-    
     if (!session?.user?.id || session.user.role !== 'admin') {
-      return NextResponse.json({ 
-        error: '需要管理员权限',
-        debug: { hasSession: !!session, hasUser: !!session?.user }
-      }, { status: 403 });
-    }
-
-    const supabase = getSupabaseClient();
-    if (!supabase) {
-      return NextResponse.json({ error: '数据库连接不可用' }, { status: 503 });
+      return NextResponse.json({ error: '需要管理员权限' }, { status: 403 });
     }
 
     // 获取配置
-    const { data: config } = await supabase
-      .from('chat_hall_config')
-      .select('*')
-      .eq('id', 1)
-      .maybeSingle();
-
-    // 转换为前端期望的格式
-    const configMap: Record<string, { value: string; description: string }> = {};
-    if (config) {
-      configMap.enabled = {
-        value: config.enabled ? 'true' : 'false',
-        description: '是否开启聊天大厅',
-      };
-      configMap.cooldown_seconds = {
-        value: String(config.cooldown_seconds || 60),
-        description: '普通用户发言冷却时间（秒）',
-      };
-      configMap.max_message_length = {
-        value: String(config.max_message_length || 500),
-        description: '消息最大长度',
-      };
-      configMap.hourly_limit = {
-        value: String(config.hourly_limit || 30),
-        description: '每小时发言限制',
-      };
-      configMap.open_time_start = {
-        value: config.open_time_start || '20:00',
-        description: '开放开始时间（北京时间）',
-      };
-      configMap.open_time_end = {
-        value: config.open_time_end || '00:00',
-        description: '开放结束时间（北京时间）',
-      };
-      configMap.is_time_limited = {
-        value: config.is_time_limited !== false ? 'true' : 'false',
-        description: '是否启用时间限制',
-      };
-      configMap.ai_reply_delay_seconds = {
-        value: String(config.ai_reply_delay_seconds || 40),
-        description: 'AI角色回复间隔（秒）',
-      };
-    }
+    const [configRows] = await pool.query('SELECT * FROM chat_hall_config WHERE id = 1');
+    const config = (configRows as any)[0];
 
     // 获取禁言列表
-    const { data: mutes } = await supabase
-      .from('chat_hall_mutes')
-      .select('*')
-      .order('created_at', { ascending: false });
+    const [muteRows] = await pool.query(`
+      SELECT m.*, ua.name as user_name, ua.email as user_email
+      FROM chat_hall_mutes m
+      LEFT JOIN user_accounts ua ON m.user_id = ua.user_id
+      ORDER BY m.created_at DESC
+    `);
 
-    // 获取被禁言用户的信息
-    const mutedUserIds = mutes?.map(m => m.user_id) || [];
-    let userInfoMap: Record<string, { name: string; email: string }> = {};
-
-    if (mutedUserIds.length > 0) {
-      const { data: usersData } = await supabase
-        .from('users')
-        .select('user_id, name, email')
-        .in('user_id', mutedUserIds);
-
-      if (usersData) {
-        usersData.forEach(u => {
-          userInfoMap[u.user_id] = {
-            name: u.name || '未知用户',
-            email: u.email || '',
-          };
-        });
-      }
-    }
-
-    const muteList = (mutes || []).map(m => ({
-      ...m,
-      userName: userInfoMap[m.user_id]?.name || m.user_id,
-      userEmail: userInfoMap[m.user_id]?.email || '',
-    }));
+    // 获取消息统计
+    const [msgStats] = await pool.query(`
+      SELECT COUNT(*) as total, 
+             COUNT(CASE WHEN created_at > DATE_SUB(NOW(), INTERVAL 1 HOUR) THEN 1 END) as last_hour
+      FROM chat_hall_messages
+    `);
 
     return NextResponse.json({
-      success: true,
-      config: configMap,
-      mutes: muteList,
+      config: config || { enabled: true, cooldown_seconds: 60, max_message_length: 500 },
+      mutes: muteRows,
+      stats: msgStats
     });
-  } catch (error) {
-    console.error('Get chat hall admin error:', error);
-    return NextResponse.json({
-      error: error instanceof Error ? error.message : '获取失败'
-    }, { status: 500 });
+  } catch (error: any) {
+    console.error('获取聊天大厅配置失败:', error);
+    return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
 
-// 更新聊天大厅配置或管理禁言
-export async function POST(request: NextRequest) {
+// 更新聊天大厅配置或禁言用户
+export async function POST(request: Request) {
   try {
     const session = await getServerSession(authOptions);
     
-    // 详细日志
-    console.log('Admin POST session:', {
-      exists: !!session,
-      hasUser: !!session?.user,
-      userId: session?.user?.id,
-      role: session?.user?.role
-    });
-    
     if (!session?.user?.id || session.user.role !== 'admin') {
-      return NextResponse.json({ 
-        error: '需要管理员权限',
-        debug: { hasSession: !!session, hasUser: !!session?.user }
-      }, { status: 403 });
+      return NextResponse.json({ error: '需要管理员权限' }, { status: 403 });
     }
 
-    const supabase = getSupabaseClient();
-    if (!supabase) {
-      return NextResponse.json({ error: '数据库连接不可用' }, { status: 503 });
-    }
+    const body = await request.json();
+    const { action, ...data } = body;
 
-    const { action, data } = await request.json();
-
-    if (action === 'update_config') {
-      // 更新配置
-      const { key, value } = data;
-
-      // 调试：检查当前配置
-      const { data: beforeData } = await supabase
-        .from('chat_hall_config')
-        .select('*')
-        .eq('id', 1)
-        .maybeSingle();
-      console.log('Before update:', beforeData);
-
-      // 根据 key 更新对应的配置字段
-      const updateData: Record<string, any> = {};
-      
-      if (key === 'cooldown_seconds') {
-        updateData.cooldown_seconds = parseInt(value) || 60;
-      } else if (key === 'enabled') {
-        updateData.enabled = value === 'true' || value === '1' ? 1 : 0;
-      } else if (key === 'max_message_length') {
-        updateData.max_message_length = parseInt(value) || 500;
-      } else if (key === 'hourly_limit') {
-        updateData.hourly_limit = parseInt(value) || 30;
-      } else if (key === 'open_time_start') {
-        updateData.open_time_start = value;
-      } else if (key === 'open_time_end') {
-        updateData.open_time_end = value;
-      } else if (key === 'is_time_limited') {
-        updateData.is_time_limited = value === 'true' || value === '1';
+    switch (action) {
+      case 'update_config': {
+        // 更新配置
+        const { enabled, cooldown_seconds, max_message_length } = data;
+        await pool.query(`
+          INSERT INTO chat_hall_config (id, enabled, cooldown_seconds, max_message_length)
+          VALUES (1, ?, ?, ?)
+          ON DUPLICATE KEY UPDATE 
+            enabled = VALUES(enabled),
+            cooldown_seconds = VALUES(cooldown_seconds),
+            max_message_length = VALUES(max_message_length),
+            updated_at = NOW()
+        `, [enabled ?? true, cooldown_seconds ?? 60, max_message_length ?? 500]);
+        return NextResponse.json({ success: true, message: '配置已更新' });
       }
 
-      console.log('Updating config:', { key, value, updateData });
-
-      const { error } = await supabase
-        .from('chat_hall_config')
-        .update(updateData)
-        .eq('id', 1);
-
-      if (error) {
-        console.error('Update config error:', error);
-        throw new Error(`更新配置失败: ${error.message}`);
+      case 'mute': {
+        // 禁言用户
+        const { user_id, reason, expires_at } = data;
+        if (!user_id) {
+          return NextResponse.json({ error: '缺少用户ID' }, { status: 400 });
+        }
+        await pool.query(`
+          INSERT INTO chat_hall_mutes (id, user_id, reason, muted_by, expires_at)
+          VALUES (UUID(), ?, ?, ?, ?)
+          ON DUPLICATE KEY UPDATE 
+            reason = VALUES(reason),
+            muted_by = VALUES(muted_by),
+            expires_at = VALUES(expires_at)
+        `, [user_id, reason || '违反规定', session.user.id, expires_at || null]);
+        return NextResponse.json({ success: true, message: '用户已禁言' });
       }
 
-      // 调试：检查更新后的配置
-      const { data: afterData } = await supabase
-        .from('chat_hall_config')
-        .select('*')
-        .eq('id', 1)
-        .maybeSingle();
-      console.log('After update:', afterData);
-
-      return NextResponse.json({ success: true, message: '配置已更新' });
-    }
-
-    if (action === 'mute_user') {
-      // 禁言用户
-      const { userId, reason, durationMinutes } = data;
-
-      if (!userId) {
-        return NextResponse.json({ error: '用户ID不能为空' }, { status: 400 });
+      case 'unmute': {
+        // 解除禁言
+        const { user_id } = data;
+        if (!user_id) {
+          return NextResponse.json({ error: '缺少用户ID' }, { status: 400 });
+        }
+        await pool.query('DELETE FROM chat_hall_mutes WHERE user_id = ?', [user_id]);
+        return NextResponse.json({ success: true, message: '用户已解除禁言' });
       }
 
-      const expiresAt = durationMinutes && durationMinutes > 0
-        ? new Date(Date.now() + durationMinutes * 60 * 1000).toISOString()
-        : null;
-
-      const { error } = await supabase
-        .from('chat_hall_mutes')
-        .insert({
-          user_id: userId,
-          muted_by: session.user.id,
-          reason: reason || null,
-          expires_at: expiresAt,
-        });
-
-      if (error) throw new Error(`禁言失败: ${error.message}`);
-
-      return NextResponse.json({
-        success: true,
-        message: durationMinutes ? `已禁言 ${durationMinutes} 分钟` : '已永久禁言'
-      });
-    }
-
-    if (action === 'unmute_user') {
-      // 解禁用户
-      const { userId } = data;
-
-      if (!userId) {
-        return NextResponse.json({ error: '用户ID不能为空' }, { status: 400 });
+      case 'clear_messages': {
+        // 清除消息
+        await pool.query('TRUNCATE TABLE chat_hall_messages');
+        return NextResponse.json({ success: true, message: '消息已清除' });
       }
 
-      const { error } = await supabase
-        .from('chat_hall_mutes')
-        .delete()
-        .eq('user_id', userId);
-
-      if (error) throw new Error(`解禁失败: ${error.message}`);
-
-      return NextResponse.json({ success: true, message: '已解除禁言' });
+      default:
+        return NextResponse.json({ error: '未知操作' }, { status: 400 });
     }
-
-    return NextResponse.json({ error: '无效的操作' }, { status: 400 });
-  } catch (error) {
-    console.error('Chat hall admin error:', error);
-    return NextResponse.json({
-      error: error instanceof Error ? error.message : '操作失败'
-    }, { status: 500 });
+  } catch (error: any) {
+    console.error('操作失败:', error);
+    return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
