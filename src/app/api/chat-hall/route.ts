@@ -1,169 +1,105 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { pool } from '@/lib/db';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
-import { pool } from '@/lib/db';
-import { v4 as uuidv4 } from 'uuid';
 
-// 获取聊天大厅消息列表
+// 获取聊天消息
 export async function GET(request: NextRequest) {
   try {
-    const { searchParams } = new URL(request.url);
-    const page = parseInt(searchParams.get('page') || '1');
-    const pageSize = parseInt(searchParams.get('pageSize') || '50');
-    const offset = (page - 1) * pageSize;
+    const searchParams = request.nextUrl.searchParams;
+    const limit = parseInt(searchParams.get('limit') || '50');
 
-    // 只获取最近24小时的消息
-    const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
-
+    // 获取消息
     const [messages] = await pool.execute(
-      `SELECT id, user_id, user_name, user_avatar, content, is_system, is_premium, created_at
-       FROM chat_hall_messages
-       WHERE created_at >= ?
-       ORDER BY created_at DESC
-       LIMIT ? OFFSET ?`,
-      [twentyFourHoursAgo, pageSize, offset]
-    ) as [any[], any];
+      `SELECT m.id, m.user_id, m.user_name, m.content, m.is_system, m.is_premium, m.created_at,
+              u.role as user_role
+       FROM chat_hall_messages m
+       LEFT JOIN users u ON m.user_id = u.id
+       ORDER BY m.created_at DESC
+       LIMIT ?`,
+      [limit]
+    );
 
-    // 获取聊天配置
-    const [configs] = await pool.execute(
-      `SELECT enabled, cooldown_seconds, max_message_length FROM chat_hall_config WHERE id = 1 LIMIT 1`
-    ) as [any[], any];
-
-    const config = configs?.[0] || {};
-    const enabled = config.enabled !== 0;
-    const maxMessageLength = config.max_message_length || 200;
-    const cooldownSeconds = config.cooldown_seconds || 60;
-
-    // 获取当前用户状态
-    const session = await getServerSession(authOptions);
-    let isMuted = false;
-    let muteExpiresAt: string | null = null;
-    let remainingCount = 30;
-
-    if (session?.user?.id) {
-      // 检查禁言状态
-      const [muteData] = await pool.execute(
-        `SELECT expires_at FROM chat_hall_mutes WHERE user_id = ? LIMIT 1`,
-        [session.user.id]
-      ) as [any[], any];
-
-      if (muteData && muteData.length > 0) {
-        const now = new Date();
-        const expiresAt = muteData[0].expires_at ? new Date(muteData[0].expires_at) : null;
-
-        if (!expiresAt || expiresAt > now) {
-          isMuted = true;
-          muteExpiresAt = muteData[0].expires_at;
-        }
-      }
-
-      // 计算剩余发言次数
-      if (!isMuted) {
-        const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
-        const [countResult] = await pool.execute(
-          `SELECT COUNT(*) as cnt FROM chat_hall_messages WHERE user_id = ? AND created_at >= ?`,
-          [session.user.id, oneHourAgo]
-        ) as [any[], any];
-        remainingCount = Math.max(0, 30 - (countResult?.[0]?.cnt || 0));
-      }
-    }
+    // 获取配置
+    const [configRows] = await pool.execute(
+      `SELECT * FROM chat_hall_config LIMIT 1`
+    );
+    
+    const config = (configRows as any[])[0] || {
+      enabled: true,
+      cooldown_seconds: 60,
+      max_message_length: 500
+    };
 
     return NextResponse.json({
       success: true,
-      data: messages || [],
-      page,
-      pageSize,
-      config: {
-        enabled,
-        maxMessageLength,
-        cooldownSeconds,
-        isMuted,
-        muteExpiresAt,
-        remainingCount,
-      }
+      messages: (messages as any[]).reverse(),
+      config
     });
   } catch (error) {
-    console.error('获取聊天消息错误:', error);
-    return NextResponse.json({ error: '获取消息失败' }, { status: 500 });
+    console.error('获取聊天消息失败:', error);
+    return NextResponse.json({ 
+      success: false, 
+      error: '获取消息失败',
+      messages: [],
+      config: { enabled: true, cooldown_seconds: 60, max_message_length: 500 }
+    });
   }
 }
 
-// 发送聊天消息
+// 发送消息
 export async function POST(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
-    
     if (!session?.user?.id) {
-      return NextResponse.json({ error: '请先登录' }, { status: 401 });
+      return NextResponse.json({ success: false, error: '请先登录' });
     }
 
-    const { content } = await request.json();
+    const body = await request.json();
+    const { content } = body;
 
     if (!content || content.trim().length === 0) {
-      return NextResponse.json({ error: '消息内容不能为空' }, { status: 400 });
+      return NextResponse.json({ success: false, error: '消息内容不能为空' });
     }
 
-    // 获取配置
-    const [configs] = await pool.execute(
-      `SELECT enabled, cooldown_seconds, max_message_length FROM chat_hall_config WHERE id = 1 LIMIT 1`
-    ) as [any[], any];
-
-    const config = configs?.[0] || {};
-    if (config.enabled === 0) {
-      return NextResponse.json({ error: '聊天室已关闭' }, { status: 403 });
-    }
-
-    if (content.length > (config.max_message_length || 200)) {
-      return NextResponse.json({ error: `消息长度不能超过${config.max_message_length || 200}字符` }, { status: 400 });
-    }
-
-    // 检查禁言
-    const [muteData] = await pool.execute(
-      `SELECT expires_at FROM chat_hall_mutes WHERE user_id = ? LIMIT 1`,
+    // 检查是否被禁言
+    const [muteRows] = await pool.execute(
+      `SELECT * FROM chat_hall_mutes WHERE user_id = ? AND (expires_at IS NULL OR expires_at > NOW())`,
       [session.user.id]
-    ) as [any[], any];
-
-    if (muteData && muteData.length > 0) {
-      const expiresAt = muteData[0].expires_at ? new Date(muteData[0].expires_at) : null;
-      if (!expiresAt || expiresAt > new Date()) {
-        return NextResponse.json({ error: '您已被禁言' }, { status: 403 });
-      }
+    );
+    
+    if ((muteRows as any[]).length > 0) {
+      return NextResponse.json({ success: false, error: '你已被禁言' });
     }
 
-    // 检查冷却时间
-    const cooldownSeconds = config.cooldown_seconds || 60;
-    const cooldownAgo = new Date(Date.now() - cooldownSeconds * 1000);
-    const [recentMsg] = await pool.execute(
-      `SELECT id FROM chat_hall_messages WHERE user_id = ? AND created_at >= ? ORDER BY created_at DESC LIMIT 1`,
-      [session.user.id, cooldownAgo]
-    ) as [any[], any];
-
-    if (recentMsg && recentMsg.length > 0) {
-      return NextResponse.json({ error: `发言太频繁，请${cooldownSeconds}秒后再试` }, { status: 429 });
+    // 检查消息长度
+    const [configRows] = await pool.execute(
+      `SELECT max_message_length FROM chat_hall_config LIMIT 1`
+    );
+    const maxLength = (configRows as any[])[0]?.max_message_length || 500;
+    
+    if (content.length > maxLength) {
+      return NextResponse.json({ success: false, error: `消息长度不能超过${maxLength}字` });
     }
 
-    // 检查发言频率
-    const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
-    const [countResult] = await pool.execute(
-      `SELECT COUNT(*) as cnt FROM chat_hall_messages WHERE user_id = ? AND created_at >= ?`,
-      [session.user.id, oneHourAgo]
-    ) as [any[], any];
+    // 获取用户信息
+    const [userRows] = await pool.execute(
+      `SELECT name, role FROM users WHERE id = ?`,
+      [session.user.id]
+    );
+    const user = (userRows as any[])[0];
+    const isPremium = user?.role === 'premium' || user?.role === 'vip' || user?.role === 'admin';
 
-    if ((countResult?.[0]?.cnt || 0) >= 30) {
-      return NextResponse.json({ error: '每小时最多发言30次' }, { status: 429 });
-    }
-
-    // 插入消息
-    const messageId = uuidv4();
+    // 保存消息
     await pool.execute(
-      `INSERT INTO chat_hall_messages (id, user_id, user_name, content, is_system, is_premium)
-       VALUES (?, ?, ?, ?, false, false)`,
-      [messageId, session.user.id, session.user.name || '用户', content.trim()]
+      `INSERT INTO chat_hall_messages (user_id, user_name, content, is_system, is_premium, created_at) 
+       VALUES (?, ?, ?, false, ?, NOW())`,
+      [session.user.id, user?.name || session.user.name || '用户', content, isPremium]
     );
 
-    return NextResponse.json({ success: true, messageId });
+    return NextResponse.json({ success: true, message: '发送成功' });
   } catch (error) {
-    console.error('发送消息错误:', error);
-    return NextResponse.json({ error: '发送失败' }, { status: 500 });
+    console.error('发送消息失败:', error);
+    return NextResponse.json({ success: false, error: '发送失败' });
   }
 }
