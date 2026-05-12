@@ -40,7 +40,7 @@ export async function GET(request: NextRequest) {
     console.error('获取聊天消息失败:', error);
     return NextResponse.json({ 
       success: false, 
-      error: '获取消息失败',
+      error: `获取消息失败: ${error instanceof Error ? error.message : String(error)}`,
       messages: [],
       config: { enabled: true, cooldown_seconds: 60, max_message_length: 500 }
     });
