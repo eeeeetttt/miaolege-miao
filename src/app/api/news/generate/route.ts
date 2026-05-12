@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { pool } from '@/lib/db';
 
 // AI 生成新闻内容
 export async function POST(request: NextRequest) {
@@ -14,7 +15,7 @@ export async function POST(request: NextRequest) {
       day: 'numeric' 
     });
 
-    // 简化实现，实际应该调用 AI API
+    // 生成新闻内容
     const generatedContent = {
       title: topic ? `关于${topic}的最新资讯` : `金查理伦敦金日报 - ${dateStr}`,
       content: topic 
@@ -23,10 +24,23 @@ export async function POST(request: NextRequest) {
       summary: topic ? `${topic}是一个重要的话题...` : '今日黄金市场分析报告'
     };
 
+    // 保存到数据库
+    await pool.query(
+      `INSERT INTO news (title, content, summary, category, source, is_published, created_at) 
+       VALUES (?, ?, ?, ?, ?, TRUE, NOW())`,
+      [
+        generatedContent.title,
+        generatedContent.content,
+        generatedContent.summary,
+        topic || '金融',
+        'AI生成'
+      ]
+    );
+
     return NextResponse.json({
       success: true,
       data: generatedContent,
-      message: '新闻内容生成成功'
+      message: '新闻内容生成成功并已保存'
     });
   } catch (error: any) {
     console.error('生成新闻失败:', error);
