@@ -11,10 +11,8 @@ export async function GET(request: NextRequest) {
 
     // 获取消息
     const [messages] = await pool.execute(
-      `SELECT m.id, m.user_id, m.user_name, m.content, m.is_system, m.is_premium, m.created_at,
-              u.role as user_role
+      `SELECT m.id, m.user_id, m.user_name, m.content, m.is_system, m.is_premium, m.created_at
        FROM chat_hall_messages m
-       LEFT JOIN users u ON m.user_id = u.id
        ORDER BY m.created_at DESC
        LIMIT ?`,
       [limit]
