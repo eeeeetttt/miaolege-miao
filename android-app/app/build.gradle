@@ -1,39 +1,23 @@
 plugins {
     id 'com.android.application'
-    id 'org.jetbrains.kotlin.android'
 }
 
 android {
-    namespace 'com.miaolegemiao'
+    namespace 'cn.miaolegemiao.app'
     compileSdk 34
 
     defaultConfig {
-        applicationId "com.miaolegemiao"
+        applicationId "cn.miaolegemiao.app"
         minSdk 24
         targetSdk 34
         versionCode 1
         versionName "1.0.0"
-
-        testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
-        
-        // 支持多语言
-        resourceConfigurations += ['zh', 'en']
     }
 
     buildTypes {
         release {
-            minifyEnabled true
-            shrinkResources true
-            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
-            
-            // 签名配置（发布时需要配置）
-            // signingConfig signingConfigs.release
-        }
-        
-        debug {
             minifyEnabled false
-            debuggable true
-            applicationIdSuffix ".debug"
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
         }
     }
     
@@ -41,47 +25,10 @@ android {
         sourceCompatibility JavaVersion.VERSION_17
         targetCompatibility JavaVersion.VERSION_17
     }
-    
-    kotlinOptions {
-        jvmTarget = '17'
-    }
-    
-    buildFeatures {
-        viewBinding true
-        buildConfig true
-    }
-    
-    // 自定义打包名称
-    applicationVariants.all { variant ->
-        variant.outputs.all { output ->
-            def project = "MiaoLeGeMiao"
-            def buildType = variant.buildType.name
-            def version = variant.versionName
-            def date = new Date().format("yyyyMMdd")
-            
-            outputFileName = "${project}_${version}_${buildType}_${date}.apk"
-        }
-    }
 }
 
 dependencies {
-    implementation 'androidx.core:core-ktx:1.12.0'
     implementation 'androidx.appcompat:appcompat:1.6.1'
     implementation 'com.google.android.material:material:1.11.0'
-    implementation 'androidx.constraintlayout:constraintlayout:2.1.4'
-    implementation 'androidx.webkit:webkit:1.9.0'
-    
-    // 生命周期组件
-    implementation 'androidx.lifecycle:lifecycle-runtime-ktx:2.7.0'
-    implementation 'androidx.lifecycle:lifecycle-viewmodel-ktx:2.7.0'
-    
-    // 协程
-    implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3'
-    
-    // JSON解析
-    implementation 'com.google.code.gson:gson:2.10.1'
-    
-    testImplementation 'junit:junit:4.13.2'
-    androidTestImplementation 'androidx.test.ext:junit:1.1.5'
-    androidTestImplementation 'androidx.test.espresso:espresso-core:3.5.1'
+    implementation 'androidx.webkit:webkit:1.8.0'
 }
