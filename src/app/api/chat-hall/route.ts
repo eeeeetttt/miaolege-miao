@@ -9,13 +9,12 @@ export async function GET(request: NextRequest) {
     const searchParams = request.nextUrl.searchParams;
     const limit = parseInt(searchParams.get('limit') || '50');
 
-    // 获取消息
-    const [messages] = await pool.execute(
+    // 获取消息 - 使用pool.query避免参数绑定问题
+    const [messages] = await pool.query(
       `SELECT m.id, m.user_id, m.user_name, m.content, m.is_system, m.is_premium, m.created_at
        FROM chat_hall_messages m
        ORDER BY m.created_at DESC
-       LIMIT ?`,
-      [limit]
+       LIMIT ${limit}`
     );
 
     // 获取配置
@@ -82,11 +81,11 @@ export async function POST(request: NextRequest) {
 
     // 获取用户信息
     const [userRows] = await pool.execute(
-      `SELECT name, role FROM users WHERE id = ?`,
+      `SELECT name FROM users WHERE id = ?`,
       [session.user.id]
     );
     const user = (userRows as any[])[0];
-    const isPremium = user?.role === 'premium' || user?.role === 'vip' || user?.role === 'admin';
+    const isPremium = false; // 普通用户
 
     // 保存消息
     await pool.execute(
