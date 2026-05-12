@@ -49,6 +49,7 @@ const withPWA = require('next-pwa')({
 const nextConfig: NextConfig = {
   allowedDevOrigins: ['*.dev.coze.site'],
   serverExternalPackages: ['mysql2', 'pg', 'drizzle-orm', '@langchain/core'],
+  turbopack: {}, // 禁用 Turbopack，使用 webpack（next-pwa 需要）
   images: {
     remotePatterns: [
       {
