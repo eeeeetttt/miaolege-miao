@@ -28,9 +28,9 @@ export async function GET(request: NextRequest) {
       page,
       pageSize
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error('获取新闻失败:', error);
-    return NextResponse.json({ success: false, error: '获取新闻失败', data: [] });
+    return NextResponse.json({ success: false, error: '获取新闻失败: ' + (error?.message || String(error)), data: [] });
   }
 }
 
