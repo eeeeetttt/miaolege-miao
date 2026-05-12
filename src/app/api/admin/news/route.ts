@@ -9,15 +9,14 @@ export async function GET(request: NextRequest) {
     const page = parseInt(searchParams.get('page') || '1');
     const offset = (page - 1) * pageSize;
 
-    const [newsRows] = await pool.execute(
+    const [newsRows] = await pool.query(
       `SELECT id, title, content, summary, category, source, image_url, is_published, view_count, created_at, updated_at 
        FROM news 
        ORDER BY created_at DESC 
-       LIMIT ? OFFSET ?`,
-      [pageSize, offset]
+       LIMIT ${pageSize} OFFSET ${offset}`
     );
 
-    const [countRows] = await pool.execute(
+    const [countRows] = await pool.query(
       `SELECT COUNT(*) as total FROM news`
     );
 
