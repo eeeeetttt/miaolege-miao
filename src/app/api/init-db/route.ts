@@ -44,17 +44,20 @@ export async function POST() {
       VALUES (1, TRUE, 60, 500)
     `);
 
-    // 创建AI新闻表
+    // 创建新闻表
     await connection.execute(`
-      CREATE TABLE IF NOT EXISTS ai_news (
+      CREATE TABLE IF NOT EXISTS news (
         id INT AUTO_INCREMENT PRIMARY KEY,
         title VARCHAR(500) NOT NULL,
         content TEXT NOT NULL,
         summary TEXT,
         category VARCHAR(100),
         source VARCHAR(200),
+        image_url VARCHAR(500),
         is_published BOOLEAN DEFAULT TRUE,
+        view_count INT DEFAULT 0,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
         INDEX idx_created_at (created_at),
         INDEX idx_category (category)
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
@@ -65,7 +68,7 @@ export async function POST() {
     return Response.json({ 
       success: true, 
       message: '数据库表初始化成功',
-      tables: ['chat_hall_messages', 'chat_hall_config', 'chat_hall_mutes', 'ai_news']
+      tables: ['chat_hall_messages', 'chat_hall_config', 'chat_hall_mutes', 'news']
     });
   } catch (error) {
     console.error('初始化数据库失败:', error);
